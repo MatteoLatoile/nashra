@@ -1,0 +1,18 @@
+{
+  "name": "nashra-desktop",
+  "version": "0.1.0",
+  "description": "Application Windows Nashra — interface de bureau du SaaS",
+  "private": true,
+  "author": "Nashra",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "check": "node --test tests/desktop.test.cjs",
+    "dist:win": "node scripts/prepare-build.cjs && electron-builder --config builder.config.cjs --win nsis --x64",
+    "dist:win:local": "node scripts/prepare-build.cjs --local-test && electron-builder --config builder.config.cjs --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0"
+  }
+}

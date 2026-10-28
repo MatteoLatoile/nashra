@@ -1,0 +1,30 @@
+{
+  "backup": "nashra-backups\\landing-2026-10-28T18-45-05-733Z",
+  "files": [
+    "src/components/shell.tsx",
+    "src/components/dashboard-tour.tsx",
+    "src/app/connexion/page.tsx",
+    "src/app/connexion/auth-form.tsx",
+    "src/app/bienvenue/onboarding-flow.tsx",
+    "src/app/reinitialiser/page.tsx",
+    "src/app/auth/callback/route.ts",
+    "src/app/(dashboard)/page.tsx"
+  ],
+  "created": [
+    "src/app/(dashboard)/dashboard/page.tsx",
+    "src/app/page.tsx",
+    "src/app/landing.css"
+  ],
+  "generatedSha256": {
+    "src/components/shell.tsx": "ae68e03cb0469b7c5dfb4073e49803a8fad7948438cd28fd301d526ba2335770",
+    "src/components/dashboard-tour.tsx": "eaef144c803777f46b0d9b8d39b741c3a4a4c04a17e07f66f94409fe2b780071",
+    "src/app/connexion/page.tsx": "9f1fb312ee87d0c80cfd57228e210b370d85510bfd7e31e1ef222046a2995758",
+    "src/app/connexion/auth-form.tsx": "70bab5107890c2ba509e85d732fc0b4954ced3f9476bdc0f0d5da6ab9f6f10fb",
+    "src/app/bienvenue/onboarding-flow.tsx": "137a3701d9dd8e63fd3db3c36de5ca10ecaccf6352bfb150945567ef5da30365",
+    "src/app/reinitialiser/page.tsx": "ecab0e8edf80b5fb40fbb36227402f5cbd5da99eda9340ba13aae93c68d02c2c",
+    "src/app/auth/callback/route.ts": "3216574f84103acfd42bb831746df9cc67997c610e7b09590048f5d176a4b192",
+    "src/app/(dashboard)/dashboard/page.tsx": "b6dfdf22cba965fd4d855a265873aa73ea54d8825c21594f0d678144b5896a68",
+    "src/app/page.tsx": "6dd4348b9a99dd136a55257b76a35ef651c3e5115f97d02c0f8013ae5299c7eb",
+    "src/app/landing.css": "74d564bad9042b92ff5d11bf8b1837e857a1bfd516263c07fc0daccc773aee6e"
+  }
+}

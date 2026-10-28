@@ -1,0 +1,19 @@
+{
+  "legacySha256": {
+    "src/app/(dashboard)/campagnes/page.tsx": "5fadc9a1e2f30053ecea809e93a9a4169e4263eb312b2d8a5302b85b3bc80795",
+    "src/components/dashboard-tour.tsx": "2324cba932f2238828e82add34adaaa86862b861a9e192c467a7bbe595089f52",
+    "src/lib/automation/telegram-native.ts": "80f812aaa389d5023cc325d4dfe0d0590500c0dafa763f2dc2dbe2b42cbfab63"
+  },
+  "payloadSha256": {
+    "src/app/(dashboard)/campagnes/page.tsx": "38502c7db4d2d1ffca6835cdca1194e224bb89567d9410d58ffa8d85e59c3a33",
+    "src/components/dashboard-tour.tsx": "41ba57e0c96044c80654aac7ae8941d04bfc083561eed8f9ed4aae7e9d3da3d5",
+    "src/lib/automation/telegram-native.ts": "30b6062cf112af471d23bce09eec32603a366c94ef063a5736c2f348227c897f",
+    "src/lib/automation/recurrence.ts": "052591093441291784ccb3fb57f3936b80d46dea62c62d4afa537397e2cb51bc",
+    "src/lib/automation/recurring-service.ts": "aef4469a491f7da6a9a8fe30eeabfeb6e2e0124b3241ecfccfb5200507d6c845",
+    "src/app/api/automation/recurring/route.ts": "816b19033d2c8b621d57f429023fa225fff8c6eb0c12a0939eac414314867afd",
+    "src/app/api/cron/recurring/route.ts": "bbd682176435e50e3a9dcac8683a390c8b99a6215722df53204493917cd447cc",
+    "supabase/018_recurring_rules.sql": "654bcb7d1552a67350cd37f4df533783518196bdbbf6a4d4dc33d96c16c85e2a",
+    "tests/018_readonly_verification.sql": "496bca3be3b9046ca5b6148c061c820ebd7b3e32cfb154da1d5848dec084704f",
+    "tests/recurrence.test.mjs": "f6553808a425b83a6659cf37fe87b3821fbf1216c3e4e03425f9abc61642a5bc"
+  }
+}

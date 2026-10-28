@@ -17,7 +17,8 @@ export type Campaign = {
   method: Method;
   scheduledAt: string; // premier créneau, compatibilité avec le tableau de bord
   scheduledDates?: string[];
-  recurrence?: { mode: 'once' | 'weekly'; weekdays: number[]; weeks: number };
+  recurrence?: { mode: 'once' | 'weekly'; weekdays: number[]; weeks: number } |
+    { mode: 'interval'; intervalDays: number; timeZone: string; until?: string | null };
   status: 'scheduled' | 'paused';
   nativeTelegram?: boolean; // Telegram itself queues and sends scheduled messages, PC can be off.
   createdAt: string;

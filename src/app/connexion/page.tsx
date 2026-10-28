@@ -13,7 +13,7 @@ export default async function ConnexionPage() {
   if (configured) {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
-    if (data?.claims?.sub) redirect('/');
+    if (data?.claims?.sub) redirect('/dashboard');
   }
 
   return <main className="n8-root">

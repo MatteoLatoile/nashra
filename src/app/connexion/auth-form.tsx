@@ -92,7 +92,7 @@ export default function AuthForm() {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        router.replace('/');
+        router.replace('/dashboard');
         router.refresh();
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -109,7 +109,7 @@ export default function AuthForm() {
           setAwaitingConfirmation(true);
           setFeedback('Vérifiez votre boîte e-mail pour confirmer votre adresse et activer votre compte. Pensez aux spams.');
         } else {
-          router.replace('/');
+          router.replace('/dashboard');
           router.refresh();
         }
       }

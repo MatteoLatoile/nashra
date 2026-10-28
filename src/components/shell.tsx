@@ -15,7 +15,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { useLanguage } from '@/lib/i18n/provider';
 
 const menu = [
-  { label: 'Vue d’ensemble', href: '/', Icon: LayoutGrid },
+  { label: 'Vue d’ensemble', href: '/dashboard', Icon: LayoutGrid },
   { label: 'Mes annonces', href: '/annonces', Icon: Files },
   { label: 'Telegram', href: '/telegram', Icon: Send },
   { label: 'Destinations', href: '/groupes', Icon: UsersRound },
@@ -48,7 +48,7 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
     {mobileOpen && <button className="mobile-overlay" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu" />}
     <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
       <div className="sidebar-top">
-        <Link href="/" className="brand" onClick={() => setMobileOpen(false)}>
+        <Link href="/dashboard" className="brand" onClick={() => setMobileOpen(false)}>
           <span className="brand-icon"><Image src="/nashra-mark.png" alt="" width={34} height={34} priority /></span>
           <span className="brand-name">nashra<span className="brand-period">.</span></span>
         </Link>

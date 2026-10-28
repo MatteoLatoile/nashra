@@ -120,7 +120,7 @@ export function OnboardingFlow({ initialStep, initialName, initialCompany, initi
         nashra_onboarding_status: 'completed',
         nashra_onboarding_finished_at: new Date().toISOString(),
       });
-      router.replace('/');
+      router.replace('/dashboard');
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : t.error);
@@ -194,7 +194,7 @@ export function OnboardingFlow({ initialStep, initialName, initialCompany, initi
             <footer className="onb-footer">
               {step > 0 ? <button type="button" className="onb-text-button" disabled={busy} onClick={() => void advance(step - 1)}><ArrowLeft size={15}/>{t.back}</button> : <span/>}
               <div className="onb-footer-actions">
-                {step < 3 && <button type="button" className="onb-text-button" disabled={busy} onClick={() => void leave('/')}>{t.later}</button>}
+                {step < 3 && <button type="button" className="onb-text-button" disabled={busy} onClick={() => void leave('/dashboard')}>{t.later}</button>}
                 {(step === 1 || step === 2) && <button type="button" className="onb-next" disabled={busy} onClick={() => void advance(step + 1)}>{busy ? t.saving : t.continue}<ArrowRight size={15}/></button>}
               </div>
             </footer>

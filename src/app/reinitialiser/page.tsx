@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
     <h1>Modifier votre mot de passe.</h1>
     {status === 'checking' ? <p>Vérification du lien en cours…</p> :
       status === 'invalid' ? <><p>Votre lien a expiré ou n'est pas valide.</p><Link className="n8-submit" href="/connexion">Retour à la connexion <ArrowRight size={18}/></Link></> :
-      status === 'done' ? <><p className="n8-reset-success"><CheckCircle2 size={20}/> Mot de passe mis à jour.</p><Link className="n8-submit" href="/">Accéder à mon espace <ArrowRight size={18}/></Link></> :
+      status === 'done' ? <><p className="n8-reset-success"><CheckCircle2 size={20}/> Mot de passe mis à jour.</p><Link className="n8-submit" href="/dashboard">Accéder à mon espace <ArrowRight size={18}/></Link></> :
       <form className="n8-form" onSubmit={e => void submit(e)}>
         <p>Choisissez un nouveau mot de passe pour votre compte Nashra.</p>
         <label htmlFor="reset-password">Nouveau mot de passe</label>

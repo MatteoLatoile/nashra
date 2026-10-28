@@ -23,8 +23,8 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { id: 'welcome', chapter: 'intro', path: '/' },
-  { id: 'home', chapter: 'intro', path: '/', selector: '.welcome-banner, .page-heading' },
+  { id: 'welcome', chapter: 'intro', path: '/dashboard' },
+  { id: 'home', chapter: 'intro', path: '/dashboard', selector: '.welcome-banner, .page-heading' },
   { id: 'library', chapter: 'annonces', path: '/annonces', selector: '.n12-summary, .n12-library' },
   { id: 'search', chapter: 'annonces', path: '/annonces', selector: '.n12-search, .n12-controls' },
   { id: 'filter', chapter: 'annonces', path: '/annonces', selector: '.n12-filter-row, .n12-view' },
@@ -49,20 +49,23 @@ const STEPS: Step[] = [
   { id: 'calendar', chapter: 'agenda', path: '/campagnes', selector: '.n40-calendar, .page-heading' },
   { id: 'calendarnew', chapter: 'agenda', path: '/campagnes', selector: '.heading-actions button' },
   { id: 'calendarad', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog select, .modal-dialog .form-stack' },
+  { id: 'calendarfrequency', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog [data-tour="schedule-mode"]' },
+  { id: 'calendarinterval', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog [data-tour="schedule-interval"], .modal-dialog [data-tour="schedule-timezone"]' },
   { id: 'calendardate', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog input[type="datetime-local"]' },
   { id: 'calendargroups', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog .n40-dest' },
+  { id: 'calendarstagger', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog [data-tour="group-stagger"]' },
   { id: 'calendarconfirm', chapter: 'agenda', path: '/campagnes', modal: 'schedule', selector: '.modal-dialog .modal-actions' },
   { id: 'calendarmanage', chapter: 'agenda', path: '/campagnes', selector: '.n40-side, .n40-item-actions' },
   { id: 'history', chapter: 'historique', path: '/historique', selector: '.n40-history-table, .table-panel, .page-heading' },
   { id: 'refresh', chapter: 'historique', path: '/historique', selector: '.heading-actions, .n40-history-table' },
-  { id: 'notifications', chapter: 'compte', path: '/', selector: '.n9-trigger, .notifications' },
-  { id: 'avatar', chapter: 'compte', path: '/', selector: '.na-avatar-trigger' },
+  { id: 'notifications', chapter: 'compte', path: '/dashboard', selector: '.n9-trigger, .notifications' },
+  { id: 'avatar', chapter: 'compte', path: '/dashboard', selector: '.na-avatar-trigger' },
   { id: 'profile', chapter: 'compte', path: '/profil', selector: '.na-profile-main .na-card:first-child' },
   { id: 'company', chapter: 'compte', path: '/profil', selector: '#entreprise' },
   { id: 'security', chapter: 'compte', path: '/profil', selector: '#securite' },
   { id: 'language', chapter: 'compte', path: '/parametres', selector: '#langue, .nashra-language-card' },
   { id: 'backup', chapter: 'compte', path: '/parametres', selector: '.setting-actions, .settings-grid' },
-  { id: 'finish', chapter: 'intro', path: '/' },
+  { id: 'finish', chapter: 'intro', path: '/dashboard' },
 ];
 
 const CHAPTERS: readonly Chapter[] = ['intro', 'annonces', 'telegram', 'groupes', 'agenda', 'historique', 'compte'];
@@ -94,8 +97,11 @@ const FRENCH: readonly (readonly [string, string])[] = [
   ['Votre calendrier', 'Retrouvez les dates et les publications programmées. Une programmation n’est effective qu’après son acceptation par Telegram.'],
   ['Programmer une publication', 'Cliquez sur « Programmer » pour ouvrir une nouvelle programmation. Le guide n’effectuera aucune validation ni aucun envoi.'],
   ['Choisir une annonce', 'Sélectionnez une annonce déjà enregistrée dans votre bibliothèque. Donnez aussi un nom clair à la programmation pour la retrouver ensuite.'],
+  ['Ponctuel ou récurrent ?', 'Choisissez « Une seule fois » pour une date unique, ou « Répéter automatiquement » pour diffuser de nouveau sans devoir recréer une campagne.'],
+  ['Fréquence et fuseau horaire', 'Pour une répétition, choisissez par exemple tous les 2 jours. Indiquez votre fuseau (Asia/Riyadh, Europe/Paris…) et éventuellement une date de fin. La première diffusion fixe l’heure locale des suivantes.'],
   ['Choisir la date et l’heure', 'Indiquez le jour et l’heure souhaités. Pour une programmation native acceptée, Telegram prend ensuite en charge l’envoi, même lorsque Nashra est fermé.'],
   ['Sélectionner les groupes', 'Cochez uniquement les destinations autorisées. Vérifiez chaque groupe : le calendrier ne doit jamais remplacer votre décision de publication.'],
+  ['Diffusion progressive dans les groupes', 'Nashra programme le premier groupe à l’heure choisie et chaque groupe suivant 90 secondes plus tard. Les occurrences futures nécessitent un réapprovisionnement quotidien par le serveur ; les quotas et règles Telegram s’appliquent.'],
   ['Confirmer la programmation', 'Le bouton de confirmation enregistre la demande et la transmet à Telegram. La programmation n’est confirmée que si Telegram l’accepte. Le tutoriel ne clique jamais dessus.'],
   ['Suivre ou annuler une programmation', 'Consultez les programmations, leurs états et leurs actions disponibles. Une suppression ou annulation effective dépend du type de programmation et du retour de Telegram.'],
   ['Historique des publications', 'Retrouvez les résultats des envois immédiats et des programmations, groupe par groupe. Les statuts distinguent les envois confirmés, les échecs et les livraisons encore à vérifier.'],
@@ -136,8 +142,11 @@ const ENGLISH: readonly (readonly [string, string])[] = [
   ['Your calendar', 'See scheduled dates and publications. A schedule is effective only after Telegram accepts it.'],
   ['Schedule a publication', 'Open a new scheduled publication. The guide never confirms or sends it.'],
   ['Choose an announcement', 'Select a saved announcement and give your schedule a recognizable name.'],
+  ['One-time or recurring?', 'Choose One time for a single scheduled send, or Repeat automatically to reuse the same announcement on future dates.'],
+  ['Interval and time zone', 'For recurring posts, select every 2 days for example. Set the time zone (such as Asia/Riyadh) and optionally an end date. The first publication sets the local time of later occurrences.'],
   ['Choose a date and time', 'Pick when to post. Once Telegram accepts native scheduling, it handles delivery even with Nashra closed.'],
   ['Select your groups', 'Check only approved destinations. Review each group before proceeding.'],
+  ['Staggered group delivery', 'The first group starts at your chosen time; each additional group is scheduled 90 seconds later. A daily server job replenishes future occurrences, subject to Telegram rules and plan limits.'],
   ['Confirm the schedule', 'The confirmation button submits the request to Telegram. It counts as scheduled only after Telegram accepts it. The tour never clicks it.'],
   ['Manage schedules', 'Review status and available controls. Successful cancellation depends on the scheduling type and Telegram response.'],
   ['Publishing history', 'See actual publishing outcomes by destination, including confirmed posts, errors and deliveries pending verification.'],
@@ -195,7 +204,7 @@ const MODAL_TRIGGERS: Record<ModalName, string> = {
 };
 const EVENT = 'nashra:dashboard-tour:replay';
 const REPLAY_PENDING = 'nashra:dashboard-tour:replay-pending';
-const keyFor = (email?: string) => `nashra:dashboard-tour:complete:v2:${(email || 'local').trim().toLowerCase()}`;
+const keyFor = (email?: string) => `nashra:dashboard-tour:complete:v3:${(email || 'local').trim().toLowerCase()}`;
 const isRtl = (locale: Locale) => locale === 'ar' || locale === 'ur';
 
 function findTarget(step: Step) {
@@ -246,7 +255,7 @@ export function DashboardTour({ userEmail, ready }: { userEmail?: string; ready:
   }, [index, userEmail]);
 
   useEffect(() => {
-    if (!ready || pathname !== '/' || autoChecked.current) return;
+    if (!ready || pathname !== '/dashboard' || autoChecked.current) return;
     autoChecked.current = true;
     try {
       if (sessionStorage.getItem(REPLAY_PENDING) === '1') {
@@ -265,7 +274,7 @@ export function DashboardTour({ userEmail, ready }: { userEmail?: string; ready:
       if (ready) start(true);
       else {
         try { sessionStorage.setItem(REPLAY_PENDING, '1'); } catch { /* ignore */ }
-        router.push('/');
+        router.push('/dashboard');
       }
     };
     window.addEventListener(EVENT, replay);
@@ -276,6 +285,8 @@ export function DashboardTour({ userEmail, ready }: { userEmail?: string; ready:
     if (!open || !ready || !step) return;
     if (pathname !== step.path) { router.push(step.path); return; }
     const timer = window.setTimeout(() => {
+      if (['calendarinterval','calendardate','calendargroups','calendarstagger'].includes(step.id))
+        window.dispatchEvent(new Event('nashra:tour:show-recurrence'));
       const current = document.querySelector<HTMLElement>('.modal-cover');
       if (lastModal.current && (!step.modal || lastModal.current !== step.modal)) {
         current?.querySelector<HTMLButtonElement>('button[aria-label="Fermer"]')?.click();
@@ -780,9 +791,29 @@ Hazırsınız!§Artık ilan oluşturabilir, izinli gruba gönderebilir veya plan
 تیار ہیں!§اب اعلان بنائیں، مجاز گروپ میں شائع کریں یا شیڈول کریں۔ اوتار سے رہنمائی دوبارہ دیکھیں۔`,
 };
 
+const RECURRENCE_TOUR_COPY: Record<string, [string,string][]> = {
+  'ar': [['مرة واحدة أم تكرار؟', 'اختر النشر مرة واحدة أو التكرار التلقائي لنشر الإعلان مجددًا في الأيام القادمة.'], ['الفاصل الزمني والمنطقة الزمنية', 'اختر مثلًا كل يومين وحدد المنطقة الزمنية وموعد انتهاء اختياريًا. يبقى الوقت المحلي ثابتًا.'], ['النشر التدريجي للمجموعات', 'تبدأ المجموعة الأولى في الوقت المحدد، ثم كل مجموعة تالية بعد ٩٠ ثانية. يجدد الخادم الجدولة يوميًا مع احترام الحدود.']],
+  'ru': [['Однократно или регулярно?', 'Выберите разовую отправку или автоматическое повторение объявления в будущем.'], ['Интервал и часовой пояс', 'Укажите, например, каждые 2 дня, часовой пояс и при необходимости дату окончания. Местное время сохраняется.'], ['Постепенная рассылка', 'Первый чат получает сообщение по расписанию, каждый следующий — через 90 секунд. Сервер ежедневно продлевает расписание с учетом ограничений.']],
+  'es': [['¿Una vez o recurrente?', 'Elige una publicación puntual o una repetición automática del mismo anuncio.'], ['Frecuencia y zona horaria', 'Elige, por ejemplo, cada 2 días, la zona horaria y una fecha final opcional. Se mantiene la hora local.'], ['Publicación gradual', 'El primer grupo comienza a la hora indicada; cada grupo adicional, 90 segundos después. El servidor renueva el calendario a diario.']],
+  'it': [['Una volta o ricorrente?', 'Scegli una pubblicazione unica oppure la ripetizione automatica dello stesso annuncio.'], ['Frequenza e fuso orario', 'Seleziona ad esempio ogni 2 giorni, il fuso orario e facoltativamente una data di fine. L’ora locale rimane costante.'], ['Invio graduale nei gruppi', 'Il primo gruppo parte all’ora scelta, gli altri a intervalli di 90 secondi. Il server rinnova quotidianamente le programmazioni.']],
+  'de': [['Einmalig oder regelmäßig?', 'Wähle eine einmalige Veröffentlichung oder eine automatische Wiederholung derselben Anzeige.'], ['Intervall und Zeitzone', 'Wähle zum Beispiel alle 2 Tage, die Zeitzone und bei Bedarf ein Enddatum. Die Ortszeit bleibt erhalten.'], ['Zeitversetzte Gruppen', 'Die erste Gruppe beginnt zur gewählten Zeit, jede weitere 90 Sekunden später. Der Server ergänzt zukünftige Termine täglich.']],
+  'id': [['Sekali atau berulang?', 'Pilih satu kali terbit atau pengulangan otomatis untuk pengumuman yang sama.'], ['Jeda dan zona waktu', 'Pilih misalnya setiap 2 hari, zona waktu, dan tanggal akhir bila perlu. Waktu lokal tetap sama.'], ['Pengiriman bertahap', 'Grup pertama dijadwalkan sesuai waktu pilihan; grup berikutnya berjarak 90 detik. Server memperbarui jadwal setiap hari.']],
+  'fil': [['Isang beses o paulit-ulit?', 'Piliin ang isang beses na pag-post o awtomatikong pag-ulit ng parehong anunsyo.'], ['Agwat at time zone', 'Pumili halimbawa ng bawat 2 araw, time zone, at opsyonal na petsa ng pagtatapos. Lokal na oras ang susundin.'], ['Sunod-sunod na pagpapadala', 'Mauuna ang unang grupo sa takdang oras at susunod ang iba nang may 90 segundong pagitan. Araw-araw ina-update ng server ang iskedyul.']],
+  'tr': [['Tek sefer mi, tekrarlı mı?', 'Bir kez yayınlamayı veya aynı ilanı otomatik aralıklarla yeniden yayınlamayı seçin.'], ['Sıklık ve saat dilimi', 'Örneğin 2 günde bir, saat dilimini ve isteğe bağlı bitiş tarihini seçin. Yerel saat korunur.'], ['Gruplara kademeli gönderim', 'İlk grup seçilen saatte, sonraki her grup 90 saniye sonra gönderilir. Sunucu takvimi her gün yeniler.']],
+  'ur': [['ایک بار یا بار بار؟', 'ایک بار شائع کرنے یا اسی اشتہار کو خودکار طور پر بار بار شائع کرنے کا انتخاب کریں۔'], ['وقفہ اور ٹائم زون', 'مثلاً ہر دو دن منتخب کریں، ٹائم زون اور اختیاری آخری تاریخ درج کریں۔ مقامی وقت برقرار رہے گا۔'], ['گروپوں میں وقفے سے اشاعت', 'پہلے گروپ میں مقررہ وقت پر، پھر ہر اگلے گروپ میں ۹۰ سیکنڈ بعد شیڈول ہوگا۔ سرور روزانہ اگلی تاریخیں شامل کرے گا۔']],
+};
+
 const EXTRA_COPY: Partial<Record<Locale, readonly (readonly [string, string])[]>> = Object.fromEntries(
-  Object.entries(EXTRA_RAW).map(([language, content]) => [language, content.trim().split('\n').map(row => {
-    const delimiter = row.indexOf('§');
-    return delimiter === -1 ? [row, ''] : [row.slice(0, delimiter), row.slice(delimiter + 1)];
-  })])
+  Object.entries(EXTRA_RAW).map(([language, content]) => {
+    const rows = content.trim().split('\n').map(row => {
+      const delimiter = row.indexOf('§');
+      return delimiter === -1 ? [row, ''] : [row.slice(0, delimiter), row.slice(delimiter + 1)];
+    });
+    const additions = RECURRENCE_TOUR_COPY[language];
+    if (additions) {
+      rows.splice(26, 0, additions[0], additions[1]);
+      rows.splice(30, 0, additions[2]);
+    }
+    return [language, rows];
+  })
 ) as Partial<Record<Locale, readonly (readonly [string, string])[]>>;
