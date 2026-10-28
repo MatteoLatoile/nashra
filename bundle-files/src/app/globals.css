@@ -1,0 +1,35 @@
+/* Nashra V2.5-2.7 — Operations, Billing and Admin */
+.n25-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}
+.n25-stat-grid article,.n25-plan,.n25-panel{background:#151618;border:1px solid #313338;border-radius:12px;padding:21px;min-width:0}
+.n25-stat-grid article{display:flex;flex-direction:column;gap:12px}
+.n25-stat-grid span,.n25-muted{color:#9297a0;font-size:11px;line-height:1.6}
+.n25-stat-grid strong{font-size:28px;letter-spacing:-.8px}
+.n25-actions,.n25-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.n25-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#17181b;border:1px solid #303237;border-radius:11px;padding:14px;margin:22px 0}
+.n25-toolbar label{font-size:11px;color:#a3a7ae;display:flex;align-items:center;gap:8px}
+.n25-search{flex:1;min-width:180px}.n25-search input{width:100%;min-width:100px}
+.n25-toolbar input:not([type=checkbox]),.n25-toolbar select{border:1px solid #42454b;background:#222429;color:#eee;border-radius:7px;padding:9px 12px;outline:0;font-size:12px}
+.n25-toolbar input:focus,.n25-toolbar select:focus{border-color:#a2a5ad}
+.n25-select select{min-width:112px}.n25-checkbox{cursor:pointer}.n25-checkbox input{accent-color:#e9eaec}
+.n25-table-scroll{overflow-x:auto;border:1px solid #313338;background:#151618;border-radius:11px}
+.n25-table{width:100%;border-collapse:collapse;min-width:800px;text-align:left;font-size:11.5px}
+.n25-table th{border-bottom:1px solid #373940;color:#9ba0a7;text-transform:uppercase;letter-spacing:.65px;font-size:10px;font-weight:750;padding:14px}
+.n25-table td{padding:15px 14px;border-bottom:1px solid #2b2d32;color:#c4c7cb;vertical-align:top;max-width:300px;overflow-wrap:anywhere}
+.n25-table tr:last-child td{border-bottom:0}.n25-table tr:hover{background:#202226}.n25-table tr.n25-needs{background:#29221e}
+.n25-table td strong{font-size:11px;color:#f4f5f5}.n25-table small{display:block;color:#8a8f97;line-height:1.6;margin-top:5px}
+.n25-badge{border:1px solid #44464c;padding:5px 7px;border-radius:6px;color:#d6dae0;display:inline-block;white-space:nowrap;font-size:10px}
+.n25-sent{border-color:#365a4b;color:#a8dbbc}.n25-blocked,.n25-needs_review{border-color:#794e49;color:#efbbb0}
+.n25-attention{display:block;color:#f0b2a0;font-size:10px;margin-top:7px}
+.n25-error{padding:14px 16px;border:1px solid #6d4141;background:#311f22;color:#ffceca;border-radius:9px;font-size:12px;line-height:1.6;margin:18px 0}
+.n25-empty{border:1px dashed #44474e;color:#a4a8af;border-radius:10px;padding:43px;text-align:center;font-size:12px}
+.n25-footer{font-size:10.5px;color:#858a93;line-height:1.7;margin:12px 0 24px}
+.n25-billing{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}
+.n25-plan-title{display:flex;align-items:center;gap:10px;color:#aeb4bc;font-size:12px;margin-bottom:20px}
+.n25-plan>strong{font-size:24px}.n25-plan p,.n25-panel p{font-size:12px;line-height:1.7;color:#a2a7b1;margin:13px 0 24px}
+.n25-note h2,.n25-panel h2{font-size:15px;margin-bottom:13px}
+.n25-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.n25-status-grid>div{border:1px solid #383a42;background:#212327;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.n25-status-grid span{font-size:11px;color:#a5a9b1}.n25-status-grid strong{font-size:21px}
+@media(max-width:1050px){.n25-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.n25-billing{grid-template-columns:1fr}.n25-toolbar{align-items:stretch}.n25-search{flex-basis:100%}.n25-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.n25-stat-grid{gap:8px}.n25-stat-grid article{padding:13px}.n25-stat-grid strong{font-size:22px}.n25-status-grid{grid-template-columns:1fr}}

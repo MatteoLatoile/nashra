@@ -1,0 +1,50 @@
+{
+  "release": "billing-2026-10-28",
+  "files": [
+    {
+      "path": "src/app/(dashboard)/abonnement/page.tsx",
+      "before": "3990eb4e6b29ee8369bbeaa1427e142532d8143c14daade0173fb424ef2652d4",
+      "after": "36f585ec442ffad4f7aa8b4d71119c3fd05c8a1dab3fc57eb2e63e9e13fa884c"
+    },
+    {
+      "path": "src/app/api/billing/checkout/route.ts",
+      "before": "65c80ec0a32caabca1c199100e1f26eea643102d53d2dfc7673d17b7d0b920e1",
+      "after": "3f0b995ce181aa83013249fd4983d560af369573b4d6737193a4cd967ddf2421"
+    },
+    {
+      "path": "src/app/api/billing/portal/route.ts",
+      "before": "244522c12f7ea2dc97c42fd5a4143ef41f36f31ed8220200db49236497d4cac9",
+      "after": "1ec81c402fc3b6e7a719f7ac91a56e93a681c794319c90dcb5495d6c77c64753"
+    },
+    {
+      "path": "src/app/api/billing/status/route.ts",
+      "before": "a02946b7aa5ad126a017344f7cdc3679e223ecad1ad8c0eee20dcb1337ee8de4",
+      "after": "b14cc0d14a37533e16e5fb96610f8411f063f3ef55d72639bfa044319b91ed85"
+    },
+    {
+      "path": "src/app/api/billing/webhook/route.ts",
+      "before": "343d3f289ef22fcca8c17b17a57c32fb0eed6c29a326ebfdf4d20cfb4d027205",
+      "after": "a47fd08b7628acc9c38886316cc25007daffd876895cccc56cd4e718d165f0f2"
+    },
+    {
+      "path": "src/lib/billing/copy.ts",
+      "before": null,
+      "after": "fb7a38fda82257e127f5c23b04e229912aa60dbc41eb7fee2295e4583cd6e968"
+    },
+    {
+      "path": "src/lib/billing/entitlements.ts",
+      "before": "ec6df66766c063df3f565bd6df6949ef728a3d7b0a62b390c78936582615b2e9",
+      "after": "9146679c96e8e2cb2bf7baa4beb68ce8bc67cc93aecae596e11c38e5a00f1c31"
+    },
+    {
+      "path": "src/lib/nashra-bundle/stripe.ts",
+      "before": "67c849d49ca2f70f43bb708d61247a5d54741f9aa305c571886af92e4116e7e7",
+      "after": "edfcda65be93605d3335a58c86974ababf0b66bb45416cd51443f7c63f9f3f00"
+    },
+    {
+      "path": "supabase/014_billing_subscriptions.sql",
+      "before": null,
+      "after": "4d00ba171ce2d9a9344ee9267769fe0da98df753701560ccbbc76d2fac6400cc"
+    }
+  ]
+}

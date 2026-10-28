@@ -1,0 +1,21 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const ts = require('typescript');
+const content = fs.readFileSync(path.join(process.cwd(),'src/lib/billing/entitlements.ts'),'utf8');
+const compiled = ts.transpileModule(content,{ compilerOptions:{ module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }}).outputText;
+const moduleExports = {};
+const processEnv = { env: { STRIPE_TEST_PRICE_ID:'price_pro_123', STRIPE_TEST_BUSINESS_PRICE_ID:'price_business_456' } };
+vm.runInNewContext(compiled,{exports:moduleExports,process:processEnv});
+const t = moduleExports.tierFromVerifiedTestSubscription;
+assert.equal(t('active','price_pro_123'),'pro');
+assert.equal(t('trialing','price_business_456'),'business');
+for (const status of ['canceled','unpaid','past_due','incomplete','paused'])
+  assert.equal(t(status,'price_pro_123'),'free',status);
+assert.equal(t('active','price_unknown'),'free');
+assert.equal(t('active',null),'free');
+assert.equal(t('trialing','price_pro_123'),'pro');
+assert.deepEqual(JSON.parse(JSON.stringify(moduleExports.QUEUE_LIMITS)), {free:100,pro:300,business:500});
+console.log('OK — 11 tests de droits Pro/Business/Gratuit et 3 quotas. Aucun appel externe.');

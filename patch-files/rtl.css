@@ -1,0 +1,14 @@
+
+/* Nashra i18n V3 — RTL: keep sidebar, borders and mobile menu aligned */
+html[dir="rtl"] .app-root{direction:rtl}
+html[dir="rtl"] .sidebar{border-right:0;border-left:1px solid var(--softborder)}
+html[dir="rtl"] .nav-active:before{left:auto;right:-13px;border-radius:2px 0 0 2px}
+html[dir="rtl"] .sidebar .nav-external{margin-left:0;margin-right:auto}
+html[dir="rtl"] .sidebar .nav-pin{margin-left:0;margin-right:auto}
+html[dir="rtl"] .input-icon svg{left:auto;right:13px}
+html[dir="rtl"] .input-icon input{padding-left:13px;padding-right:40px}
+html[dir="rtl"] .searchbox input{text-align:right}
+html[dir="rtl"] .modal-inner,html[dir="rtl"] .modal-heading{text-align:start}
+html[dir="rtl"] .n25-table,html[dir="rtl"] .n22-table{direction:rtl;text-align:right}
+html[dir="rtl"] .sidebar .brand-name{direction:ltr;unicode-bidi:isolate}
+@media(max-width:760px){html[dir="rtl"] .sidebar{left:auto;right:-270px}html[dir="rtl"] .sidebar.sidebar-open{left:auto;right:0}}

@@ -1,0 +1,6 @@
+{
+  "version": "3.8",
+  "base_v35_cron_sha256": "29827dd83b1fd235e69a52129379d764a52c8a71e041fad147e04a2e670b68d0",
+  "cron_after_sha256": "642cee1145269c75e6a6e82e2cffec598344352931a46d1423bad1364af071dc",
+  "v37_worker_sha256": "7fe9c33234d405208ceb97f29eea28b4900f4215aa3a8cedb4f1443add0a5087"
+}

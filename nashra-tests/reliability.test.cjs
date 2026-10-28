@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const ts=require('typescript');
+const base=process.cwd();
+const code=fs.readFileSync(path.join(base,'src/lib/automation/attention.ts'),'utf8');
+const transpiled=ts.transpileModule(code, { compilerOptions: {module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022} }).outputText;
+const moduleScope={exports:{}};
+new Function('module','exports','require',transpiled)(moduleScope,moduleScope.exports,require);
+const classify=moduleScope.exports.attentionReason;
+const now=Date.parse('2026-10-27T12:00:00.000Z');
+assert.equal(classify({status:'processing',attempted_at:new Date(now-16*60000).toISOString()},now),'stalled');
+assert.equal(classify({status:'processing',attempted_at:new Date(now-14*60000).toISOString()},now),null);
+assert.equal(classify({status:'approved',scheduled_at:new Date(now-25*3600000).toISOString()},now),'expired');
+assert.equal(classify({status:'approved',scheduled_at:new Date(now-23*3600000).toISOString()},now),null);
+assert.equal(classify({status:'needs_review'},now),'uncertain');
+assert.equal(classify({status:'blocked'},now),'blocked');
+assert.equal(classify({status:'sent'},now),null);
+assert.equal(classify({status:'cancelled'},now),null);
+const sql=fs.readFileSync(path.join(base,'supabase/008_queue_reliability.sql'),'utf8');
+assert.match(sql,/status\s*=\s*'needs_review'/);
+assert.match(sql,/status\s*=\s*'blocked'/);
+assert.match(sql,/auth\.role\(\) is distinct from 'service_role'/);
+assert.doesNotMatch(sql,/\bset\s+status\s*=\s*'approved'/i); // no SQL updates can re-approve
+console.log('8 classification cases + SQL safety checks: OK. No Telegram message sent.');

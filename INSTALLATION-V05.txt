@@ -1,0 +1,41 @@
+NASHRA v0.5 — Calendrier éditorial / Préparation Telegram
+
+PREREQUIS: projet Nashra v0.4/v0.4.1 installé dans VS Code.
+Ce ZIP est un CORRECTIF à extraire À LA RACINE DU PROJET EXISTANT.
+Il ne contient ni .env.local, ni sessions, ni données utilisateur. Ne créez pas de nouveau dossier.
+
+1. Arrêter le serveur avec Ctrl+C.
+2. Télécharger nashra-v0.5-patch.zip dans Téléchargements.
+3. Dans le terminal VS Code déjà positionné à C:\Users\matte\nashra-v0.3 :
+
+   Expand-Archive "$HOME\Downloads\nashra-v0.5-patch.zip" -DestinationPath . -Force
+   npm run typecheck
+   npm run dev -- --port 3000
+
+4. Ouvrir http://localhost:3000/campagnes
+
+NOUVEAUTÉS
+- Calendrier mensuel de campagnes avec sélection des dates.
+- Création, modification, duplication et pause des campagnes.
+- Aperçu de l'annonce et vérification par groupe.
+- Bouton "Préparer dans Telegram" : préremplit le message et la destination,
+  sans AUCUN transfert ou envoi automatique.
+- Détection des campagnes qui se chevauchent (même groupe et même annonce le même jour).
+- Ouverture d'un message source ancien par son identifiant Telegram.
+- Sauvegarde cloud via la table workspaces Supabase existante.
+- Sécurité : publication réelle désactivée PAR DÉFAUT pendant le développement.
+
+SÉCURITÉ
+Votre compte Telegram est actuellement limité jusqu'au 28 octobre 2026 à 19:07 UTC.
+Ne tentez pas d'envoyer des messages publics pendant la limitation.
+Le réglage NASHRA_PUBLISHING_ENABLED=0 est le comportement par défaut.
+Lorsque la restriction aura pris fin ET QUE les groupes autorisent vos annonces,
+vous pourrez ajouter NASHRA_PUBLISHING_ENABLED=1 à .env.local pour autoriser
+l'envoi manuel unitaire avec confirmation explicite. Ne le faites pas avant.
+
+Cette version ne propose pas de diffusion automatique côté serveur.
+Aucune migration SQL supplémentaire n'est nécessaire.
+IMPORTANT: toutes les valeurs confidentielles .env.local restent privées.
+
+VERIFICATION : code TypeScript/TSX analysé syntaxiquement; typecheck complet
+non exécuté dans l'environnement de fabrication faute de dépendances installées.

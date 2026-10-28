@@ -1,0 +1,19 @@
+/* Nashra multilingual settings — isolated component styles */
+.nashra-language-card{scroll-margin-top:110px;background:#17181b;border:1px solid #303238;border-radius:13px;padding:27px;color:#f6f6f8;margin:22px 0 25px}
+.nashra-language-heading{display:flex;align-items:center;gap:15px;border-bottom:1px solid #303238;padding-bottom:23px;margin-bottom:24px}
+.nashra-language-icon{width:44px;height:44px;display:grid;place-items:center;border:1px solid #383a40;background:#27292d;border-radius:10px;flex:0 0 auto}
+.nashra-language-heading h2{margin:0 0 5px;font-weight:700;font-size:16px}
+.nashra-language-heading p{margin:0;color:#989ba4;font-size:12px;line-height:1.6}
+.nashra-language-tag{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;margin-inline-start:auto;border-radius:7px;border:1px solid #36383e;color:#babdc4;font-size:11px}
+.nashra-language-row{display:flex;align-items:center;gap:20px;justify-content:space-between}
+.nashra-language-row label{font-weight:650;font-size:13px;flex:1}
+.nashra-language-row select{width:min(100%,340px);background:#25272b;border:1px solid #42454b;border-radius:9px;color:#f5f5f5;min-height:46px;padding:0 13px;font:inherit;font-size:13px;cursor:pointer;outline:none}
+.nashra-language-row select:focus-visible{border-color:#fff;box-shadow:0 0 0 2px #fff3}
+.nashra-language-explain{font-size:12px;line-height:1.65;color:#9a9da5;margin:19px 0 13px}
+.nashra-language-status{display:flex;gap:7px;align-items:center;color:#adcdb9;font-size:11px;min-height:22px}
+.nashra-language-error{color:#ffb4b4}
+html[dir="rtl"] .nashra-language-card{text-align:start}
+html[dir="rtl"] .nashra-language-row select{direction:rtl;text-align:right}
+html[dir="rtl"] .sidebar,html[dir="rtl"] .topbar{direction:rtl}
+html[dir="rtl"] .nashra-language-tag{margin-inline-start:auto}
+@media(max-width:650px){.nashra-language-card{padding:19px}.nashra-language-row{align-items:stretch;flex-direction:column;gap:10px}.nashra-language-row select{width:100%}}

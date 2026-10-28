@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src/lib/automation/readiness.ts",
+    "before": null,
+    "after": "f961b1160a23fb331d5b1b8ac0643d8c02e3d548ac3a7558b122bc777ddbdc1b"
+  },
+  {
+    "path": "src/app/api/automation/readiness/route.ts",
+    "before": null,
+    "after": "517ac3b1f5c5a8f28a52a4c28d435404c23fa8470c6b38f6c7de005607134fb9"
+  },
+  {
+    "path": "src/app/(dashboard)/automatisation/page.tsx",
+    "before": null,
+    "after": "d9a8f73c2e21864ca38b89e704e9c4dc84d95c832c8b6d0d9a8bc92415b0f4d7"
+  },
+  {
+    "path": "src/app/globals.css",
+    "before": "fab63a9ce468ec380d8ae6c1c2c024393dd61f03ec91a162542d73e2da8f1759",
+    "after": "c802485767d3aaf9ac1343e77d8937e93e7f7a79d90359e6e61cae247a72dbaf"
+  },
+  {
+    "path": "src/app/(dashboard)/campagnes/page.tsx",
+    "before": "fa6fcb7981e00e4cc307500d112357aa492d4a2b57606e76cd3f648dcef01be1",
+    "after": "37628e2b510cb6bc991c1b87b83c50220d5a7ee3b37279fc8311ab37b3625c84"
+  }
+]

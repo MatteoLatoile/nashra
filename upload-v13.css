@@ -1,0 +1,22 @@
+/* NASHRA V1.3 — uploads d'images Supabase Storage */
+.n13-upload-wrap{margin-top:4px;margin-bottom:14px}
+.n13-dropzone{display:flex;gap:13px;align-items:center;min-height:93px;padding:16px;border:1px dashed #4b4f58;border-radius:11px;background:#202226;transition:background .15s,border-color .15s}
+.n13-dropzone.n13-dragging{background:#2d3035;border-color:#d6d7d9}
+.n13-dropzone.n13-loading{opacity:.8}
+.n13-drop-icon{width:40px;height:40px;border-radius:9px;background:#31343a;display:grid;place-items:center;color:#ddd;flex-shrink:0}
+.n13-drop-copy{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.n13-drop-copy strong{font-size:12px;color:#eee;line-height:1.4}
+.n13-drop-copy span{font-size:10px;line-height:1.5;color:#9ca0a8}
+.n13-pick{display:flex;align-items:center;gap:6px;justify-content:center;border:1px solid #e4e5e7;border-radius:8px;padding:11px 12px;background:#e4e5e7;color:#151619;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0}
+.n13-pick:hover:not(:disabled){background:#fff}
+.n13-pick:disabled{opacity:.45;cursor:not-allowed}
+.n13-upload-bottom{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;color:#858b94;font-size:10px;padding:10px 2px}
+.n13-upload-bottom span{display:flex;align-items:center;gap:6px}
+.n13-upload-feedback{font-size:11px;color:#d2d3d6;line-height:1.5;margin:7px 0;padding:9px 11px;border:1px solid #42464d;background:#272a30;border-radius:6px}
+.n13-spinner{animation:n13-spin .75s linear infinite}@keyframes n13-spin{to{transform:rotate(360deg)}}
+.n13-thumb{position:relative;display:inline-block;width:74px;height:70px}
+.n13-thumb>img{width:74px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #41444a}
+.n13-thumb>button{position:absolute;right:3px;top:3px;width:21px;height:21px;border:1px solid #ddd8;border-radius:5px;display:grid;place-items:center;background:#141519e8;color:#fff;cursor:pointer}
+.n13-thumb>button:hover{background:#5c2727}
+@media(max-width:600px){.n13-dropzone{flex-wrap:wrap}.n13-pick{margin-left:53px}}
+@media(prefers-reduced-motion:reduce){.n13-spinner{animation:none}}

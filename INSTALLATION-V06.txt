@@ -1,0 +1,35 @@
+NASHRA V0.6 — CAMPAGNES MULTI-ANNONCES
+
+Installation :
+  1. Vérifiez dans le terminal VS Code que vous êtes dans C:\Users\matte\nashra-v0.3
+  2. Arrêtez npm run dev (Ctrl+C)
+  3. Expand-Archive "$HOME\Downloads\nashra-v0.6-patch.zip" -DestinationPath . -Force
+  4. npm run typecheck
+  5. npm run dev -- --port 3000
+  6. Ouvrez http://localhost:3000/campagnes
+
+Fichiers actualisés :
+ - src/lib/store.tsx
+ - src/app/(dashboard)/campagnes/page.tsx
+ - src/app/(dashboard)/page.tsx
+ - src/app/(dashboard)/parametres/page.tsx
+ - src/components/shell.tsx
+ - src/app/globals.css
+ - package.json
+
+Nouveautés :
+ - Sélection de plusieurs annonces dans une campagne.
+ - Sélection de plusieurs groupes explicitement autorisés.
+ - Choix de plusieurs jours de la semaine et 1, 2, 4 ou 8 semaines.
+ - Aperçu des créneaux et volume de préparations.
+ - Calendrier avec chaque occurrence.
+ - Prévisualisation multi-annonces et liens de préparation unitaire.
+ - Compatibilité avec les anciennes campagnes V0.5 (1 annonce, 1 date).
+ - Suppression d'une annonce sans détruire toute campagne multi-annonces.
+
+Aucune migration SQL ni configuration .env.local nécessaire.
+Aucune campagne ne déclenche de publication ou de notification automatique.
+Les messages Telegram restent soumis aux autorisations des groupes et aux restrictions du compte.
+
+Code inspecté et vérifié avec analyse syntaxique TypeScript. Installation des dépendances
+et compilation complète impossibles dans l'environnement de préparation.

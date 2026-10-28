@@ -1,0 +1,27 @@
+NASHRA V1.2 — Bibliothèque d'annonces
+
+Installation dans le dossier habituel déjà ouvert dans VS Code :
+
+1. Arrêter le serveur (Ctrl + C)
+2. Expand-Archive "$HOME\Downloads\nashra-library-v1.2.zip" -DestinationPath . -Force
+3. node .\install-library.cjs
+4. npm run typecheck
+5. npm run dev -- --port 3000
+
+Ouvrir http://localhost:3000/annonces
+
+Fonctions :
+- Création, édition, duplication et suppression avec confirmation Nashra.
+- Recherche, catégories, tags, filtres source (Telegram/manuelles), tri, grille/liste.
+- Jusqu'à 10 liens d'images HTTPS par annonce, galerie et prévisualisation.
+- Imports Telegram EXISTANTS conservés : identifier le message source, sans prétendre récupérer les images automatiquement.
+- Les champs facultatifs imageUrls/tags/updatedAt restent compatibles avec les données existantes et les campagnes.
+
+LIMITES :
+- Les images sont référencées par liens HTTPS. Aucun upload de fichiers vers Supabase Storage n'est encore inclus.
+- Les médias Telegram ne sont PAS extraits par cette mise à jour.
+- La programmation Telegram reste en mode préparation, pas d'envoi automatique.
+- Le système de langues existant est conservé ; les nouveaux libellés doivent être ajoutés au catalogue pour couverture complète de 11 langues.
+- Aucun nouveau SQL / .env.local.
+- Conservez les sauvegardes générées dans nashra-backups/.
+- Le tutoriel guidé à la première visite du dashboard sera développé EN DERNIER, après la finalisation des pages et flux.

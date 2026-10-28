@@ -1,0 +1,57 @@
+[
+  {
+    "path": "src/app/(dashboard)/annonces/page.tsx",
+    "old_sha256": "8fb0d534fa8502ccb4aeb92101e6a7252efcb9873d6cc64105999dc89fca5a12",
+    "new_sha256": "374f89db0aedc6af84dc7102b16323e161e5fe1a8519a4d4703a0ab4691cd938"
+  },
+  {
+    "path": "src/app/(dashboard)/campagnes/page.tsx",
+    "old_sha256": "37628e2b510cb6bc991c1b87b83c50220d5a7ee3b37279fc8311ab37b3625c84",
+    "new_sha256": "5420dc92f00384798e51b45cc932ec8eeac9cf4543b60cb3a78837bbe73f7293"
+  },
+  {
+    "path": "src/app/(dashboard)/historique/page.tsx",
+    "old_sha256": "c37e05bde3ab5d2e827b5babedd503736c49d31e8830aa9a1f70bd95a12182a7",
+    "new_sha256": "edf909bc67c8b42763009b9e19567e994bba98b06da92112af75ca592cf994b1"
+  },
+  {
+    "path": "src/app/api/automation/calendar/route.ts",
+    "old_sha256": null,
+    "new_sha256": "cccaf793e50cae52c8c2247abb9ec4acfb9d29c001f68a4d5e2eab625fc97403"
+  },
+  {
+    "path": "src/app/api/automation/queue/route.ts",
+    "old_sha256": "01678825d228e052af0e39f69c1f3cfdae72eacc0651e7d80afe2188180cf111",
+    "new_sha256": "28987eb2d3529dab433511d4437de772235563e3a4030206977984a84e139368"
+  },
+  {
+    "path": "src/app/api/telegram/user/publish-announcement/route.ts",
+    "old_sha256": null,
+    "new_sha256": "4339de74f5be9f45bf777e69cbd1b40ee24529c45eb98e30cdc42ff82880ac10"
+  },
+  {
+    "path": "src/app/globals.css",
+    "old_sha256": "b3dba3a0fdffaf9b90978675b05d6e881488214e064dad707ef0fb6ba574285a",
+    "new_sha256": "e2d8a35c44597dbecf8110701f635131a3ad7add988624ed9deb0001cee08fde"
+  },
+  {
+    "path": "src/components/shell.tsx",
+    "old_sha256": "42fc873c6cc0cce3855499214929653e74891868179b65ba1924c95729232c20",
+    "new_sha256": "3a2c246f9470b0b28bf622302b1610b2083bba96e9a75195efba69fe49a6aa43"
+  },
+  {
+    "path": "src/lib/automation/worker.ts",
+    "old_sha256": "7fe9c33234d405208ceb97f29eea28b4900f4215aa3a8cedb4f1443add0a5087",
+    "new_sha256": "9a69aa9dd784b9cc1ed0973a44efa49c0882f9339441d5e1ec50527ac3ba1960"
+  },
+  {
+    "path": "src/lib/store.tsx",
+    "old_sha256": "29d7d9e6dddcaa8191a21161ce4b13da5c5393d298121ea6ac6e6a215af13f11",
+    "new_sha256": "395a26904896eae9f706101645b87c0a61feb5316c0a549027390a77f1601c37"
+  },
+  {
+    "path": "supabase/012_manual_claim.sql",
+    "old_sha256": null,
+    "new_sha256": "43d69f31d7ff26829874905a61dd5a6b0f85c3693d6a6563a6c93f0fe9afe027"
+  }
+]

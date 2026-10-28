@@ -1,0 +1,19 @@
+{
+  "version": "3.3",
+  "assets": {
+    "limits-v33.css": "9faa157782a9b00c2db3351094a36276452489480c4b8c56825bd18e83c805c6",
+    "src/app/(dashboard)/limites/page.tsx": "c676da206be88eb7cae74406fe5d6ca29491cdc9f1134d9b76dce75e9243f648",
+    "src/app/api/billing/limits/route.ts": "7b2070c4f2fa2120d8a1373f4286836e5e1e1976ffdf27090f712a6a918408b1",
+    "src/lib/billing/entitlements.ts": "ec6df66766c063df3f565bd6df6949ef728a3d7b0a62b390c78936582615b2e9",
+    "supabase/009_subscription_limits.sql": "d93db063f0fa4239c56bc0d30d731f8471fe3ff8895f5959ed7e3c2d24e0959c",
+    "supabase/DIAGNOSTIC_MIGRATIONS.sql": "6df7c363389d4d96beeee405687c5bc18d95616f40d7b6512a4c2aefcdc39f52",
+    "translations-v33.json": "bfafb5e2a9ca06d62d35772a1fa10afa7fe5b4ce5aecb099158553fa2450104a"
+  },
+  "newFiles": [
+    "src/app/(dashboard)/limites/page.tsx",
+    "src/app/api/billing/limits/route.ts",
+    "src/lib/billing/entitlements.ts",
+    "supabase/009_subscription_limits.sql",
+    "supabase/DIAGNOSTIC_MIGRATIONS.sql"
+  ]
+}

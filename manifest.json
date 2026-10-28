@@ -1,0 +1,12 @@
+{
+  "version": "3.1",
+  "files": {
+    "supabase/007_queue_guards.sql": "196e96d7ddde7c91a4eb3347ed727fbcf7b09d40bbdab40ea4a59c57702f45de",
+    "src/app/(dashboard)/diagnostics/page.tsx": "d1cb0170deeed420d7caadfe82c8d4c6215444d09435a8a682a2d8cee9eea353",
+    "src/app/api/diagnostics/route.ts": "8c031710707e9077bddd8f2fc286b094b1e49f039eadc918bfc3c36343765e28"
+  },
+  "assets": {
+    "diagnostics.css": "113f50adbd8fdc2e8e861860854a441fcd4f7bb37a1d8df5502182386970c50a",
+    "diagnostics-i18n.json": "5b7e90a111f6c964da8a30e5bcbb8d2857f59fb5eabfc46ff54f4ecfe16169ce"
+  }
+}

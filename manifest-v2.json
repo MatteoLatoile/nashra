@@ -1,0 +1,80 @@
+[
+  {
+    "path": "src/app/(dashboard)/annonces/page.tsx",
+    "before": "32a1048990ad633b24624c6600132d15375d22568df1c8f94c863674e34f84a3",
+    "after": "10696532febc61c101d472c5841b7b01548e51b9ae62a0d33d1cd1c88f346ab2",
+    "size": 18266
+  },
+  {
+    "path": "src/app/(dashboard)/campagnes/page.tsx",
+    "before": "ce411d4e759f9f174045eae401187a355a77eba1d1d35113af265a668f5f6874",
+    "after": "fa6fcb7981e00e4cc307500d112357aa492d4a2b57606e76cd3f648dcef01be1",
+    "size": 24363
+  },
+  {
+    "path": "src/app/(dashboard)/groupes/page.tsx",
+    "before": "be5456d379eab49fad1d362572801d5c2558925a3bc225d741114666510e1c53",
+    "after": "7450d909949a8ce8129a7915525a0dff213defccf19bbc5fa81b4e85636d1cca",
+    "size": 6240
+  },
+  {
+    "path": "src/app/(dashboard)/historique/page.tsx",
+    "before": "ccfb1e82c3bbd52edd98ea6d3a17bce1ba2282e854c17b4793641c8e384f37e6",
+    "after": "c37e05bde3ab5d2e827b5babedd503736c49d31e8830aa9a1f70bd95a12182a7",
+    "size": 3623
+  },
+  {
+    "path": "src/app/(dashboard)/page.tsx",
+    "before": "d8e0de24f9b83087fb8808039f8adfcf40916de6a7f741b793ba783340cdc6d4",
+    "after": "b6dfdf22cba965fd4d855a265873aa73ea54d8825c21594f0d678144b5896a68",
+    "size": 7460
+  },
+  {
+    "path": "src/app/(dashboard)/telegram/page.tsx",
+    "before": "9c86494e90d191568f54eed75cd3092290ba14fc7f443ef2da168247ae4e0eb8",
+    "after": "3b13bc4ad5a41990e9e34810b3d3dbfec81497786a28c29f9b6d841bd4755cbe",
+    "size": 20620
+  },
+  {
+    "path": "src/app/api/telegram/user/import/route.ts",
+    "before": null,
+    "after": "33e39146b95f2e2e8f15cd719d63620a86e7559f6532b8b522f9df8c8cd5ef76",
+    "size": 5321
+  },
+  {
+    "path": "src/app/api/telegram/user/messages/route.ts",
+    "before": "22ba0f31965966a0cd448d1ae455ef3ddf15cca7e3f4df4fd806816facb79fef",
+    "after": "d7e553ae803a85fcb412ae78ebc25b8eaeee7f3dda2482bd1fbc4ee0ae3fe89a",
+    "size": 1293
+  },
+  {
+    "path": "src/app/globals.css",
+    "before": "f8f6ac945d35c9221b52ca1a03a4a9ffd60d6c72591c6c683a8bdb023fb9b920",
+    "after": "fab63a9ce468ec380d8ae6c1c2c024393dd61f03ec91a162542d73e2da8f1759",
+    "size": 93432
+  },
+  {
+    "path": "src/lib/calendar-export.ts",
+    "before": null,
+    "after": "7a0a04f51ceb9e636c7f83e393ccdd2569632d435f967e4b84d9f4ccd6d1aa05",
+    "size": 3116
+  },
+  {
+    "path": "src/lib/i18n/catalog.json",
+    "before": "2d70f3b37e6b4079471df95dadaafc17bcf55cb5b5bf807ba91a531bf30828c1",
+    "after": "220842bde72aebbe5dcbbb4125337bb128d3d217a1faa9ee20825cffbfd008d1",
+    "size": 135236
+  },
+  {
+    "path": "src/lib/store.tsx",
+    "before": "1a3e46fc21f8c25711ec75d575f0ad7d371902a3f0f60461e40951e748ea2fc4",
+    "after": "29d7d9e6dddcaa8191a21161ce4b13da5c5393d298121ea6ac6e6a215af13f11",
+    "size": 16374
+  },
+  {
+    "path": "tsconfig.json",
+    "before": "3eb54bc002da0327c27a74d8d1bb3410d38fafbae7bff5523974ff265951f533",
+    "after": "f36dab8234e59bb1d0a1e24823d10c05bb5071e2bdd6255d266d7c73971a66d7",
+    "size": 810
+  }
+]

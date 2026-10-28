@@ -1,0 +1,26 @@
+NASHRA V0.7 — Modales de confirmation personnalisées
+
+Ce correctif s'applique PAR-DESSUS Nashra V0.6 dans le dossier ouvert dans VS Code.
+Il remplace les 8 fenêtres natives window.confirm() par des modales monochromes Nashra.
+
+1) Arrêtez le serveur dans VS Code (Ctrl+C).
+2) Dans le terminal déjà ouvert à la racine du projet, exécutez :
+
+   Expand-Archive "$HOME\Downloads\nashra-v0.7-modals.zip" -DestinationPath . -Force
+   npm run typecheck
+   npm run dev -- --port 3000
+
+3) Ouvrez http://localhost:3000/groupes et cliquez sur Supprimer
+   sur une destination POUR VISUALISER la nouvelle modale (ne validez pas si vous souhaitez garder la destination).
+
+Inclus :
+- Composant de confirmation partagé / hooks useConfirm.
+- Design danger / avertissement / neutre, responsive, accessible clavier.
+- Clic à l'extérieur ou Échap = annulation.
+- Les actions destructrices ne s'exécutent que sur confirmation.
+- Vidage cloud requiert la saisie explicite de VIDER.
+- Toutes les anciennes confirmations des pages existantes remplacées : destinations, annonces, campagnes, Telegram, paramètres, déconnexion.
+- Aucun changement dans le stockage Supabase, ni dans .env.local.
+- Aucun envoi automatique nouveau.
+
+Tests: vérification syntaxique TS/TSX OK; typecheck complet à exécuter sur votre PC.

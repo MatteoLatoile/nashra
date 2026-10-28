@@ -1,0 +1,17 @@
+/* Nashra V3.3 — entitlement dashboard */
+.n33-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-top:19px}
+.n33-panel{background:#151618;border:1px solid #303238;border-radius:12px;padding:26px;min-width:0}
+.n33-heading{display:flex;align-items:center;gap:14px}
+.n33-icon{height:48px;width:48px;display:grid;place-items:center;border:1px solid #40444b;border-radius:11px;background:#292b30;color:#e4e5e6}
+.n33-heading>div{flex:1;min-width:0}.n33-heading small{color:#8d929b;font-size:11px}.n33-heading h2{font-size:22px;margin:5px 0 0}
+.n33-pill{font-size:9px;letter-spacing:1px;color:#c2c5cb;border:1px solid #4b4e54;border-radius:5px;padding:6px 8px}
+.n33-muted{font-size:12px;color:#9398a1;line-height:1.7;margin:27px 0 8px}
+.n33-numbers{display:flex;align-items:baseline;gap:9px;margin:0 0 15px}
+.n33-numbers strong{font-size:40px;letter-spacing:-2px}.n33-numbers span{font-size:16px;color:#888e96}
+.n33-progress{height:9px;background:#323439;border-radius:100px;overflow:hidden}
+.n33-progress span{height:100%;display:block;background:#ebeef0;border-radius:100px;transition:width .25s}
+.n33-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:16px;font-size:11px;color:#92969f}
+.n33-foot strong{font-size:11px;color:#e1e3e4}
+.n33-explain h2{font-size:17px;margin:0 0 21px}.n33-explain p{font-size:12px;line-height:1.9;color:#9da1a8;margin:0 0 15px}
+.n33-explain .btn{margin-top:13px}.n33-error{border:1px solid #604247;background:#342427;color:#f3c3bf;padding:14px;border-radius:9px}
+@media(max-width:860px){.n33-grid{grid-template-columns:1fr}.n33-panel{padding:20px}}

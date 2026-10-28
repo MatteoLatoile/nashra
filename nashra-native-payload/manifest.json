@@ -1,0 +1,108 @@
+[
+  {
+    "path": "src/app/api/telegram/user/publish-announcement/route.ts",
+    "new_sha256": "e7994f9791c227c3b58c153536ca1b454d06506f9b7123ffc6393d2b55f77f12",
+    "allowed_sha256": [
+      null,
+      "4339de74f5be9f45bf777e69cbd1b40ee24529c45eb98e30cdc42ff82880ac10"
+    ]
+  },
+  {
+    "path": "src/app/api/telegram/user/status/route.ts",
+    "new_sha256": "cac5c4530123db74682b8b0d1f082eb49f5d494c6230fb352904f7cecb0d61b4",
+    "allowed_sha256": [
+      null,
+      "887518b9d9f50d62ff6bc1f333d358ca57f8f12c8d95dca56ec864de95c6e77f"
+    ]
+  },
+  {
+    "path": "src/app/(dashboard)/telegram/page.tsx",
+    "new_sha256": "3a654b8199658eadb36f295123b186bf69603dc194a9f59daa1289d851206935",
+    "allowed_sha256": [
+      null,
+      "a58ffd060f44f9e9fea627d614409fc4a89566c0c2facd9f437ec58f92b8e789",
+      "3b13bc4ad5a41990e9e34810b3d3dbfec81497786a28c29f9b6d841bd4755cbe"
+    ]
+  },
+  {
+    "path": "src/app/api/cron/nashra/route.ts",
+    "new_sha256": "2f03dd85b7b7495168035be8877b019346df913e7a5244d5503854396ee5a886",
+    "allowed_sha256": [
+      null,
+      "642cee1145269c75e6a6e82e2cffec598344352931a46d1423bad1364af071dc"
+    ]
+  },
+  {
+    "path": "src/lib/automation/worker.ts",
+    "new_sha256": "4d4ffc3461941ed8636a3427ac0594e6977ddf518346f7121d21dcabd54ae6e9",
+    "allowed_sha256": [
+      null,
+      "9a69aa9dd784b9cc1ed0973a44efa49c0882f9339441d5e1ec50527ac3ba1960",
+      "7fe9c33234d405208ceb97f29eea28b4900f4215aa3a8cedb4f1443add0a5087"
+    ]
+  },
+  {
+    "path": "src/lib/automation/telegram-native.ts",
+    "new_sha256": "80f812aaa389d5023cc325d4dfe0d0590500c0dafa763f2dc2dbe2b42cbfab63",
+    "allowed_sha256": [
+      null
+    ]
+  },
+  {
+    "path": "src/app/api/automation/native-schedule/route.ts",
+    "new_sha256": "bec74fbdaa2f56072ece72b2286eef6400be7b27d707229b56c697b2acc9ba0c",
+    "allowed_sha256": [
+      null
+    ]
+  },
+  {
+    "path": "src/lib/store.tsx",
+    "new_sha256": "7719f0ec3d5a61703c7f677dd723afa99584c6c6a112978f452a1ec24c804228",
+    "allowed_sha256": [
+      null,
+      "395a26904896eae9f706101645b87c0a61feb5316c0a549027390a77f1601c37",
+      "29d7d9e6dddcaa8191a21161ce4b13da5c5393d298121ea6ac6e6a215af13f11"
+    ]
+  },
+  {
+    "path": "src/app/(dashboard)/campagnes/page.tsx",
+    "new_sha256": "5fadc9a1e2f30053ecea809e93a9a4169e4263eb312b2d8a5302b85b3bc80795",
+    "allowed_sha256": [
+      null,
+      "dbb496c948e6a4dd93002daea286c9f05f15c3f6a970f0d0f9e6dd2971cb065b",
+      "37628e2b510cb6bc991c1b87b83c50220d5a7ee3b37279fc8311ab37b3625c84"
+    ]
+  },
+  {
+    "path": "src/app/(dashboard)/historique/page.tsx",
+    "new_sha256": "4219631190ed0981b1af0633a4572b91fb3cb08c776dbf84baddf2c695efe7b1",
+    "allowed_sha256": [
+      null,
+      "edf909bc67c8b42763009b9e19567e994bba98b06da92112af75ca592cf994b1",
+      "c37e05bde3ab5d2e827b5babedd503736c49d31e8830aa9a1f70bd95a12182a7"
+    ]
+  },
+  {
+    "path": "src/app/api/automation/queue/route.ts",
+    "new_sha256": "ef9874ab6f42807663d23463b714a6958f5dae839e045d35becf6449d6de01a7",
+    "allowed_sha256": [
+      null,
+      "28987eb2d3529dab433511d4437de772235563e3a4030206977984a84e139368",
+      "01678825d228e052af0e39f69c1f3cfdae72eacc0651e7d80afe2188180cf111"
+    ]
+  },
+  {
+    "path": "supabase/013_telegram_native.sql",
+    "new_sha256": "046698b4e0fb09b0c1ea5bb390a351d01affd9da47f2dc2721454a0eafd7ff78",
+    "allowed_sha256": [
+      null
+    ]
+  },
+  {
+    "path": "nashra-tests/native-schedule.test.cjs",
+    "new_sha256": "34a7e7ea57995c786331ce269606df47efac2ea9769d1e50e44e36ed0ed83e9f",
+    "allowed_sha256": [
+      null
+    ]
+  }
+]

@@ -1,0 +1,29 @@
+/* Nashra — visite guidée du tableau de bord (intégrée, sans dépendances) */
+.ntour-root{position:fixed;inset:0;z-index:10010;pointer-events:none;font-family:inherit}
+.ntour-intercept{position:fixed;inset:0;pointer-events:auto;background:transparent}
+.ntour-intercept.ntour-intro{background:rgba(0,0,0,.70);backdrop-filter:blur(3px)}
+.ntour-spotlight{position:fixed;border:1px solid rgba(255,255,255,.90);border-radius:10px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.73),0 0 0 4px rgba(255,255,255,.08);transition:top .20s ease,left .20s ease,width .20s ease,height .20s ease}
+.ntour-card{position:fixed;z-index:1;pointer-events:auto;max-width:calc(100vw - 28px);max-height:calc(100dvh - 20px);overflow:auto;overscroll-behavior:contain;background:#191a1d;border:1px solid #45474d;border-radius:16px;padding:22px 23px 20px;box-shadow:0 25px 75px rgba(0,0,0,.82);animation:ntour-enter .17s ease both}
+.ntour-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.ntour-brand{font-size:18px;letter-spacing:-.7px;font-weight:850;color:#f3f3f3}.ntour-brand span{color:#9b9da2}
+.ntour-close{border:0;background:#2a2b30;color:#b5b7bf;width:29px;height:29px;display:grid;place-items:center;border-radius:7px}
+.ntour-close:hover{color:white;background:#36383e}
+.ntour-progress{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:17px}
+.ntour-progress span{height:3px;background:#3a3c42;border-radius:8px}
+.ntour-progress .ntour-progress-done{background:#e5e6e9}
+.ntour-counter{font-size:10px;text-transform:uppercase;letter-spacing:1.25px;color:#a5a6ac;font-weight:750;margin-bottom:11px}
+.ntour-card h2{font-size:20px;letter-spacing:-.55px;font-weight:760;line-height:1.3;color:#f8f8f9;margin:0 0 12px}
+.ntour-card p{font-size:12.5px;line-height:1.75;color:#b2b4ba;min-height:72px;margin:0 0 20px}
+.ntour-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #32343a;padding-top:17px}
+.ntour-actions>div{display:flex;align-items:center;gap:7px}
+.ntour-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;min-height:36px;font-size:11.5px;font-weight:720;white-space:nowrap;padding:0 11px;transition:background .15s}
+.ntour-skip{background:transparent;color:#92959e;border:1px solid transparent;padding-inline:2px!important}
+.ntour-skip:hover{color:white}
+.ntour-back{background:#292a2e;color:#d5d6da;border:1px solid #42444a}
+.ntour-back:hover{background:#383a3f}
+.ntour-next{background:#f4f4f5;color:#141518;border:1px solid #fff}
+.ntour-next:hover{background:#fff}
+.ntour-actions button:focus-visible,.ntour-close:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@keyframes ntour-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){.ntour-card{padding:17px 17px 15px;border-radius:12px}.ntour-card p{min-height:0}.ntour-actions button{font-size:11px;min-height:34px;padding:0 9px}.ntour-spotlight{transition:none}}
+@media(prefers-reduced-motion:reduce){.ntour-card{animation:none}.ntour-spotlight{transition:none}}

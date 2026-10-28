@@ -1,0 +1,20 @@
+[
+  {
+    "target": "src/lib/automation/readiness.ts",
+    "source": "v37-files/src/lib/automation/readiness.ts",
+    "before_sha256": "538322a02afb0b431fed9c2fc86b41181a2fe852d63a5949b5bd1ad7f2ec3e47",
+    "after_sha256": "516923a106fa0214cf9ce8e6fc48d9f6d6cd1374f864dfc85094820d4211532d"
+  },
+  {
+    "target": "src/lib/automation/worker.ts",
+    "source": "v37-files/src/lib/automation/worker.ts",
+    "before_sha256": "04ded35ebba783d1257a977cc424a5075297f75ec4e396c38633e43ff66563bc",
+    "after_sha256": "7fe9c33234d405208ceb97f29eea28b4900f4215aa3a8cedb4f1443add0a5087"
+  },
+  {
+    "target": "src/lib/automation/photos.ts",
+    "source": "v37-files/src/lib/automation/photos.ts",
+    "before_sha256": null,
+    "after_sha256": "9af5fe5da4a1014f3418dc56681d45f0755f5a99f0811a1fd33c61878faf83a3"
+  }
+]

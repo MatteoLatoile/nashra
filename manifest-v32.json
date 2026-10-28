@@ -1,0 +1,44 @@
+{
+  "version": "3.2",
+  "files": {
+    "supabase/008_queue_reliability.sql": {
+      "patched_sha256": "5bf1349960a92dfba73c65db78aa67729af17efed5f15e6d020dbc6ef1d6e6da"
+    },
+    "src/lib/automation/reconcile.ts": {
+      "patched_sha256": "79eac615832bb93756d4cb49c57622ba35d4c2609362a9dd1e2b6bbd5bb7ac0f"
+    },
+    "src/lib/automation/attention.ts": {
+      "patched_sha256": "dae117176f633485d60df3f483b2924904ad2581c910362c3144fb616d669056"
+    },
+    "src/app/api/automation/oversight/route.ts": {
+      "patched_sha256": "700b3b542b422260357358f6c76c1abfded213248b8740181dfd000992856982"
+    },
+    "src/app/(dashboard)/supervision/page.tsx": {
+      "patched_sha256": "56670208486f9739ce6519ebcc007f9147200cf41c78eb064fc49e9253c1c93e"
+    },
+    "src/app/api/cron/nashra/route.ts": {
+      "patched_sha256": "4eff73c244edf5dd2bf63679effed17d90e44a4b28f279d49aa560766fa4a9a7",
+      "previous_sha256": "910058ab9d0fd865a3ee33addb0fe7364f1982df18139c5be6f3f8ae3b25ccae"
+    },
+    "src/app/api/operations/route.ts": {
+      "patched_sha256": "361eccbe0cb1ac94233e00ec7ce95308149ee79c58230d56dd712c1f37c138d6",
+      "previous_sha256": "c2b2cbe3d5e44ceca41f394020db81d912a273a34efa8694766d42ab87242f33"
+    },
+    "src/app/api/diagnostics/route.ts": {
+      "patched_sha256": "0a95ea180971d0240878cfdab284c2f9c634096f6513e6836eb0a93ee6cf8bc5",
+      "previous_sha256": "8c031710707e9077bddd8f2fc286b094b1e49f039eadc918bfc3c36343765e28"
+    },
+    "src/app/api/admin/summary/route.ts": {
+      "patched_sha256": "fbf204d1fe983181daa6b2e3fc2836a46c4a3586251c15921edb3e995904a011",
+      "previous_sha256": "78647715ded97ab5dca8f4db465b03df12d1e42f9a7f843b362331aa552b7ac1"
+    },
+    "src/app/(dashboard)/admin/page.tsx": {
+      "patched_sha256": "bd62f03896b795d71d821f970611a318b8dcbc71d05c38419892df6237bd1a1e",
+      "previous_sha256": "bc62ba0aa7fba430cf5f43201bfd2417ac35254661f1a78e9e432389ac1d3fed"
+    }
+  },
+  "assets": {
+    "supervision.css": "8e4584a26fd1450326a71ea2845a8f38d5942f2b16bbe3c64a8906b11948425b",
+    "translations-v32.json": "3cfb137c34a98b6be9b0200b77eef667fcba4e987fdc6c4a05108206cd6b9c10"
+  }
+}

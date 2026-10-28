@@ -1,0 +1,82 @@
+[
+  {
+    "path": "supabase/016_quota_guards.sql",
+    "before": null,
+    "after": "3a2e6a06b6fea22ff5ee1a3742f82ec991041eca6f29f68197ce756130224a31"
+  },
+  {
+    "path": "tests/016_readonly_verification.sql",
+    "before": null,
+    "after": "5011acf738ee76795370df03745d5fb4cd1c912ea57d0301e5d308b9405a6b81"
+  },
+  {
+    "path": "src/components/shell.tsx",
+    "before": "ef71358dbe288b5b2957e59434357232c40a86e0b12e39c18d88b5a8ec424b60",
+    "after": "98a29c39bfca4fd02e2fb9d6b7f9bd02b37f7443a7b056e05a37cf4ae6a35e4f"
+  },
+  {
+    "path": "src/components/quota-alert.tsx",
+    "before": null,
+    "after": "ae7cd27b2b4029ff398e2ecea985795f93ddc81705df33962db5ddb5a841ff36"
+  },
+  {
+    "path": "src/lib/store.tsx",
+    "before": "7719f0ec3d5a61703c7f677dd723afa99584c6c6a112978f452a1ec24c804228",
+    "after": "78c926ec366e62b2945ff8646d46b696b251fc82c3d5ec37ab3a5c7acead4504"
+  },
+  {
+    "path": "src/lib/billing/quotas-server.ts",
+    "before": null,
+    "after": "16eff8356539574ff0b1b2942eddf3556478c77751e6ed666b1d03916325f09b"
+  },
+  {
+    "path": "src/lib/billing/usage-copy.ts",
+    "before": null,
+    "after": "9884842769eabadb0db74304ab103d8a163cdf11c0c9c4a4ca83f2b94b74716c"
+  },
+  {
+    "path": "src/lib/automation/worker.ts",
+    "before": "4d4ffc3461941ed8636a3427ac0594e6977ddf518346f7121d21dcabd54ae6e9",
+    "after": "ebb16c78281fb055852bd90e5981b1113a1718d364b2d6dbdc27e109f0537445"
+  },
+  {
+    "path": "src/app/api/automation/native-schedule/route.ts",
+    "before": "bec74fbdaa2f56072ece72b2286eef6400be7b27d707229b56c697b2acc9ba0c",
+    "after": "819047891e44b8e990d9fb5c6d105a25b4e0379971910f49b5ab63c67b1f55ab"
+  },
+  {
+    "path": "src/app/api/automation/calendar/route.ts",
+    "before": "cccaf793e50cae52c8c2247abb9ec4acfb9d29c001f68a4d5e2eab625fc97403",
+    "after": "6a96df89e7911113f7dbc9fe15b8fdaefc3736825b5ed5c1edce4b95d4910eb9"
+  },
+  {
+    "path": "src/app/api/automation/queue/route.ts",
+    "before": "ef9874ab6f42807663d23463b714a6958f5dae839e045d35becf6449d6de01a7",
+    "after": "d4531bef963cdeb46a1b7c18bc643b0d270858649de7f967f9297c1f18f14531"
+  },
+  {
+    "path": "src/app/api/telegram/user/publish-announcement/route.ts",
+    "before": "e7994f9791c227c3b58c153536ca1b454d06506f9b7123ffc6393d2b55f77f12",
+    "after": "7be40498d329e15248960cfc4540090ac367114ce4b88394cbd95b85dc65fde3"
+  },
+  {
+    "path": "src/app/api/billing/status/route.ts",
+    "before": "b14cc0d14a37533e16e5fb96610f8411f063f3ef55d72639bfa044319b91ed85",
+    "after": "ce4a9486d4f183572337b9ca96096979f0317b737a9eb1540d34c9d9546ba2c7"
+  },
+  {
+    "path": "src/app/api/billing/limits/route.ts",
+    "before": "7b2070c4f2fa2120d8a1373f4286836e5e1e1976ffdf27090f712a6a918408b1",
+    "after": "1011a3584c87093439671d43c65292aa986a4f8e61319469cb45635b74a60845"
+  },
+  {
+    "path": "src/app/(dashboard)/abonnement/page.tsx",
+    "before": "36f585ec442ffad4f7aa8b4d71119c3fd05c8a1dab3fc57eb2e63e9e13fa884c",
+    "after": "f8b582ddc8c00939d858e6637da95b74da9efcaa4d7a889bff4c7b3ba034dae3"
+  },
+  {
+    "path": "tests/step3-static.test.cjs",
+    "before": null,
+    "after": "282d00c420f45d6073dc4778975991095122069666082f07e15b161c0f6d1f16"
+  }
+]

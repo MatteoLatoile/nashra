@@ -1,0 +1,10 @@
+/* Nashra V2.4 - controlled sending and review */
+.n24-state{display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;background:#292c30;border:1px solid #43464c;color:#e1e4e8;font-size:11px;line-height:1.35;font-weight:650;white-space:nowrap}
+.n24-state-sent{background:#1d3027;border-color:#3c624b;color:#bce3ca}
+.n24-state-approved{background:#26313c;border-color:#3f5367;color:#b8d5ee}
+.n24-state-needs_review,.n24-state-blocked{background:#3a2a23;border-color:#6e4a39;color:#f0c5ac}
+.n24-state-cancelled{opacity:.6}
+.n24-detail{display:block;margin:7px 0 0;max-width:250px;color:#a8abb2;font-size:10px;line-height:1.5;white-space:normal}
+.n24-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap}
+.n24-actions .btn{font-size:10px;min-height:31px;padding:0 10px}
+@media(max-width:650px){.n24-actions{align-items:stretch;flex-direction:column}}

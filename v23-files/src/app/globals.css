@@ -1,0 +1,8 @@
+/* Nashra V2.3 — approval queue */
+.n23-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+.n23-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.n23-metrics>div{background:#17181b;border:1px solid #303238;border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.n23-metrics span{color:#a0a3aa;font-size:11px}
+.n23-metrics strong{font-size:26px;font-weight:750}
+.n23-notice{color:#d5d7da;background:#232529;border:1px solid #3c3e44;border-radius:8px;padding:13px;font-size:12px;line-height:1.6}
+@media(max-width:650px){.n23-metrics{grid-template-columns:1fr}.n23-toolbar .btn{width:100%}}

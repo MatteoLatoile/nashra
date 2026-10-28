@@ -1,0 +1,15 @@
+{
+  "supabase/006_billing_ops.sql": "02c6e55355cd005c137d41697708f0b42d1b0ec8166ac19b446ed2dc58862c47",
+  "src/lib/nashra-bundle/secure.ts": "f9fe5ca88d16ccb2b7da04bf3aa9568a06f395fe82ec8d4cb83f471221d88e90",
+  "src/lib/nashra-bundle/stripe.ts": "67c849d49ca2f70f43bb708d61247a5d54741f9aa305c571886af92e4116e7e7",
+  "src/app/(dashboard)/abonnement/page.tsx": "9bd8860527948c17539b5896361f113d928b9df3107220e0cb5c5bc9620fabed",
+  "src/app/(dashboard)/admin/page.tsx": "2397a7c8586d2af8f61cb8c0c8f17c55ce2871b8057508c91790c124e333d4fb",
+  "src/app/(dashboard)/operations/page.tsx": "4a421218bff8f9a60910339efcfb8d14f9dd7e1953ab1d64d26c388e6def4e88",
+  "src/app/api/health/route.ts": "26814ddcc41ba77f21d38bc4c9d13a243407fc7a2355683488c555945ade3222",
+  "src/app/api/operations/route.ts": "c2b2cbe3d5e44ceca41f394020db81d912a273a34efa8694766d42ab87242f33",
+  "src/app/api/admin/summary/route.ts": "78647715ded97ab5dca8f4db465b03df12d1e42f9a7f843b362331aa552b7ac1",
+  "src/app/api/billing/status/route.ts": "a02946b7aa5ad126a017344f7cdc3679e223ecad1ad8c0eee20dcb1337ee8de4",
+  "src/app/api/billing/portal/route.ts": "244522c12f7ea2dc97c42fd5a4143ef41f36f31ed8220200db49236497d4cac9",
+  "src/app/api/billing/checkout/route.ts": "65c80ec0a32caabca1c199100e1f26eea643102d53d2dfc7673d17b7d0b920e1",
+  "src/app/api/billing/webhook/route.ts": "26b1c1f3a92d76c7801a451014fa1b558ae3ff6c5b1e14568d2428cb967ab2d9"
+}

@@ -1,0 +1,19 @@
+/* Nashra v3.2 supervision — monochrome, responsive */
+.n32-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:21px 0}
+.n32-stat-grid article{background:#161719;border:1px solid #33353a;border-radius:11px;padding:21px;min-width:0}
+.n32-stat-grid article>div{display:flex;align-items:center;gap:9px;color:#afb2bb;font-size:11px;line-height:1.5}
+.n32-stat-grid article>div svg{flex-shrink:0}
+.n32-stat-grid strong{display:block;font-size:32px;letter-spacing:-1.3px;margin-top:16px;color:#f3f4f5}
+.n32-stat-grid .n32-critical{border-color:#71504b;background:#231b1d}
+.n32-panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.n32-panel{border:1px solid #33353a;border-radius:11px;background:#161719;padding:23px;min-width:0}
+.n32-panel-title{display:flex;align-items:center;gap:10px;margin-bottom:22px;color:#dadde1}
+.n32-panel-title h2{font-size:15px;margin:0}
+.n32-info{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:12px 0;border-bottom:1px solid #292b30;font-size:12px}
+.n32-info>span{color:#999da5}.n32-info>strong{font-weight:700;text-align:right;color:#f0f1f1}
+.n32-info>strong.n32-good{color:#9dd3b1}.n32-info>strong.n32-warning{color:#e8c09b}
+.n32-subtle{color:#7e838d;font-size:11px;line-height:1.7;margin:18px 0 0}
+.n32-limit{margin:15px 0;color:#e4ba8c;font-size:11px}
+.n32-actions{display:flex;gap:11px;flex-wrap:wrap;margin:23px 0}
+@media(max-width:1070px){.n32-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.n32-panel-grid{grid-template-columns:1fr}.n32-stat-grid article{padding:15px}.n32-stat-grid strong{font-size:26px}.n32-panel{padding:18px}.n32-info{flex-wrap:wrap}.n32-info>strong{text-align:left}}

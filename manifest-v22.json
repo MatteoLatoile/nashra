@@ -1,0 +1,9 @@
+{
+  "expectedCssV21Sha256": "c802485767d3aaf9ac1343e77d8937e93e7f7a79d90359e6e61cae247a72dbaf",
+  "files": [
+    "src/lib/automation/plan.ts",
+    "src/app/api/automation/plan/route.ts",
+    "src/app/(dashboard)/planification/page.tsx",
+    "src/app/globals.css"
+  ]
+}

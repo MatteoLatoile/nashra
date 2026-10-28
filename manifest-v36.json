@@ -1,0 +1,14 @@
+[
+  {
+    "target": "src/lib/automation/readiness.ts",
+    "source": "v36-files/src/lib/automation/readiness.ts",
+    "before_sha256": "f961b1160a23fb331d5b1b8ac0643d8c02e3d548ac3a7558b122bc777ddbdc1b",
+    "after_sha256": "538322a02afb0b431fed9c2fc86b41181a2fe852d63a5949b5bd1ad7f2ec3e47"
+  },
+  {
+    "target": "src/lib/automation/worker.ts",
+    "source": "v36-files/src/lib/automation/worker.ts",
+    "before_sha256": "6c849c498c5b1685dcb7b852fdaf4e8cd2dea700ea888499c896222a77ddd00c",
+    "after_sha256": "04ded35ebba783d1257a977cc424a5075297f75ec4e396c38633e43ff66563bc"
+  }
+]
