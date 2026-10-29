@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { noStore, session } from '@/lib/nashra-bundle/secure';
-import { billingMode, configuredPrice, stripeGet, validTestPrice, type BillingInterval, type PaidTier } from '@/lib/nashra-bundle/stripe';
+import { billingMode, configuredPrice, stripeGet, validStripePrice, type BillingInterval, type PaidTier } from '@/lib/nashra-bundle/stripe';
 import { getQuotaSnapshot } from '@/lib/billing/quotas-server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ async function priceView(tier: PaidTier, interval: BillingInterval, expectedCent
   if (!price || expectedCents === null) return absent;
   try {
     const remote = await stripeGet(`prices/${price}`);
-    if (remote.id !== price || !validTestPrice(remote, interval, expectedCents)) return absent;
+    if (remote.id !== price || !validStripePrice(remote, interval, expectedCents)) return absent;
     return { available: true, amount: expectedCents, currency: 'usd', interval, intervalCount: 1 };
   } catch { return absent; }
 }

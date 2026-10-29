@@ -1,3 +1,5 @@
+> **Mise à jour du 29 octobre 2026 :** ce document décrit l’ancienne version de facturation (test). Pour la nouvelle intégration Stripe LIVE, ses variables et la migration SQL 019, voir **`deployment/STRIPE-NASHRA-README.md`**. Ne pas réexécuter l’ancien installateur `install-abonnements.cjs` après installation du patch : il pourrait rétablir une version antérieure des routes.
+
 # NASHRA — Gestion des abonnements : une mise à jour ciblée
 
 Cette mise à jour concerne UNIQUEMENT **Abonnement** et ses routes de paiement.
