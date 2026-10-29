@@ -1,0 +1,82 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #090a0df2;
+  color: #f8f8fc;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.card {
+  width: min(100%, 430px);
+  text-align: center;
+  padding: 36px 28px 30px;
+  border: 1px solid #292c35;
+  border-radius: 18px;
+  background: #15161b;
+  box-shadow: 0 32px 120px #0009;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #41434c;
+  border-radius: 10px;
+  background: #23242b;
+}
+.period { color: #a58ef1; }
+.spinner {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin: 32px auto 22px;
+  border-radius: 50%;
+  border: 3px solid #3a354c;
+  border-top-color: #ad98f5;
+  animation: spin 0.95s linear infinite;
+}
+.spinner span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #b49dff12;
+  box-shadow: 0 0 26px #9f83fa2a;
+}
+.offer {
+  display: inline-block;
+  padding: 6px 13px;
+  margin-bottom: 14px;
+  border: 1px solid #68578d;
+  border-radius: 999px;
+  background: #372b4e;
+  color: #e2d9ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.title { font-size: clamp(21px, 4vw, 26px); font-weight: 750; letter-spacing: -.65px; line-height: 1.25; margin: 0; }
+.subtitle { color: #a7a9b3; font-size: 13px; line-height: 1.6; margin: 12px 0 28px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; list-style: none; padding: 0; margin: 0; }
+.steps li { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #858995; font-size: 11px; font-weight: 650; }
+.number { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #3b3d49; border-radius: 50%; background: #22242b; font-size: 12px; }
+.active { color: #efeaff !important; }
+.active .number { color: #f5efff; background: #6d50b7; border-color: #9776df; box-shadow: 0 0 0 4px #9c7fff1a; }
+.complete .number { color: #e0d2ff; border-color: #665285; background: #332b45; }
+.note { margin: 26px 0 0; color: #7d818d; font-size: 11px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 460px) { .card { padding: 30px 20px 24px; } .steps { gap: 5px; } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-color: #ad98f5; } }

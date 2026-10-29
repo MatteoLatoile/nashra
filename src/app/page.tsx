@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
+import { BillingFlowLoader } from '@/components/billing-flow-loader';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -56,7 +57,14 @@ export default function LandingPage() {
   const [cycle, setCycle] = useState<Cycle>('month');
   const [menuOpen, setMenuOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
+  const [selectedOffer, setSelectedOffer] = useState<string | null>(null);
+  function beginOfferNavigation(event: MouseEvent<HTMLAnchorElement>, plan: string) {
+    // Conserve le comportement standard des liens : nouveau volet/onglet et clic modifié.
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    setSelectedOffer(`${plan} · ${cycle === 'year' ? 'Annuel' : 'Mensuel'}`);
+  }
   return <div className="lp-root">
+    {selectedOffer && <BillingFlowLoader step="selection" offer={selectedOffer} />}
     <div className="lp-glow lp-glow-a" aria-hidden="true"/>
     <div className="lp-glow lp-glow-b" aria-hidden="true"/>
 
@@ -159,7 +167,7 @@ export default function LandingPage() {
           <p className="lp-plan-description">{plan.description}</p>
           <div className="lp-plan-price"><strong>{cycle === 'month' ? plan.monthly : plan.yearly} $</strong><span>/{cycle === 'month' ? 'mois' : 'an'}</span></div>
           <div className="lp-plan-subprice">{cycle === 'year' && plan.yearly ? `Soit ${(plan.yearly / 12).toFixed(2).replace('.', ',')} $/mois, facturé annuellement` : cycle === 'month' && plan.monthly ? 'Facturation mensuelle' : 'Sans carte bancaire'}</div>
-          <Link className={`lp-plan-cta ${plan.highlighted ? 'lp-plan-cta-highlight' : ''}`} href={plan.id === 'free' ? '/connexion' : `/connexion?next=${encodeURIComponent(`/abonnement?checkout=${plan.id}&interval=${cycle}`)}`}>{plan.id === 'free' ? 'Commencer gratuitement' : `Découvrir ${plan.name}`} <ArrowRight size={17}/></Link>
+          <Link className={`lp-plan-cta ${plan.highlighted ? 'lp-plan-cta-highlight' : ''}`} onClick={event => { if (plan.id !== 'free') beginOfferNavigation(event, plan.name); }} href={plan.id === 'free' ? '/connexion' : `/connexion?next=${encodeURIComponent(`/abonnement?checkout=${plan.id}&interval=${cycle}`)}`}>{plan.id === 'free' ? 'Commencer gratuitement' : `Découvrir ${plan.name}`} <ArrowRight size={17}/></Link>
           <div className="lp-plan-separator"/><span className="lp-plan-include">CE QUI EST INCLUS</span>
           <ul><li><Check size={16}/> 1 compte Telegram</li><li><Check size={16}/> {plan.groups} groupes actifs</li><li><Check size={16}/> {plan.sends} envois par mois</li><li><Check size={16}/> {plan.scheduled} programmations en attente</li><li><Check size={16}/> Publications uniques et récurrentes</li>{plan.id === 'business' && <li><Check size={16}/> Support prioritaire</li>}</ul>
         </article>)}</div>

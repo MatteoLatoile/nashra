@@ -1,5 +1,7 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { BillingFlowLoader } from '@/components/billing-flow-loader';
 import { CreditCard, RefreshCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n/provider';
@@ -30,7 +32,13 @@ const stateText: Record<string, string> = {
   incomplete_expired: 'Paiement expiré',
 };
 
-export default function BillingPage() {
+function BillingPageContent() {
+  const searchParams = useSearchParams();
+  const requestedTier = searchParams.get('checkout');
+  const requestedInterval = searchParams.get('interval');
+  const automaticTier = requestedTier === 'pro' || requestedTier === 'business' ? requestedTier : null;
+  const automaticInterval = requestedInterval === 'month' || requestedInterval === 'year' ? requestedInterval : null;
+  const automaticRequest = automaticTier && automaticInterval ? {tier: automaticTier, interval: automaticInterval} : null;
   const {locale, t} = useLanguage();
   const words = billingCopy(locale);
   const usageWords = usageCopy(locale);
@@ -38,6 +46,10 @@ export default function BillingPage() {
   const automaticCheckoutStarted = useRef(false);
   const [interval,setInterval] = useState<Interval>('month');
   const [busy,setBusy] = useState(false);
+  const [automaticStage,setAutomaticStage] = useState<'checking'|'opening'|'idle'>(automaticRequest ? 'checking' : 'idle');
+  const [redirecting,setRedirecting] = useState(false);
+  const [redirectingMode,setRedirectingMode] = useState<'checkout'|'portal'|null>(null);
+  const [redirectingOffer,setRedirectingOffer] = useState<string | null>(null);
   const [error,setError] = useState('');
   const [returnState,setReturnState] = useState('');
   const refresh = useCallback(async () => {
@@ -47,7 +59,10 @@ export default function BillingPage() {
       const body = await res.json() as Billing;
       if (!res.ok) throw new Error(body.error || 'Chargement impossible.');
       setData(body);
-    } catch(e) { setError(e instanceof Error ? e.message : 'Erreur de chargement.'); }
+    } catch(e) {
+      setError(e instanceof Error ? e.message : 'Erreur de chargement.');
+      setAutomaticStage('idle'); // Ne pas masquer une erreur sous un loader infini.
+    }
     finally { setBusy(false); }
   },[]);
   useEffect(() => {
@@ -57,6 +72,10 @@ export default function BillingPage() {
   },[refresh]);
   async function action(mode:'checkout'|'portal', tier?:'pro'|'business', selectedInterval: Interval = interval) {
     setBusy(true);setError('');
+    setRedirecting(true);
+    setRedirectingMode(mode);
+    if (tier) setRedirectingOffer(`${tier === 'pro' ? 'Pro' : 'Business'} · ${selectedInterval === 'year' ? 'Annuel' : 'Mensuel'}`);
+    if (automaticRequest) setAutomaticStage('opening');
     try {
       const res = await fetch(`/api/billing/${mode}`,{
         method:'POST',credentials:'same-origin',
@@ -66,26 +85,34 @@ export default function BillingPage() {
       const payload = await res.json() as {url?:string;error?:string};
       if (!res.ok || !payload.url) throw new Error(payload.error || 'Action impossible.');
       window.location.assign(payload.url);
-    } catch(e) { setError(e instanceof Error ? e.message : 'Erreur.');setBusy(false); }
+    } catch(e) {
+      setError(e instanceof Error ? e.message : 'Erreur.');
+      setBusy(false);
+      setRedirecting(false);
+      setRedirectingMode(null);
+      setAutomaticStage('idle'); // Rendre la page interactive en cas d'échec.
+    }
   }
   useEffect(() => {
-    if (!data || busy || automaticCheckoutStarted.current) return;
-    const query = new URLSearchParams(window.location.search);
-    const tier = query.get('checkout');
-    const selectedInterval = query.get('interval');
-    if ((tier !== 'pro' && tier !== 'business') || (selectedInterval !== 'month' && selectedInterval !== 'year')) return;
-    if (!data.enabled || !data.plans[tier][selectedInterval].available) return;
+    if (!data || busy || automaticCheckoutStarted.current || !automaticRequest) return;
     automaticCheckoutStarted.current = true;
+    const {tier, interval: selectedInterval} = automaticRequest;
+    if (!data.enabled || !data.plans[tier][selectedInterval].available) {
+      setError('Cette offre est momentanément indisponible. Choisissez une autre offre ci-dessous.');
+      setAutomaticStage('idle');
+      return;
+    }
     setInterval(selectedInterval);
-    // Existing subscribers must manage their subscription through the portal.
-    if (data.hasCustomer) {
-      if (data.tier !== tier) void action('portal');
+    // Une souscription en cours se gère depuis le portail ; un ancien client
+    // revenu au forfait Gratuit peut souscrire de nouveau via Checkout.
+    if (data.hasCustomer && data.tier !== 'free') {
+      void action('portal');
     } else {
       void action('checkout', tier, selectedInterval);
     }
-  // Only start once after status loads, rather than on every re-render.
+  // Une seule tentative automatique pour éviter de créer plusieurs sessions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, busy]);
+  }, [data, busy, requestedTier, requestedInterval]);
   function priceText(price:Price) {
     if (!price.available || price.amount === null || !price.currency) return '—';
     try {
@@ -99,6 +126,12 @@ export default function BillingPage() {
     catch { return value; }
   }
   return <>
+    {(automaticStage !== 'idle' || redirecting) && <BillingFlowLoader
+      step="payment"
+      offer={redirectingOffer || (automaticRequest ? `${automaticRequest.tier === 'pro' ? 'Pro' : 'Business'} · ${automaticRequest.interval === 'year' ? 'Annuel' : 'Mensuel'}` : undefined)}
+      title={automaticStage === 'checking' ? 'Vérification de votre offre…' : redirectingMode === 'portal' ? 'Ouverture de votre espace de facturation…' : 'Ouverture du paiement sécurisé…'}
+      subtitle={automaticStage === 'checking' ? 'Nous vérifions votre compte et le tarif sélectionné.' : redirectingMode === 'portal' ? 'Vous allez gérer votre abonnement sur Stripe.' : 'Redirection vers Stripe en cours.'}
+    />}
     <PageHeader eyebrow="NASHRA · ABONNEMENT" title={t('Mon abonnement')}
       description={words.intro}
       actions={<button onClick={() => void refresh()} disabled={busy} className="btn btn-secondary">
@@ -171,4 +204,11 @@ export default function BillingPage() {
     </div>
     {!data?.enabled && <p className="n25-muted" role="status">{words.billingDisabled}</p>}
   </>;
+}
+
+
+export default function BillingPage() {
+  return <Suspense fallback={<BillingFlowLoader step="payment" title="Vérification de votre offre…" />}>
+    <BillingPageContent />
+  </Suspense>;
 }

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, CheckCircle2, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, ShieldCheck, UserRound, Building2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { BillingFlowLoader } from '@/components/billing-flow-loader';
 
 type Mode = 'login' | 'signup';
 
@@ -31,6 +32,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
   const [feedback, setFeedback] = useState('');
   const [good, setGood] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [leaving, setLeaving] = useState<'authentication' | 'payment' | null>(null);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('erreur')) {
@@ -52,6 +54,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
     setBusy(true);
     setFeedback('');
     setGood(false);
+    setLeaving('authentication');
     try {
       const { error } = await createClient().auth.signInWithOAuth({
         provider: 'google',
@@ -61,6 +64,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
       // L'utilisateur est redirigé vers Google par Supabase.
     } catch (error) {
       setFeedback(friendlyError(error));
+      setLeaving(null);
       setBusy(false);
     }
   }
@@ -87,11 +91,13 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
     }
 
     setBusy(true);
+    setLeaving('authentication');
     try {
       const supabase = createClient();
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
+        setLeaving(next.startsWith('/abonnement?') ? 'payment' : 'authentication');
         router.replace(next);
         router.refresh();
       } else {
@@ -105,15 +111,18 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
         });
         if (error) throw error;
         if (!data.session) {
+          setLeaving(null);
           setGood(true);
           setAwaitingConfirmation(true);
           setFeedback('Vérifiez votre boîte e-mail pour confirmer votre adresse et activer votre compte. Pensez aux spams.');
         } else {
+          setLeaving(next.startsWith('/abonnement?') ? 'payment' : 'authentication');
           router.replace(next);
           router.refresh();
         }
       }
     } catch (error) {
+      setLeaving(null);
       setFeedback(friendlyError(error));
     } finally {
       setBusy(false);
@@ -146,6 +155,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
 
   return (
     <div className="n8-auth">
+      {leaving && <BillingFlowLoader step={leaving} title={leaving === 'payment' ? 'Connexion réussie, préparation de votre offre…' : 'Connexion sécurisée en cours…'} />}
       <button type="button" className="n8-google" onClick={() => void connectGoogle()} disabled={busy}>
         <span className="n8-google-mark" aria-hidden="true">G</span>
         <span>{busy ? 'Connexion en cours…' : 'Continuer avec Google'}</span>
