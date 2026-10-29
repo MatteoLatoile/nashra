@@ -2,6 +2,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BillingFlowLoader } from '@/components/billing-flow-loader';
+import { CheckoutResultNotice } from '@/components/checkout-result-notice';
 import { CreditCard, RefreshCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n/provider';
@@ -27,13 +28,14 @@ const info: Record<Tier,'freeInfo'|'proInfo'|'businessInfo'> = {
 };
 const stateText: Record<string, string> = {
   free: 'Gratuit', active: 'Actif', trialing: 'Essai en cours',
-  past_due: 'Paiement en retard', unpaid: 'ImpayÃ©',
-  canceled: 'RÃ©siliÃ©', paused: 'En pause', incomplete: 'Paiement en attente',
-  incomplete_expired: 'Paiement expirÃ©',
+  past_due: 'Paiement en retard', unpaid: 'Impayé',
+  canceled: 'Résilié', paused: 'En pause', incomplete: 'Paiement en attente',
+  incomplete_expired: 'Paiement expiré',
 };
 
 function BillingPageContent() {
   const searchParams = useSearchParams();
+  const checkoutSessionId = searchParams.get('session_id');
   const requestedTier = searchParams.get('checkout');
   const requestedInterval = searchParams.get('interval');
   const automaticTier = requestedTier === 'pro' || requestedTier === 'business' ? requestedTier : null;
@@ -74,7 +76,7 @@ function BillingPageContent() {
     setBusy(true);setError('');
     setRedirecting(true);
     setRedirectingMode(mode);
-    if (tier) setRedirectingOffer(`${tier === 'pro' ? 'Pro' : 'Business'} Â· ${selectedInterval === 'year' ? 'Annuel' : 'Mensuel'}`);
+    if (tier) setRedirectingOffer(`${tier === 'pro' ? 'Pro' : 'Business'} · ${selectedInterval === 'year' ? 'Annuel' : 'Mensuel'}`);
     if (automaticRequest) setAutomaticStage('opening');
     try {
       const res = await fetch(`/api/billing/${mode}`,{
@@ -90,7 +92,7 @@ function BillingPageContent() {
       setBusy(false);
       setRedirecting(false);
       setRedirectingMode(null);
-      setAutomaticStage('idle'); // Rendre la page interactive en cas d'Ã©chec.
+      setAutomaticStage('idle'); // Rendre la page interactive en cas d'échec.
     }
   }
   useEffect(() => {
@@ -98,28 +100,28 @@ function BillingPageContent() {
     automaticCheckoutStarted.current = true;
     const {tier, interval: selectedInterval} = automaticRequest;
     if (!data.enabled || !data.plans[tier][selectedInterval].available) {
-      setError('Cette offre est momentanÃ©ment indisponible. Choisissez une autre offre ci-dessous.');
+      setError('Cette offre est momentanément indisponible. Choisissez une autre offre ci-dessous.');
       setAutomaticStage('idle');
       return;
     }
     setInterval(selectedInterval);
-    // Une souscription en cours se gÃ¨re depuis le portail ; un ancien client
+    // Une souscription en cours se gère depuis le portail ; un ancien client
     // revenu au forfait Gratuit peut souscrire de nouveau via Checkout.
     if (data.hasCustomer && data.tier !== 'free') {
       void action('portal');
     } else {
       void action('checkout', tier, selectedInterval);
     }
-  // Une seule tentative automatique pour Ã©viter de crÃ©er plusieurs sessions.
+  // Une seule tentative automatique pour éviter de créer plusieurs sessions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, busy, requestedTier, requestedInterval]);
   function priceText(price:Price) {
-    if (!price.available || price.amount === null || !price.currency) return 'â€”';
+    if (!price.available || price.amount === null || !price.currency) return '—';
     try {
       const digits = new Intl.NumberFormat(localeForIntl(locale), {style:'currency',currency:price.currency}).resolvedOptions().maximumFractionDigits ?? 2;
       const amount = price.amount / (10 ** digits);
       return new Intl.NumberFormat(localeForIntl(locale),{style:'currency',currency:price.currency.toUpperCase()}).format(amount);
-    } catch { return 'â€”'; }
+    } catch { return '—'; }
   }
   function dateText(value:string) {
     try { return new Date(value).toLocaleDateString(localeForIntl(locale),{year:'numeric',month:'long',day:'numeric'}); }
@@ -128,11 +130,11 @@ function BillingPageContent() {
   return <>
     {(automaticStage !== 'idle' || redirecting) && <BillingFlowLoader
       step="payment"
-      offer={redirectingOffer || (automaticRequest ? `${automaticRequest.tier === 'pro' ? 'Pro' : 'Business'} Â· ${automaticRequest.interval === 'year' ? 'Annuel' : 'Mensuel'}` : undefined)}
-      title={automaticStage === 'checking' ? 'VÃ©rification de votre offreâ€¦' : redirectingMode === 'portal' ? 'Ouverture de votre espace de facturationâ€¦' : 'Ouverture du paiement sÃ©curisÃ©â€¦'}
-      subtitle={automaticStage === 'checking' ? 'Nous vÃ©rifions votre compte et le tarif sÃ©lectionnÃ©.' : redirectingMode === 'portal' ? 'Vous allez gÃ©rer votre abonnement sur Stripe.' : 'Redirection vers Stripe en cours.'}
+      offer={redirectingOffer || (automaticRequest ? `${automaticRequest.tier === 'pro' ? 'Pro' : 'Business'} · ${automaticRequest.interval === 'year' ? 'Annuel' : 'Mensuel'}` : undefined)}
+      title={automaticStage === 'checking' ? 'Vérification de votre offre…' : redirectingMode === 'portal' ? 'Ouverture de votre espace de facturation…' : 'Ouverture du paiement sécurisé…'}
+      subtitle={automaticStage === 'checking' ? 'Nous vérifions votre compte et le tarif sélectionné.' : redirectingMode === 'portal' ? 'Vous allez gérer votre abonnement sur Stripe.' : 'Redirection vers Stripe en cours.'}
     />}
-    <PageHeader eyebrow="NASHRA Â· ABONNEMENT" title={t('Mon abonnement')}
+    <PageHeader eyebrow="NASHRA · ABONNEMENT" title={t('Mon abonnement')}
       description={words.intro}
       actions={<button onClick={() => void refresh()} disabled={busy} className="btn btn-secondary">
         <RefreshCw size={16}/>{words.refresh}</button>}/>
@@ -140,7 +142,13 @@ function BillingPageContent() {
       <strong>{data?.billingMode === 'live' ? words.live : data?.billingMode === 'test' ? words.test : words.off}</strong>
       <span>{words.paymentNote}</span>
     </div></div>
-    {returnState && <p role="status" className="notice-row notice-dark">{returnState === 'succes' ? words.returnSuccess : words.returnCancel}</p>}
+    {returnState === 'succes' && checkoutSessionId
+      ? <CheckoutResultNotice sessionId={checkoutSessionId} onActivated={refresh} />
+      : returnState === 'succes'
+        ? <p role="alert" className="notice-row notice-dark">Impossible de vérifier ce retour de paiement. Consultez votre forfait.</p>
+        : returnState === 'annule'
+          ? <p role="status" className="notice-row notice-dark">{words.returnCancel}</p>
+          : null}
     {error && <div className="n25-error" role="alert">{error}</div>}
     <div className="n25-billing" style={{gridTemplateColumns:'minmax(0,1fr)'}}>
       <section className="n25-plan" aria-label={words.current}>
@@ -183,7 +191,7 @@ function BillingPageContent() {
         return <article key={tier} className="n25-plan" style={{borderColor:current?'#a1a1aa':undefined}}>
           <div className="n25-plan-title">{current ? <CheckCircle2 size={20}/> : <CreditCard size={20}/>}
             <span>{tier === 'free' ? t('Gratuit') : labels[tier]}</span></div>
-          <strong>{tier === 'free' ? t('Gratuit') : price && price.available ? priceText(price) : 'â€”'}</strong>
+          <strong>{tier === 'free' ? t('Gratuit') : price && price.available ? priceText(price) : '—'}</strong>
           {tier !== 'free' && <p>/{interval === 'month' ? words.month : words.year}</p>}
           <p>{words[info[tier]]}</p>
           {limits && <div style={{marginBottom:14,fontSize:14,lineHeight:1.9}}>
@@ -208,7 +216,7 @@ function BillingPageContent() {
 
 
 export default function BillingPage() {
-  return <Suspense fallback={<BillingFlowLoader step="payment" title="VÃ©rification de votre offreâ€¦" />}>
+  return <Suspense fallback={<BillingFlowLoader step="payment" title="Vérification de votre offre…" />}>
     <BillingPageContent />
   </Suspense>;
 }

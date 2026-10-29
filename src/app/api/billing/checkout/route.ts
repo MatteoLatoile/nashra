@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       'metadata[nashra_plan]': requested,
       'metadata[nashra_interval]': interval,
       'subscription_data[metadata][nashra_user_id]': s.user.id,
-      success_url: `${origin}/abonnement?retour=succes`,
+      success_url: `${origin}/abonnement?retour=succes&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/abonnement?retour=annule`,
     });
     if (existing?.stripe_customer_id && existing.stripe_livemode === (mode === 'live'))
