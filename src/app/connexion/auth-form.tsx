@@ -17,7 +17,7 @@ function friendlyError(error: unknown): string {
   return message || 'Une erreur est survenue. Réessayez.';
 }
 
-export default function AuthForm() {
+export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
@@ -55,7 +55,7 @@ export default function AuthForm() {
     try {
       const { error } = await createClient().auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
       });
       if (error) throw error;
       // L'utilisateur est redirigé vers Google par Supabase.
@@ -92,14 +92,14 @@ export default function AuthForm() {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        router.replace('/dashboard');
+        router.replace(next);
         router.refresh();
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
             data: { full_name: name.trim(), company_name: business.trim() },
           },
         });
@@ -109,7 +109,7 @@ export default function AuthForm() {
           setAwaitingConfirmation(true);
           setFeedback('Vérifiez votre boîte e-mail pour confirmer votre adresse et activer votre compte. Pensez aux spams.');
         } else {
-          router.replace('/dashboard');
+          router.replace(next);
           router.refresh();
         }
       }

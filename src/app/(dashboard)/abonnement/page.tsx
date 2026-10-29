@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CreditCard, RefreshCw, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n/provider';
@@ -35,6 +35,7 @@ export default function BillingPage() {
   const words = billingCopy(locale);
   const usageWords = usageCopy(locale);
   const [data,setData] = useState<Billing|null>(null);
+  const automaticCheckoutStarted = useRef(false);
   const [interval,setInterval] = useState<Interval>('month');
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
@@ -54,19 +55,37 @@ export default function BillingPage() {
     if (returned === 'succes' || returned === 'annule') setReturnState(returned);
     void refresh();
   },[refresh]);
-  async function action(mode:'checkout'|'portal', tier?:'pro'|'business') {
+  async function action(mode:'checkout'|'portal', tier?:'pro'|'business', selectedInterval: Interval = interval) {
     setBusy(true);setError('');
     try {
       const res = await fetch(`/api/billing/${mode}`,{
         method:'POST',credentials:'same-origin',
         headers:{'Content-Type':'application/json'},
-        ...(tier ? {body:JSON.stringify({tier,interval})} : {}),
+        ...(tier ? {body:JSON.stringify({tier,interval:selectedInterval})} : {}),
       });
       const payload = await res.json() as {url?:string;error?:string};
       if (!res.ok || !payload.url) throw new Error(payload.error || 'Action impossible.');
       window.location.assign(payload.url);
     } catch(e) { setError(e instanceof Error ? e.message : 'Erreur.');setBusy(false); }
   }
+  useEffect(() => {
+    if (!data || busy || automaticCheckoutStarted.current) return;
+    const query = new URLSearchParams(window.location.search);
+    const tier = query.get('checkout');
+    const selectedInterval = query.get('interval');
+    if ((tier !== 'pro' && tier !== 'business') || (selectedInterval !== 'month' && selectedInterval !== 'year')) return;
+    if (!data.enabled || !data.plans[tier][selectedInterval].available) return;
+    automaticCheckoutStarted.current = true;
+    setInterval(selectedInterval);
+    // Existing subscribers must manage their subscription through the portal.
+    if (data.hasCustomer) {
+      if (data.tier !== tier) void action('portal');
+    } else {
+      void action('checkout', tier, selectedInterval);
+    }
+  // Only start once after status loads, rather than on every re-render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, busy]);
   function priceText(price:Price) {
     if (!price.available || price.amount === null || !price.currency) return '—';
     try {

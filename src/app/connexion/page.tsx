@@ -8,12 +8,17 @@ import './auth-v081.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ConnexionPage() {
+export default async function ConnexionPage({ searchParams }: { searchParams: Promise<{next?: string}> }) {
+  const params = await searchParams;
+  const requested = params.next ?? '';
+  // Only accept a local billing path to prevent open redirects.
+  const next = /^\/abonnement\?checkout=(pro|business)&interval=(month|year)$/.test(requested)
+    ? requested : '/dashboard';
   const configured = isSupabaseConfigured();
   if (configured) {
     const supabase = await createClient();
     const { data } = await supabase.auth.getClaims();
-    if (data?.claims?.sub) redirect('/dashboard');
+    if (data?.claims?.sub) redirect(next);
   }
 
   return <main className="n8-root">
@@ -37,7 +42,7 @@ export default async function ConnexionPage() {
           <span className="n8-overline">ESPACE PERSONNEL</span>
           <h1>Bienvenue sur Nashra.</h1>
           <p className="n8-intro">Connectez-vous ou créez votre espace en quelques instants.</p>
-          {configured ? <AuthForm /> : <div className="n8-message bad">Supabase n'est pas configuré. Renseignez votre fichier .env.local pour activer la connexion.</div>}
+          {configured ? <AuthForm next={next} /> : <div className="n8-message bad">Supabase n'est pas configuré. Renseignez votre fichier .env.local pour activer la connexion.</div>}
         </div>
         <span className="n8-legal">Un seul compte. Vos annonces et campagnes au même endroit.</span>
       </section>
