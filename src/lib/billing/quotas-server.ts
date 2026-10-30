@@ -10,6 +10,9 @@ export type QuotaPlan = {
 
 export function quotaError(error: unknown): string {
   const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error);
+  if (/NASHRA_DOWNGRADE_GROUPS_EXCEEDED/.test(message)) return 'Votre forfait actuel autorise moins de groupes. Désactivez les groupes supplémentaires dans /groupes avant de publier.';
+  if (/NASHRA_DOWNGRADE_PENDING_EXCEEDED/.test(message)) return 'Votre forfait actuel autorise moins de programmations. Réduisez les tâches en attente dans /file-attente et vérifiez les messages déjà programmés dans Telegram.';
+  if (/NASHRA_DOWNGRADE_MONTHLY_EXCEEDED/.test(message)) return 'Le nombre d’envois déjà réservés dépasse le plafond de votre forfait actuel. Consultez /abonnement et annulez les programmations inutiles.';
   if (/NASHRA_MONTHLY_SEND_QUOTA_EXCEEDED/.test(message)) return 'Limite mensuelle d’envois atteinte. Consultez /abonnement.';
   if (/NASHRA_PENDING_SCHEDULE_QUOTA_EXCEEDED/.test(message)) return 'Limite de programmations en attente atteinte. Consultez /abonnement.';
   if (/NASHRA_ACTIVE_GROUP_QUOTA_EXCEEDED/.test(message)) return 'Limite de groupes actifs atteinte. Consultez /abonnement.';

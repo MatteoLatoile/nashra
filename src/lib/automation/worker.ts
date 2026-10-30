@@ -92,6 +92,7 @@ function verifyJob(workspace: Workspace, job: QueueRow): NativeWorkItem {
 export function safeReason(err: unknown): string {
   if (err instanceof DeliveryBlocked) return err.message;
   const message = err instanceof Error ? err.message : '';
+  if (/^(Votre forfait actuel autorise moins|Le nombre d’envois déjà réservés dépasse|Limite mensuelle d’envois atteinte)/.test(message)) return message;
   if (/FLOOD_WAIT|SLOWMODE_WAIT/i.test(message)) return 'Telegram impose une limitation de fréquence. Aucun nouvel essai automatique.';
   if (/CHAT_WRITE_FORBIDDEN|CHAT_ADMIN_REQUIRED|USER_BANNED|BANNED_IN_CHANNEL|banned from/i.test(message))
     return 'Compte ou destination non autorisé à publier. Vérifiez les permissions et les restrictions.';
