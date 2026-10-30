@@ -202,7 +202,7 @@ export async function runOneDelivery(): Promise<{ state: string; id?: string }> 
     }
     // Legacy queue jobs can be prepared by clients. A DB-backed reservation is
     // mandatory immediately before Telegram, so they cannot bypass the monthly cap.
-    quotaReservationId = await reserveSend({ userId: job.user_id, key: `job:${job.id}`,
+    quotaReservationId = await reserveSend({ userId: job.user_id, key: `job:${job.job_key}`,
       announcementId: job.announcement_id, destinationId: job.destination_id,
       scheduledAt: job.scheduled_at });
     telegramAttempted = true;
