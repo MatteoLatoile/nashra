@@ -21,6 +21,9 @@ type Billing = { enabled: boolean; billingMode: 'disabled' | 'test' | 'live'; ti
     max_telegram_accounts:number;max_active_groups:number;max_monthly_sends:number;max_pending_schedules:number;priority_support:boolean}[];
   plans: { free: {available: boolean}; pro: Record<Interval,Price>; business: Record<Interval,Price> }; error?: string };
 
+function requiresPortal(status: string): boolean {
+  return ['active', 'trialing', 'past_due', 'unpaid', 'paused', 'incomplete'].includes(status);
+}
 const options: Tier[] = ['free','pro','business'];
 const labels: Record<Tier, string> = {free:'Gratuit',pro:'Pro',business:'Business'};
 const info: Record<Tier,'freeInfo'|'proInfo'|'businessInfo'> = {
@@ -107,7 +110,7 @@ function BillingPageContent() {
     setInterval(selectedInterval);
     // Une souscription en cours se gère depuis le portail ; un ancien client
     // revenu au forfait Gratuit peut souscrire de nouveau via Checkout.
-    if (data.hasCustomer && data.tier !== 'free') {
+    if (requiresPortal(data.status)) {
       void action('portal');
     } else {
       void action('checkout', tier, selectedInterval);
@@ -203,7 +206,7 @@ function BillingPageContent() {
           </div>}
           {current ? <span className="btn btn-secondary" style={{cursor:'default'}}>
               <CheckCircle2 size={16}/>{words.current}</span> : tier === 'free' ?
-            <span className="n25-muted">{words.freeInfo}</span> : data?.hasCustomer ?
+            <span className="n25-muted">{words.freeInfo}</span> : data && requiresPortal(data.status) ?
             <button disabled={busy} className="btn btn-secondary" onClick={() => void action('portal')}>{words.manage}</button> :
             <button disabled={!available || busy} className="btn btn-primary" onClick={() => void action('checkout',tier as 'pro'|'business')}>
               {available ? words.select : words.unavailable}</button>}
