@@ -167,6 +167,7 @@ export default function AnnouncementsPage() {
             <button onClick={() => void duplicate(a)} aria-label={`Dupliquer ${a.title}`} title="Dupliquer"><Layers3 size={16}/></button>
             <button onClick={() => startEdit(a)} aria-label={`Modifier ${a.title}`} title="Modifier"><Pencil size={16}/></button>
             <button onClick={() => startPreview(a.id)} aria-label={`Aperçu de ${a.title}`} title="Aperçu"><Eye size={17}/></button>
+             <button type="button" onClick={() => void remove(a)} aria-label={`Supprimer ${a.title}`} title="Supprimer l’annonce"><Trash2 size={16}/></button>
           </div></div>
         </div>
       </article>)}
