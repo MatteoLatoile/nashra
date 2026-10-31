@@ -9,6 +9,7 @@ import { StringSession } from 'teleproto/sessions';
 import bigInt from 'big-integer';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { adminDb } from '@/lib/nashra-bundle/secure';
 
 export { Api };
 export type PendingLogin = { phone: string; phoneCodeHash: string; session: string; expiresAt: number; needsPassword?: boolean };
@@ -55,17 +56,22 @@ export async function context(req: NextRequest, mutating = false) {
   return { supabase, userId: user.id };
 }
 export async function getAccount(c: Awaited<ReturnType<typeof context>>): Promise<AccountRow | null> {
-  const { data, error } = await c.supabase.from('telegram_accounts').select('*').eq('user_id', c.userId).maybeSingle();
+  const { data, error } = await adminDb().from('telegram_accounts').select('*').eq('user_id', c.userId).maybeSingle();
   if (error) throw new Error(`Erreur Supabase : ${error.message}. Avez-vous exécuté 002_telegram_accounts.sql ?`);
   return data as AccountRow | null;
 }
 export async function saveAccount(c: Awaited<ReturnType<typeof context>>, patch: Partial<AccountRow>) {
   // IMPORTANT: un upsert partiel peut effacer les colonnes non fournies.
   // On met à jour uniquement les champs voulus pour préserver la session existante.
+  if (patch.user_id !== undefined && patch.user_id !== c.userId) {
+    throw new Error('Identifiant Telegram incohérent.');
+  }
+  const fields = { ...patch };
+  delete fields.user_id;
   const current = await getAccount(c);
   const query = current
-    ? c.supabase.from('telegram_accounts').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', c.userId)
-    : c.supabase.from('telegram_accounts').insert({ user_id: c.userId, ...patch, updated_at: new Date().toISOString() });
+    ? adminDb().from('telegram_accounts').update({ ...fields, updated_at: new Date().toISOString() }).eq('user_id', c.userId)
+    : adminDb().from('telegram_accounts').insert({ user_id: c.userId, ...fields, updated_at: new Date().toISOString() });
   const { error } = await query;
   if (error) throw new Error(`Sauvegarde du compte Telegram impossible : ${error.message}`);
 }
