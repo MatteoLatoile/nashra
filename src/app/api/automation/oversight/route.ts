@@ -29,9 +29,15 @@ export async function GET() {
       if (j.status === 'approved' && Date.parse(j.scheduled_at) > now &&
           (!nextScheduledAt || j.scheduled_at < nextScheduledAt)) nextScheduledAt = j.scheduled_at;
     }
+    // Configuration only: this does not prove that a cron is running.
+    const emergencyStop = process.env.NASHRA_DISABLE_ALL_SENDS === '1';
+    const publishingEnabled = process.env.NASHRA_AUTOMATION_ENABLED === '1' && process.env.NASHRA_PUBLISHING_ENABLED === '1';
     return NextResponse.json({ generatedAt: new Date(now).toISOString(),
       migrationReady: !migrationResult.error && migrationResult.data === true,
-      publishingEnabled: process.env.NASHRA_AUTOMATION_ENABLED === '1' && process.env.NASHRA_PUBLISHING_ENABLED === '1',
+      publishingEnabled,
+      dispatchAllowed: publishingEnabled && !emergencyStop,
+      emergencyStop,
+      recurringEnabled: process.env.NASHRA_RECURRING_ENABLED === '1' && !emergencyStop,
       sampleSize: jobs.length, partial: jobs.length === 500,
       counts, alerts, nextScheduledAt, requiresManualReview: alerts.uncertain + alerts.blocked + alerts.stalled + alerts.expired,
       note: 'Lecture seule. Les opérations incertaines ne sont jamais relancées automatiquement.'

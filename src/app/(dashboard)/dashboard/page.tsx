@@ -1,54 +1,226 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, ArrowRight, Megaphone, UsersRound, CalendarCheck2, Send, Plus, TrendingUp, Files, Clock3, CircleCheck, Layers3, ChevronRight, CalendarDays, Workflow, ShieldCheck } from 'lucide-react';
-import { Badge, DemoNotice, PageHeader, SectionHead } from '@/components/ui';
+import {
+  Activity, AlertTriangle, ArrowRight, ArrowUpRight, CalendarClock,
+  CalendarDays, CheckCircle2, Clock3, Files, Plus, RefreshCw,
+  Send, ShieldCheck, UsersRound, Zap,
+} from 'lucide-react';
+import { PageHeader } from '@/components/ui';
 import { dateFR, timeFR, useApp } from '@/lib/store';
+import styles from './dashboard.module.css';
+
+type Overview = {
+  migrationReady: boolean;
+  publishingEnabled: boolean;
+  dispatchAllowed?: boolean;
+  emergencyStop?: boolean;
+  recurringEnabled?: boolean;
+  alerts?: { uncertain?: number; blocked?: number; stalled?: number; expired?: number };
+  requiresManualReview?: number;
+  nextScheduledAt?: string | null;
+  partial?: boolean;
+};
+type Probe =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'success'; value: Overview };
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const shortDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
 
 export default function Dashboard() {
   const { data } = useApp();
-  const nextSlot = (c: (typeof data.campaigns)[number]) =>
-    (c.scheduledDates?.length ? c.scheduledDates : [c.scheduledAt])
-      .filter(at => Date.parse(at) > Date.now()).sort()[0];
-  const scheduled = data.campaigns.filter(c => c.status === 'scheduled' && nextSlot(c))
+  const [probe, setProbe] = useState<Probe>({ kind: 'loading' });
+  const [refreshIndex, setRefreshIndex] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setProbe({ kind: 'loading' });
+    fetch('/api/automation/oversight', {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Statut indisponible');
+        return (await response.json()) as Overview;
+      })
+      .then((value) => { if (!controller.signal.aborted) setProbe({ kind: 'success', value }); })
+      .catch(() => { if (!controller.signal.aborted) setProbe({ kind: 'error' }); });
+    return () => controller.abort();
+  }, [refreshIndex]);
+
+  const now = Date.now();
+  const nextSlot = (campaign: (typeof data.campaigns)[number]) =>
+    (campaign.scheduledDates?.length ? campaign.scheduledDates : [campaign.scheduledAt])
+      .filter((at) => at && Number.isFinite(Date.parse(at)) && Date.parse(at) > now)
+      .sort()[0];
+  const campaigns = data.campaigns
+    .filter((campaign) => campaign.status === 'scheduled' && nextSlot(campaign))
     .sort((a, b) => Date.parse(nextSlot(a)!) - Date.parse(nextSlot(b)!));
-  const allowed = data.destinations.filter(d => d.authorized).length;
-  const windowStart = Date.now() - 7 * 86400000;
-  const lastWeekActions = data.activity.filter(a => Date.parse(a.createdAt) >= windowStart);
-  const publicationsWeek = lastWeekActions.filter(a => a.title === 'Publication Telegram effectuée').length;
-  const pending = data.campaigns.filter(c => c.status === 'scheduled' &&
-    (c.scheduledDates?.length ? c.scheduledDates : [c.scheduledAt]).some(d => Date.parse(d) < Date.now())).length;
-  const checkpoints = [
-    { label: 'Bibliothèque', detail: `${data.announcements.length} annonce(s) enregistrée(s)`, ready: data.announcements.length > 0, href: '/annonces' },
-    { label: 'Destinations autorisées', detail: `${allowed} destination(s) confirmée(s)`, ready: allowed > 0, href: '/groupes' },
-    { label: 'Planification', detail: `${scheduled.length} campagne(s) à venir`, ready: scheduled.length > 0, href: '/campagnes' },
+  const allowed = data.destinations.filter((d) => d.authorized).length;
+  const publishedCount = data.activity.filter((a) => a.title === 'Publication Telegram effectuée').length;
+  const alerts = probe.kind === 'success' ? probe.value.requiresManualReview ?? 0 : null;
+
+  const readySteps = [
+    { name: 'Annonce', isReady: data.announcements.length > 0, href: '/annonces', description: 'Préparez votre premier contenu.' },
+    { name: 'Destination', isReady: allowed > 0, href: '/groupes', description: 'Autorisez un groupe ou un canal.' },
+    { name: 'Programmation', isReady: campaigns.length > 0, href: '/campagnes', description: 'Planifiez une publication.' },
   ];
-  const stats = [
-    { label: 'Annonces enregistrées', value: data.announcements.length, Icon: Files, detail: 'Dans votre bibliothèque' },
-    { label: 'Destinations autorisées', value: allowed, Icon: UsersRound, detail: `${data.destinations.length} groupes enregistrés` },
-    { label: 'Campagnes planifiées', value: scheduled.length, Icon: CalendarCheck2, detail: 'Planifications non exécutées' },
-    { label: 'Publications réelles', value: data.activity.filter(a => a.title === 'Publication Telegram effectuée').length, Icon: Send, detail: 'Envois manuels depuis votre compte' },
+  const readyCount = readySteps.filter((step) => step.isReady).length;
+  const allReady = readyCount === readySteps.length;
+
+  const activity = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(12, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return { key: dayKey(date), label: shortDay.format(date), count: 0, publishes: 0 };
+    });
+    const byDay = new Map(days.map((day) => [day.key, day]));
+    for (const entry of data.activity) {
+      const timestamp = new Date(entry.createdAt);
+      if (Number.isNaN(timestamp.getTime())) continue;
+      const day = byDay.get(dayKey(timestamp));
+      if (!day) continue;
+      day.count += 1;
+      if (entry.title === 'Publication Telegram effectuée') day.publishes += 1;
+    }
+    return days;
+  }, [data.activity]);
+  const maxActivity = Math.max(1, ...activity.map((day) => day.count));
+  const activityTotal = activity.reduce((sum, day) => sum + day.count, 0);
+  const activityPublishes = activity.reduce((sum, day) => sum + day.publishes, 0);
+
+  let statusLabel = 'État en cours de vérification';
+  let statusDescription = 'Lecture de la configuration de publication.';
+  let statusTone: 'good' | 'warn' | 'neutral' = 'neutral';
+  if (probe.kind === 'error') {
+    statusLabel = 'État indisponible';
+    statusDescription = 'Impossible de vérifier la configuration du moteur. Ne présumez pas que les envois sont actifs.';
+    statusTone = 'warn';
+  } else if (probe.kind === 'success') {
+    const item = probe.value;
+    if (item.emergencyStop) {
+      statusLabel = 'Envois suspendus';
+      statusDescription = 'Arrêt général des publications activé côté serveur.';
+      statusTone = 'warn';
+    } else if (!item.migrationReady) {
+      statusLabel = 'Vérification technique requise';
+      statusDescription = 'Le contrôle de la base de données du moteur n’est pas prêt.';
+      statusTone = 'warn';
+    } else if (!(item.dispatchAllowed ?? item.publishingEnabled)) {
+      statusLabel = 'Envois automatiques désactivés';
+      statusDescription = 'La publication automatique n’est pas autorisée par la configuration serveur.';
+      statusTone = 'warn';
+    } else {
+      statusLabel = 'Publication autorisée côté serveur';
+      statusDescription = 'Les contrôles d’activation passent. La bonne exécution du cron reste à vérifier.';
+      statusTone = 'good';
+    }
+  }
+
+  const metrics = [
+    { title: 'Annonces', value: data.announcements.length, detail: 'Dans votre bibliothèque', icon: Files, href: '/annonces' },
+    { title: 'Destinations', value: allowed, detail: 'Groupes autorisés', icon: UsersRound, href: '/groupes' },
+    { title: 'Campagnes à venir', value: campaigns.length, detail: 'Créneaux prévus', icon: CalendarDays, href: '/campagnes' },
+    { title: 'Publications consignées', value: publishedCount, detail: 'Dans l’historique de l’espace', icon: Send, href: '/historique' },
   ];
+
   return <>
-    <PageHeader eyebrow="NASHRA · VOTRE ESPACE" title="Vue d’ensemble" description="Bienvenue sur Nashra. Un seul endroit pour organiser votre diffusion." actions={<Link className="btn btn-primary" href="/campagnes?nouveau=1"><Plus size={17}/> Nouvelle campagne</Link>}/>
-    <div className="welcome-banner">
-      <div className="welcome-copy"><div className="banner-mini"><span className="banner-mini-dot"/> VOTRE CENTRE DE CONTRÔLE</div><h2>Publiez intelligemment.<br/><span>Restez organisé.</span></h2><p>Vos annonces, vos groupes et votre calendrier réunis dans un espace simple, pensé pour gagner du temps.</p><Link href="/annonces" className="banner-link">Explorer ma bibliothèque <ArrowUpRight size={17}/></Link></div>
-      <div className="banner-art" aria-hidden="true"><div className="art-ring ring-1"/><div className="art-ring ring-2"/><div className="art-ring ring-3"/><div className="art-center"><span className="art-n">N</span></div><span className="art-dot dot-a"/><span className="art-dot dot-b"/><span className="art-dot dot-c"/><span className="art-plus plus-a">+</span><span className="art-plus plus-b">+</span></div>
+    <PageHeader
+      eyebrow="NASHRA / TABLEAU DE BORD"
+      title="Vue d’ensemble"
+      description="Vos publications, vos prochaines échéances et l’état de votre espace."
+      actions={<Link className="btn btn-primary" href="/campagnes?nouveau=1"><Plus size={17}/> Nouvelle campagne</Link>}
+    />
+
+    <div className={styles.dashboard}>
+      <section className={styles.topStatus} aria-label="État des automatisations">
+        <div className={styles.statusLeft}>
+          <div className={`${styles.statusIcon} ${styles[statusTone]}`}><Zap size={20}/></div>
+          <div className={styles.statusCopy}>
+            <div className={styles.eyebrow}>PUBLICATION AUTOMATIQUE</div>
+            {probe.kind === 'loading' ? <span className={`${styles.skeleton} ${styles.skeletonTitle}`} aria-label="Chargement de l’état"/> : <strong>{statusLabel}</strong>}
+            <p>{probe.kind === 'loading' ? 'Vérification du moteur…' : statusDescription}</p>
+          </div>
+        </div>
+        <div className={styles.statusActions}>
+          <Link href="/supervision" className={styles.textAction}>Voir la supervision <ArrowUpRight size={15}/></Link>
+          <button type="button" className={styles.refreshButton} aria-label="Actualiser l’état des automatisations" onClick={() => setRefreshIndex((i) => i + 1)}><RefreshCw size={16}/></button>
+        </div>
+      </section>
+
+      <section className={styles.stats} aria-label="Statistiques de votre espace">
+        {metrics.map(({ title, value, detail, icon: Icon, href }) => <Link href={href} className={styles.stat} key={title}>
+          <div className={styles.statTop}><span>{title}</span><Icon size={17}/></div>
+          <strong>{String(value).padStart(2, '0')}</strong>
+          <span className={styles.statDetail}>{detail}<ArrowUpRight size={13}/></span>
+        </Link>)}
+      </section>
+
+      <div className={styles.mainGrid}>
+        <section className={styles.panel} aria-label="Prochaines publications">
+          <header className={styles.panelHeader}>
+            <div><div className={styles.eyebrow}>PLANNING</div><h2>Prochaines campagnes</h2><p>Créneaux prévus dans votre espace.</p></div>
+            <Link href="/campagnes" className={styles.textAction}>Calendrier <ArrowUpRight size={15}/></Link>
+          </header>
+          {campaigns.length > 0 ? <div className={styles.timeline}>
+            {campaigns.slice(0, 4).map((campaign) => {
+              const at = nextSlot(campaign)!;
+              const announcement = data.announcements.find((a) => a.id === campaign.announcementId);
+              return <div className={styles.timelineRow} key={campaign.id}>
+                <span className={styles.timelineDot}/>
+                <div className={styles.timelineContent}><strong>{campaign.name}</strong>
+                  <span>{(campaign.announcementIds?.length ?? 1) > 1 ? `${campaign.announcementIds!.length} annonces` : announcement?.title ?? 'Annonce non trouvée'} · {campaign.destinationIds.length} destination(s)</span>
+                </div>
+                <time dateTime={at} className={styles.timelineDate}><CalendarClock size={14}/>{dateFR(at, { day: 'numeric', month: 'short' })}<small>{timeFR(at)}</small></time>
+              </div>;
+            })}
+          </div> : <div className={styles.empty}><CalendarClock size={24}/><strong>Aucune campagne à venir</strong><p>Créez une campagne pour organiser vos prochaines publications.</p><Link href="/campagnes?nouveau=1" className={styles.secondaryButton}>Planifier une campagne <ArrowRight size={15}/></Link></div>}
+          <p className={styles.footnote}>Les créneaux affichés ne garantissent pas à eux seuls l’exécution du moteur automatique.</p>
+        </section>
+
+        <section className={styles.panel} aria-label="Activité récente">
+          <header className={styles.panelHeader}>
+            <div><div className={styles.eyebrow}>ACTIVITÉ</div><h2>Les 7 derniers jours</h2><p>{activityTotal} action(s) enregistrée(s), dont {activityPublishes} publication(s).</p></div>
+            <Link href="/historique" className={styles.textAction}>Historique <ArrowUpRight size={15}/></Link>
+          </header>
+          <div className={styles.chart} role="img" aria-label={`Activité des sept derniers jours : ${activity.map((d) => `${d.label} ${d.count} actions`).join(', ')}`}>
+            {activity.map((day) => <div className={styles.chartColumn} key={day.key}>
+              <div className={styles.chartBarTrack}><div className={styles.chartBar} style={{ height: day.count ? `${Math.max(7, (day.count / maxActivity) * 100)}%` : '3px' }} title={`${day.count} action(s)${day.publishes ? `, dont ${day.publishes} publication(s)` : ''}`}/></div>
+              <span>{day.label.replace('.', '')}</span>
+            </div>)}
+          </div>
+          <div className={styles.activityFooter}><div><Activity size={17}/><span>Actions consignées</span></div><strong>{activityTotal}</strong></div>
+          <div className={styles.activityFooter}><div><Send size={17}/><span>Publications consignées</span></div><strong>{activityPublishes}</strong></div>
+        </section>
+      </div>
+
+      <div className={styles.secondaryGrid}>
+        <section className={styles.miniPanel} aria-label="Opérations demandant attention">
+          <div className={styles.miniIcon}><ShieldCheck size={18}/></div>
+          <div className={styles.miniCopy}>
+            <strong>Opérations à surveiller</strong>
+            {probe.kind === 'loading' ? <p>Vérification des opérations…</p> : probe.kind === 'error' ? <p>Supervision momentanément indisponible.</p> : <p>{alerts === 0 ? 'Aucune opération signalée parmi les tâches examinées.' : `${alerts} opération(s) nécessitent une vérification.`}{probe.value.partial ? ' Résultats partiels (500 tâches).' : ''}</p>}
+          </div>
+          {alerts !== null && alerts > 0 ? <AlertTriangle className={styles.attentionIcon} size={21}/> : <CheckCircle2 className={styles.readyIcon} size={21}/>}
+          <Link href="/supervision" className={styles.miniLink} aria-label="Ouvrir la supervision"><ArrowUpRight size={18}/></Link>
+        </section>
+        {!allReady ? <section className={styles.miniPanel} aria-label="Bien démarrer">
+          <div className={styles.miniIcon}><CheckCircle2 size={18}/></div>
+          <div className={styles.miniCopy}><strong>Finir de préparer votre espace <span className={styles.stepProgress}>{readyCount}/3</span></strong>
+            <div className={styles.stepList}>{readySteps.filter((step) => !step.isReady).map((step) => <Link key={step.name} href={step.href}>{step.name} <ArrowRight size={14}/></Link>)}</div>
+          </div>
+        </section> : <section className={styles.miniPanel} aria-label="Votre espace est prêt">
+          <div className={styles.miniIcon}><CheckCircle2 size={18}/></div>
+          <div className={styles.miniCopy}><strong>Votre espace est préparé</strong><p>Bibliothèque, destinations et planning renseignés.</p></div>
+          <Link href="/campagnes" className={styles.miniLink} aria-label="Ouvrir les campagnes"><ArrowUpRight size={18}/></Link>
+        </section>}
+      </div>
     </div>
-    <div className="stats-grid">{stats.map(({label,value,Icon,detail}) => <div className="stat-card" key={label}><div className="stat-upper"><span>{label}</span><div className="stat-icon"><Icon size={18}/></div></div><strong className="stat-value">{value.toString().padStart(2,'0')}</strong><div className="stat-detail"><span className="small-dot"/> {detail}</div></div>)}</div>
-    <div className="n20-dash-checks" aria-label="État de votre espace Nashra">
-      <div className="n20-dash-checks-head"><h2>État de votre espace</h2><span>{checkpoints.filter(x => x.ready).length} / {checkpoints.length} étapes prêtes</span></div>
-      <div className="n20-check-grid">{checkpoints.map(item => <Link key={item.label} href={item.href} className={`n20-check-item${item.ready ? ' n20-done' : ''}`}>
-        {item.ready ? <CircleCheck size={21}/> : <ArrowUpRight size={21}/>}
-        <span><strong>{item.label}</strong><small>{item.detail}</small></span>
-      </Link>)}</div>
-      <div className="n20-dashboard-events"><div><strong>Activité des 7 derniers jours</strong><small>{lastWeekActions.length} action(s), dont {publicationsWeek} publication(s) manuelle(s)</small></div>
-        <div><strong>Campagnes nécessitant une revue</strong><small>{pending} campagne(s) avec au moins un créneau passé · <Link href="/campagnes">Ouvrir le calendrier ↗</Link></small></div></div>
-    </div>
-    <DemoNotice compact />
-    <div className="dashboard-columns"><section className="content-panel"><SectionHead title="Prochaines campagnes" link="/campagnes" linkText="Gérer les campagnes"/><p className="section-subtitle">Votre programme à venir, en un coup d’œil.</p>
-      {scheduled.length ? <div className="campaign-timeline">{scheduled.slice(0, 4).map((c,i) => { const a = data.announcements.find(a => a.id === c.announcementId); return <div className="timeline-row" key={c.id}><div className="timeline-track"><span className="timeline-bullet"/>{i < scheduled.length - 1 && <span className="timeline-line"/>}</div><div className="timeline-main"><div className="timeline-title">{c.name}<Badge tone="positive">Planifiée</Badge></div><p>{(c.announcementIds?.length ?? 1) > 1 ? `${c.announcementIds!.length} annonces` : a?.title ?? 'Annonce introuvable'} · {c.destinationIds.length} destination{c.destinationIds.length > 1 ? 's' : ''}</p><div className="timeline-meta"><CalendarDays size={14}/>{dateFR(nextSlot(c)!, {day:'numeric', month:'long'})}<span>·</span><Clock3 size={14}/>{timeFR(nextSlot(c)! )}</div></div><ChevronRight className="timeline-chevron" size={18}/></div>; })}</div> : <div className="inline-empty">Aucune campagne planifiée pour le moment.</div>}
-    </section><section className="content-panel guide-panel"><SectionHead title="Bien démarrer"/><p className="section-subtitle">Trois étapes pour préparer votre espace.</p><div className="steps-list"><Link href="/annonces" className="step-row"><span className="step-icon"><Layers3 size={19}/></span><div><strong>01. Ajoutez vos annonces</strong><p>Centralisez vos textes et vos liens.</p></div><ArrowUpRight size={17}/></Link><Link href="/groupes" className="step-row"><span className="step-icon"><ShieldCheck size={19}/></span><div><strong>02. Organisez vos groupes</strong><p>Répertoriez les destinations autorisées.</p></div><ArrowUpRight size={17}/></Link><Link href="/campagnes" className="step-row"><span className="step-icon"><Workflow size={19}/></span><div><strong>03. Créez une campagne</strong><p>Préparez votre prochaine publication.</p></div><ArrowUpRight size={17}/></Link></div><div className="guide-footer"><CircleCheck size={16}/> Base prête pour les intégrations à venir.</div></section></div>
-    <div className="bottom-status"><span><TrendingUp size={16}/> Nashra V2.0 · Espace et statistiques réelles</span><span><Megaphone size={15}/> Aucun envoi automatisé n’est activé <ArrowRight size={15}/></span></div>
   </>;
 }
