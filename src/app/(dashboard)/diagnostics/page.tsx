@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -58,7 +59,7 @@ export default function DiagnosticsPage() {
       <article><CircleAlert size={19}/><span>{t('Problème')}</span><strong>{loading ? '–' : totals.error}</strong></article>
       <article><CircleHelp size={19}/><span>{t('Désactivé')}</span><strong>{loading ? '–' : totals.disabled}</strong></article>
     </div>
-    {loading ? <div className="n31-loading"><Activity size={18} className="n31-rotate"/>{t('Analyse en cours…')}</div> :
+    {loading ? <SectionSkeleton variant="cards" /> :
       <div className="n31-grid">{(data.checks || []).map(item => {
         const Icon = icons[item.state];
         return <article key={item.key} className={`n31-card n31-${item.state}`}>

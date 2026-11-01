@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Activity, AlertTriangle, CalendarClock, CheckCircle2, CirclePause, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -37,7 +38,7 @@ export default function SupervisionPage() {
     <div className="notice-row notice-dark"><ShieldCheck size={19}/><div><strong>{t('Aucun renvoi automatique après une erreur')}</strong>
       <span>{t('Les envois incertains sont placés en vérification manuelle. Consultez Telegram avant toute nouvelle action.')}</span></div></div>
     {error && <div className="n25-error" role="alert">{error}</div>}
-    {loading && !data ? <div className="n25-empty">{t('Chargement…')}</div> : data && <>
+    {loading && !data ? <SectionSkeleton variant="table" /> : data && <>
       <div className="n32-stat-grid">
         <article><div><CheckCircle2 size={17}/>{t('Envois confirmés')}</div><strong>{data.counts.sent ?? 0}</strong></article>
         <article><div><CalendarClock size={17}/>{t('En attente de validation')}</div><strong>{(data.counts.held ?? 0) + (data.counts.approved ?? 0)}</strong></article>

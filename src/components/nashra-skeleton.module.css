@@ -1,0 +1,65 @@
+/* Nashra skeletons: dark surfaces, gentle mint sheen, no layout shift. */
+.page,.section,.screen { --sk-panel:#171a1d; --sk-edge:#2a3032; --sk-base:#252a2d; --sk-light:#343d3d; }
+.page { display:grid; gap:22px; width:100%; min-width:0; padding-bottom:30px; }
+.section { min-width:0; width:100%; }
+.srOnly { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+.shimmer { display:block; flex:none; background:linear-gradient(105deg,var(--sk-base) 10%,var(--sk-light) 44%,var(--sk-base) 75%);background-size:220% 100%; animation:nashraSkeletonShimmer 2.05s ease-in-out infinite; }
+@keyframes nashraSkeletonShimmer { to { background-position-x:-220%; } }
+.bar { border-radius:7px; max-width:100%; }
+.heading { display:flex;flex-direction:column;align-items:flex-start;gap:13px;padding:3px 0 13px; }
+.row { display:flex;gap:13px;align-items:center;min-width:0; }
+.panel { background:var(--sk-panel);border:1px solid var(--sk-edge);border-radius:17px;min-width:0;overflow:hidden; }
+.stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;min-width:0;}
+.statCard {display:flex;flex-direction:column;gap:15px;padding:22px;min-height:133px;}
+.hero {min-height:245px;padding:31px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:20px;background:linear-gradient(120deg,#1b2822,#151b1b 65%,#15181b);}
+.banner {min-height:74px;padding:20px 22px;display:flex;flex-direction:column;justify-content:center;gap:10px;background:linear-gradient(95deg,#192621,#171c1a);}
+.cards {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;min-width:0;}
+.itemCard {display:flex;flex-direction:column;min-height:280px;}
+.cardMedia {width:100%;height:130px;border-radius:0;}
+.cardBody {display:flex; flex:1;flex-direction:column; gap:14px; padding:23px;min-width:0;}
+.cardSpacer {flex:1;min-height:24px;}
+.cardBody > .row {justify-content:space-between;}
+.toolbar {display:flex;align-items:center;gap:12px;padding:14px 17px;min-height:74px;}
+.toolbar > :first-child {margin-right:auto;}
+.tablePanel {padding:9px 19px;}
+.tableHeader,.tableRow {min-height:56px;justify-content:space-between;gap:10px;border-bottom:1px solid #292e30;}
+.tableRow:last-child {border-bottom:0;}
+.formPanel {min-height:365px;padding:26px;display:flex;flex-direction:column;gap:17px;}
+.formGroup {display:flex;flex-direction:column;gap:10px;min-width:0;}
+.formGroup .input {border-radius:10px;}
+.formPanel .button {margin-top:auto;border-radius:10px;}
+.twoCol {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
+.account {min-height:103px;display:flex;align-items:center;gap:17px;padding:20px 23px;}
+.flexOne {flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;}
+.actionStrip {min-height:90px;display:flex;align-items:center;gap:14px;padding:20px 23px;}
+.actionStrip > :first-child {margin-right:auto;}
+.billingGrid {display:grid;grid-template-columns:1.02fr 1fr;gap:17px;}
+.subscription {min-height:320px;display:flex;flex-direction:column;gap:24px;padding:33px;background:linear-gradient(135deg,#1b3026,#151f1c 60%);}
+.usage {min-height:320px;padding:29px;display:flex;flex-direction:column;gap:22px;}
+.usage .stats {grid-template-columns:repeat(2,minmax(0,1fr));}
+.usage .statCard {min-height:94px;padding:15px;gap:12px;}
+.prices {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;}
+.price {min-height:225px;padding:25px;display:flex;flex-direction:column;gap:21px;}
+.calendarGrid {display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr);gap:18px;}
+.month,.agenda {min-height:330px;padding:26px;}
+.monthCells {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:27px;}
+.day {width:100%;height:37px;border-radius:7px;}
+.agenda {display:flex;flex-direction:column;gap:19px;}
+.agendaRow {display:flex;align-items:center;gap:15px;}
+.screen {min-height:100vh;background:#0c0d0f;display:flex;width:100%;color:#fff;}
+.fakeSidebar {width:255px; flex-shrink:0; min-height:100vh; background:#0b0c0e;border-right:1px solid #24272a; padding:25px 17px;display:flex;flex-direction:column;gap:18px; }
+.fakePlan {padding:20px 15px;min-height:115px;display:flex;flex-direction:column;gap:14px;margin:0 0 17px;border:1px solid #262e2c;border-radius:12px;}
+.fakeNav {padding:8px 10px;min-height:38px;}
+.fakeUser {display:flex;align-items:center;gap:12px;margin-top:auto;border-top:1px solid #24292b;padding-top:18px;}
+.fakeMain {flex:1;min-width:0;}
+.fakeTopbar {height:69px;border-bottom:1px solid #252a2c;display:flex;align-items:center;justify-content:space-between;padding:0 34px;}
+.fakeContent {padding:37px clamp(18px,3vw,50px);max-width:1700px;margin:auto;}
+@media(max-width:1050px){.stats {grid-template-columns:repeat(2,minmax(0,1fr));}.cards,.prices{grid-template-columns:repeat(2,minmax(0,1fr));}.billingGrid{grid-template-columns:1fr;}}
+@media(max-width:740px){.page{gap:15px}.fakeSidebar{display:none}.fakeTopbar{height:60px;padding:0 17px}.fakeContent{padding:24px 16px}.twoCol,.billingGrid,.calendarGrid{grid-template-columns:1fr}.cards,.prices{grid-template-columns:1fr}.stats{gap:10px}.statCard{padding:17px;min-height:105px}.account{flex-wrap:wrap}.account>:last-child{display:none}.toolbar{flex-wrap:wrap}.formPanel{padding:20px}.usage{padding:20px}.heading{gap:10px}}
+@media(prefers-reduced-motion:reduce){.shimmer{animation:none;background:#2a3032}}
+
+.authScreen{--sk-base:#262b2e;--sk-light:#394445;min-height:100vh;display:grid;place-items:center;background:#0c0d0f;padding:25px;}
+.authPanel{width:min(480px,100%);padding:34px;display:flex;flex-direction:column;gap:40px;border:1px solid #2c3032;border-radius:20px;background:#141618;}
+.authHeading{display:flex;flex-direction:column;gap:13px;}
+.authFields{display:flex;flex-direction:column;gap:15px;}
+@media(max-width:540px){.authPanel{padding:24px;gap:29px}}

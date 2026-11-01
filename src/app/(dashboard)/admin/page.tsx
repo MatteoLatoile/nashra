@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 
 /* NASHRA_ADMIN_V34 — protected data sourced exclusively from /api/admin/v34 */
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -109,7 +110,7 @@ export default function AdminPage() {
     </nav>
     {error && <div role="alert" className="n34-error"><CircleAlert size={18}/><div><strong>Chargement impossible</strong>
       <p>{error}</p><button className="n34-text-action" type="button" onClick={refresh}>Réessayer</button></div></div>}
-    {loading && <div className="n34-loading"><RefreshCw size={19} className="n34-spin"/>Synchronisation des données…</div>}
+    {loading && <SectionSkeleton variant="stats" />}
     {!loading && !error && data && <>
       {tab==='overview' && <>
         <div className="n34-stats">

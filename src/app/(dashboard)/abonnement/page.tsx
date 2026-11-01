@@ -243,6 +243,9 @@ function BillingPageContent() {
     }
   }
 
+  // Garder les cartes en place pendant la premiere requete : aucun faux tiret,
+  // aucun faux message de facturation desactivee, aucun skeleton sur refresh.
+  const initialLoading = data === null && !error;
   const currentTier = data?.tier ?? 'free';
   const status = data?.status ?? 'free';
   const isCanceled = status === 'canceled' || status === 'incomplete_expired';
@@ -288,14 +291,24 @@ function BillingPageContent() {
         </button>
       </header>
 
-      <div className={`nx-environment nx-env-${data?.billingMode ?? 'disabled'}`} role="status">
-        <div className="nx-environment-icon"><ShieldCheck size={17} /></div>
-        <div>
-          <strong>{data?.billingMode === 'test' ? ui.testBadge : data?.billingMode === 'live' ? ui.liveBadge : ui.disabledBadge}</strong>
-          <span>{data?.billingMode === 'test' ? words.test : data?.billingMode === 'live' ? words.paymentNote : words.off}</span>
+      {initialLoading ? (
+        <div className="nx-environment nx-env-loading" aria-label={isFr ? 'Chargement de la facturation' : 'Loading billing'} aria-busy="true">
+          <span className="nx-skeleton nx-skeleton-env-icon" aria-hidden="true" />
+          <div className="nx-skeleton-env-copy" aria-hidden="true">
+            <span className="nx-skeleton nx-skeleton-text" style={{ width: '150px', height: '11px' }} />
+            <span className="nx-skeleton nx-skeleton-text" style={{ width: 'min(290px, 70vw)', height: '10px' }} />
+          </div>
         </div>
-        <LockKeyhole size={16} className="nx-env-end" />
-      </div>
+      ) : (
+        <div className={`nx-environment nx-env-${data?.billingMode ?? 'disabled'}`} role="status">
+          <div className="nx-environment-icon"><ShieldCheck size={17} /></div>
+          <div>
+            <strong>{data?.billingMode === 'test' ? ui.testBadge : data?.billingMode === 'live' ? ui.liveBadge : ui.disabledBadge}</strong>
+            <span>{data?.billingMode === 'test' ? words.test : data?.billingMode === 'live' ? words.paymentNote : words.off}</span>
+          </div>
+          <LockKeyhole size={16} className="nx-env-end" />
+        </div>
+      )}
 
       {returnState === 'succes' && checkoutSessionId
         ? <CheckoutResultNotice sessionId={checkoutSessionId} onActivated={refresh} />
@@ -312,18 +325,24 @@ function BillingPageContent() {
           <div className="nx-card-top">
             <span className="nx-card-label"><span className="nx-small-orb" />{ui.currentLabel}</span>
             <span className={`nx-status-pill nx-status-${statusTone}`}>
-              <span className="nx-status-indicator" />{data ? ui.statusText(status) : words.loading}
+              <span className="nx-status-indicator" />{initialLoading
+                ? <span className="nx-skeleton" style={{ width: '44px', height: '10px' }} aria-hidden="true" />
+                : data ? ui.statusText(status) : words.loading}
             </span>
           </div>
           <div className="nx-current-main">
             <div className="nx-plan-symbol"><Zap size={28} strokeWidth={2.3} /></div>
             <div className="nx-current-details">
               <span className="nx-muted-upper">{ui.currentPrefix}</span>
-              <h2>{data ? (currentTier === 'free' ? t('Gratuit') : tierLabels[currentTier]) : '—'}<span className="nx-plan-period">{isPaid ? ' / Nashra' : ''}</span></h2>
+              <h2>{initialLoading
+                ? <span className="nx-skeleton nx-skeleton-current-title" aria-hidden="true" />
+                : data ? (currentTier === 'free' ? t('Gratuit') : tierLabels[currentTier]) : '—'}
+                <span className="nx-plan-period">{isPaid ? ' / Nashra' : ''}</span></h2>
             </div>
           </div>
           <p className="nx-current-summary">
-            {!data ? words.loading
+            {initialLoading ? <span className="nx-skeleton nx-skeleton-current-summary" aria-hidden="true" />
+              : !data ? words.loading
               : isCanceled ? ui.canceledMessage
                 : data.cancelAtPeriodEnd && data.currentPeriodEnd
                   ? `${ui.endingDetail} ${dateText(data.currentPeriodEnd)}.`
@@ -332,7 +351,9 @@ function BillingPageContent() {
           <div className="nx-current-footer">
             <div className="nx-current-meta">
               <CalendarDays size={17} />
-              <span>{data?.cancelAtPeriodEnd && data.currentPeriodEnd
+              <span>{initialLoading
+                ? <span className="nx-skeleton nx-skeleton-text" style={{ width: '180px', height: '12px' }} aria-hidden="true" />
+                : data?.cancelAtPeriodEnd && data.currentPeriodEnd
                 ? `${ui.endingMessage} · ${dateText(data.currentPeriodEnd)}`
                 : isCanceled ? ui.statusText(status)
                   : data?.currentPeriodEnd && isPaid
@@ -364,13 +385,19 @@ function BillingPageContent() {
                     <div className="nx-metric-icon"><Icon size={15} /></div>
                     <span className="nx-metric-label">{label}</span>
                   </div>
-                  <div className="nx-metric-value">{data ? used.toLocaleString(localeForIntl(locale)) : '—'}
-                    <span> / {data ? limit.toLocaleString(localeForIntl(locale)) : '—'}</span>
+                  <div className="nx-metric-value">{initialLoading
+                    ? <span className="nx-skeleton nx-skeleton-metric-value" aria-hidden="true" />
+                    : <>{data ? used.toLocaleString(localeForIntl(locale)) : '—'}
+                      <span> / {data ? limit.toLocaleString(localeForIntl(locale)) : '—'}</span></>}
                   </div>
-                  <div className="nx-progress-track" role="progressbar" aria-label={label}
-                    aria-valuemin={0} aria-valuemax={limit || 1} aria-valuenow={Math.min(used, limit || 1)}>
-                    <div className={`nx-progress-fill${over ? ' nx-progress-over' : ''}`} style={{ width: `${progress}%` }} />
-                  </div>
+                  {initialLoading ? (
+                    <div className="nx-skeleton nx-skeleton-progress" aria-hidden="true" />
+                  ) : (
+                    <div className="nx-progress-track" role="progressbar" aria-label={label}
+                      aria-valuemin={0} aria-valuemax={limit || 1} aria-valuenow={Math.min(used, limit || 1)}>
+                      <div className={`nx-progress-fill${over ? ' nx-progress-over' : ''}`} style={{ width: `${progress}%` }} />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -419,18 +446,31 @@ function BillingPageContent() {
                   </div>
                   <div className="nx-price-amount">
                     {tier === 'free' ? <span className="nx-free-price">$0</span>
-                      : <><strong>{price ? priceText(price) : '—'}</strong><span>{interval === 'year' ? ui.perYear : ui.perMonth}</span></>}
+                      : initialLoading
+                        ? <><span className="nx-skeleton nx-skeleton-price" aria-hidden="true" /><span>{interval === 'year' ? ui.perYear : ui.perMonth}</span></>
+                        : <><strong>{price ? priceText(price) : '—'}</strong><span>{interval === 'year' ? ui.perYear : ui.perMonth}</span></>}
                   </div>
                   <p className="nx-price-sub">{tier === 'free' ? ui.freeMessage : words[planInfo[tier]]}</p>
                   <div className="nx-features-title">{ui.included}</div>
                   <div className="nx-features">
-                    {features.map((feature) => (
-                      <div key={feature}><span className="nx-feature-check"><Check size={13} strokeWidth={2.5} /></span><span>{feature}</span></div>
-                    ))}
-                    {limits?.priority_support && <div><span className="nx-feature-check"><Check size={13} strokeWidth={2.5} /></span><span>{ui.priority}</span></div>}
+                    {initialLoading
+                      ? Array.from({ length: tier === 'business' ? 5 : 4 }, (_, index) => (
+                          <div key={index} aria-hidden="true">
+                            <span className="nx-skeleton nx-skeleton-feature-icon" />
+                            <span className="nx-skeleton nx-skeleton-feature-line" style={{ width: `${68 + (index % 3) * 8}%` }} />
+                          </div>
+                        ))
+                      : <>
+                          {features.map((feature) => (
+                            <div key={feature}><span className="nx-feature-check"><Check size={13} strokeWidth={2.5} /></span><span>{feature}</span></div>
+                          ))}
+                          {limits?.priority_support && <div><span className="nx-feature-check"><Check size={13} strokeWidth={2.5} /></span><span>{ui.priority}</span></div>}
+                        </>}
                   </div>
                   <div className="nx-price-cta">
-                    {current ? (
+                    {initialLoading ? (
+                      <div className="nx-skeleton nx-skeleton-button" aria-hidden="true" />
+                    ) : current ? (
                       <span className="nx-action-current"><CheckCircle2 size={17} />{ui.currentButton}</span>
                     ) : tier === 'free' ? (
                       <span className="nx-action-muted">{words.freeInfo}</span>
@@ -450,7 +490,7 @@ function BillingPageContent() {
             );
           })}
         </div>
-        {!data?.enabled && <div className="nx-info" role="status">{words.billingDisabled}</div>}
+        {data && !data.enabled && <div className="nx-info" role="status">{words.billingDisabled}</div>}
       </section>
 
       <footer className="nx-footer">
@@ -573,6 +613,22 @@ const styles = `
 .nx-action-secondary:hover{background:#343e3a;border-color:#708d78;}
 .nx-action-current{border:1px solid #3a5846;color:#b5e9c7;background:#25372b;}
 .nx-action-muted{color:#8e9a94;font-weight:650;text-align:center;}
+/* Skeletons du premier chargement : les vraies cartes restent en place. */
+.nx-skeleton{display:inline-block;vertical-align:middle;flex:none;max-width:100%;border-radius:7px;background:linear-gradient(100deg,#2b3434 10%,#43534b 44%,#2b3434 75%);background-size:200% 100%;animation:nx-skeleton-shine 1.65s ease-in-out infinite;}
+.nx-price-business .nx-skeleton{background-image:linear-gradient(100deg,#30303b 10%,#454355 44%,#30303b 75%);}
+@keyframes nx-skeleton-shine{0%{background-position:190% 0}100%{background-position:-190% 0}}
+.nx-env-loading{background:linear-gradient(90deg,#202824,#1a201e);border-color:#303d35;min-height:64px;}
+.nx-skeleton-env-icon{width:33px;height:33px;border-radius:10px;}
+.nx-skeleton-env-copy{display:grid;gap:8px;min-width:0;}
+.nx-skeleton-text{display:inline-block;}
+.nx-skeleton-current-title{width:145px;height:39px;border-radius:9px;}
+.nx-skeleton-current-summary{width:min(320px,100%);height:14px;}
+.nx-skeleton-metric-value{width:80px;height:23px;border-radius:6px;}
+.nx-skeleton-progress{display:block;height:4px;width:100%;border-radius:8px;}
+.nx-skeleton-price{width:130px;height:36px;border-radius:9px;align-self:center;}
+.nx-skeleton-feature-icon{width:17px;height:17px;border-radius:50%;}
+.nx-skeleton-feature-line{height:11px;max-width:calc(100% - 27px);border-radius:5px;}
+.nx-skeleton-button{display:block;width:100%;height:43px;border-radius:10px;}
 .nx-footer{margin-top:29px;display:flex;align-items:center;gap:12px;background:#151a1c;border:1px solid #2e3535;border-radius:13px;padding:16px 20px;}
 .nx-footer-icon{display:grid;place-items:center;width:33px;height:33px;border:1px solid #3a4b40;border-radius:10px;background:#223128;color:#b3e7c6;flex:none;}
 .nx-footer strong{display:block;color:#d8e2dc;font-size:12px;margin-bottom:3px;}

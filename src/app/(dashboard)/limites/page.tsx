@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/nashra-skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BarChart3, RefreshCw, ShieldCheck, ArrowRight } from 'lucide-react';
@@ -26,6 +27,8 @@ export default function LimitsPage() {
   }, []);
   useEffect(() => { void reload(); }, [reload]);
   const ratio = data ? Math.min(100, Math.round((data.used / Math.max(1, data.limit)) * 100)) : 0;
+  if (loading && !data && !error) return <PageSkeleton variant="abonnement" />;
+
   return <>
     <PageHeader eyebrow="NASHRA · FACTURATION" title={t('Quotas et utilisation')}
       description={t('Suivez les opérations programmées dans votre espace.')}

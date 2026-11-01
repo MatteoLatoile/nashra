@@ -11,6 +11,8 @@ import {
   UsersRound, X, Zap,
 } from 'lucide-react';
 import './landing.css';
+import { useLanguage } from '@/lib/i18n/provider';
+import { LANGUAGES, type LanguageChoice } from '@/lib/i18n';
 
 type Cycle = 'month' | 'year';
 const downloadUrl = (() => {
@@ -54,7 +56,23 @@ function Brand({ footer = false }: { footer?: boolean }) {
   </Link>;
 }
 
+
+function LandingLanguageSelector({ mobile = false, footer = false }: { mobile?: boolean; footer?: boolean }) {
+  const { choice, device, chooseLanguage, t } = useLanguage();
+  const deviceName = LANGUAGES.find(item => item.code === device)?.native || 'English';
+  return <label className={`lp-language-control ${mobile ? 'lp-language-mobile' : footer ? 'lp-language-footer' : 'lp-language-desktop'}`}>
+    <Globe2 size={16} aria-hidden="true" />
+    <span className="lp-visually-hidden">{t('Langue du site')}</span>
+    <select aria-label={t('Langue du site')} value={choice}
+      onChange={event => void chooseLanguage(event.target.value as LanguageChoice)}>
+      <option value="auto">Auto · {deviceName}</option>
+      {LANGUAGES.map(item => <option key={item.code} value={item.code}>{item.native}</option>)}
+    </select>
+  </label>;
+}
+
 export default function LandingPage() {
+  const { t } = useLanguage();
   const [cycle, setCycle] = useState<Cycle>('month');
   const [menuOpen, setMenuOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
@@ -77,8 +95,10 @@ export default function LandingPage() {
           <a href="#fonctionnement" onClick={() => setMenuOpen(false)}>Comment ça marche</a>
           <a href="#tarifs" onClick={() => setMenuOpen(false)}>Tarifs</a>
           <a href="#questions" onClick={() => setMenuOpen(false)}>Questions</a>
+          <LandingLanguageSelector mobile />
         </nav>
         <div className="lp-nav-actions">
+          <LandingLanguageSelector />
           <Link className="lp-signin" href="/connexion">Connexion</Link>
           <Link className="lp-button lp-button-top" href="/connexion">Commencer <ArrowUpRight size={16}/></Link>
         </div>
@@ -180,6 +200,13 @@ export default function LandingPage() {
       <section className="lp-container lp-bottom-cta" id="telecharger"><div className="lp-bottom-decor" aria-hidden="true"><div/><div/><div/></div><div className="lp-bottom-content"><span className="lp-kicker">PRÊT À SIMPLIFIER VOTRE QUOTIDIEN ?</span><h2>Vos annonces méritent<br/>un meilleur rythme<span>.</span></h2><p>Centralisez vos publications Telegram et reprenez le contrôle de votre calendrier.</p><div className="lp-bottom-actions"><Link href="/connexion" className="lp-button lp-button-dark">Ouvrir Nashra gratuitement <ArrowRight size={18}/></Link><DownloadButton prominent/></div></div></section>
     </main>
 
-    <footer className="lp-footer"><div className="lp-container lp-footer-main"><div><Brand footer/><p>Une façon plus simple d’organiser vos annonces et vos publications Telegram.</p></div><nav aria-label="Liens de pied de page"><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Offres</a><a href="#questions">FAQ</a><Link href="/connexion">Connexion</Link></nav></div><div className="lp-container lp-footer-base"><span>© {new Date().getFullYear()} Nashra. Tous droits réservés.</span><span>Nashra n’est pas affilié à Telegram.</span></div></footer>
+    <footer className="lp-footer" id="footer">
+      <div className="lp-container lp-footer-main">
+        <div className="lp-footer-about"><Brand footer /><p>Une façon plus simple d’organiser vos annonces et vos publications Telegram.</p></div>
+        <nav className="lp-footer-nav-column" aria-label="Explorer"><strong>Explorer</strong><a href="#fonctionnalites">Fonctionnalités</a><a href="#fonctionnement">Comment ça marche</a><a href="#tarifs">Tarifs</a><a href="#questions">Questions</a></nav>
+        <nav className="lp-footer-nav-column" aria-label="Nashra"><strong>Nashra</strong><Link href="/connexion">Connexion</Link><Link href="/connexion">Commencer gratuitement</Link><LandingLanguageSelector footer /></nav>
+      </div>
+      <div className="lp-container lp-footer-base"><span>© {new Date().getFullYear()} Nashra. {t('Tous droits réservés.')}</span><span>Nashra n’est pas affilié à Telegram.</span></div>
+    </footer>
   </div>;
 }

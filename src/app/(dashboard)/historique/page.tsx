@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock3, Download, History, RefreshCw, Search } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function HistoryPage() {
         <button type="button" className="btn btn-secondary" disabled={!filtered.length} onClick={downloadCsv}><Download size={15}/> CSV</button></div></div>
     {!cloudMode && <p className="n40-error">Connectez-vous à Nashra pour enregistrer l’historique réel.</p>}
     {error && <p className="n40-error" role="alert">{error}</p>}
-    {loading ? <div className="page-loader">Chargement de l’historique…</div> : filtered.length ?
+    {loading ? <SectionSkeleton variant="table" /> : filtered.length ?
       <div className="table-panel"><div className="table-scroller"><table className="data-table n40-history-table"><thead><tr><th>ANNONCE</th><th>GROUPE</th><th>DATE</th><th>STATUT</th><th>DÉTAIL</th></tr></thead><tbody>{filtered.map(j => <tr key={j.id}>
         <td><strong>{j.announcement}</strong><small>{j.manual ? 'Publication immédiate' : 'Calendrier'}</small></td>
         <td>{j.destination}</td>

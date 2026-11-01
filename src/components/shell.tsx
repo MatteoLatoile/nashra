@@ -1,7 +1,10 @@
 'use client';
+import { PageSkeleton, skeletonVariantForPath } from '@/components/nashra-skeleton';
 import { DashboardTour } from '@/components/dashboard-tour';
 import { QuotaAlert } from '@/components/quota-alert';
 import { AccountMenu } from '@/components/account-menu';
+import { SidebarPlanCard, SidebarUser } from '@/components/sidebar-membership';
+import sidebarStyles from '@/components/sidebar-premium.module.css';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -48,17 +51,13 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
     {mobileOpen && <button className="mobile-overlay" onClick={() => setMobileOpen(false)} aria-label="Fermer le menu" />}
     <aside className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}>
       <div className="sidebar-top">
-        <Link href="/dashboard" className="brand" onClick={() => setMobileOpen(false)}>
-          <span className="brand-icon"><Image src="/nashra-mark.png" alt="" width={34} height={34} priority /></span>
+        <Link href="/dashboard" className={`brand ${sidebarStyles.brandClean}`} onClick={() => setMobileOpen(false)}>
+          <span className={sidebarStyles.cleanMark}><Image src="/nashra-mark.png" alt="" width={34} height={34} priority /></span>
           <span className="brand-name">nashra<span className="brand-period">.</span></span>
         </Link>
         <button className="mob-close icon-button" onClick={() => setMobileOpen(false)} aria-label="Fermer"><X size={19}/></button>
       </div>
-      <div className="workspace-switch">
-        <span className="workspace-avatar">N</span>
-        <span className="workspace-text"><strong>Mon espace</strong><small>{cloudMode ? "Synchronisé · Privé" : "Démonstration locale"}</small></span>
-        <ChevronDown size={15} className="muted" />
-      </div>
+      <SidebarPlanCard onNavigate={() => setMobileOpen(false)} />
       <div className="sidebar-label">ESPACE DE TRAVAIL</div>
       <nav className="nav-list" aria-label="Navigation principale">
         {menu.map(({ label, href, Icon }) => <Link key={href} href={href} onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === href ? 'nav-active' : ''}`}><Icon size={18} strokeWidth={1.8}/><span>{t(label)}</span>{href === '/campagnes' && <span className="nav-pin"/>}</Link>)}
@@ -68,13 +67,7 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
         
         <Link href="/parametres" onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === '/parametres' ? 'nav-active' : ''}`}><Settings2 size={18}/><span>Paramètres</span></Link>
         <a href="https://core.telegram.org/api" target="_blank" rel="noreferrer" className="nav-item"><HelpCircle size={18}/><span>Documentation Telegram</span><ArrowUpRight className="nav-external" size={14}/></a>
-        <div className="sidebar-plan">
-          <div className="plan-header"><span className="plan-icon"><Command size={15}/></span><span>{cloudMode ? 'Espace cloud' : 'Démo locale'}</span></div>
-          <p>{cloudMode ? 'Votre contenu est lié à votre compte Supabase personnel.' : 'Ajoutez Supabase pour activer les comptes et le cloud.'}</p>
-          <div className="plan-meter"><i/></div>
-          <span className="plan-caption">{cloudMode ? 'Chaque compte dispose de ses propres données.' : 'Mode démonstration, sans connexion.'}</span>
-        </div>
-        <div className="user-profile"><span className="user-avatar">N</span><span className="user-name"><strong>{cloudMode ? 'Mon compte' : 'Démo'}</strong><small title={userEmail}>{cloudMode ? (userEmail ?? 'Connecté') : 'Administrateur local'}</small></span>{cloudMode ? <button className="logout-button" title="Se déconnecter" aria-label="Se déconnecter" onClick={() => void signOut()} disabled={signingOut}><LogOut size={18}/></button> : <span className="online-indicator"/>}</div>
+        <SidebarUser userEmail={userEmail} cloudMode={cloudMode} signingOut={signingOut} onSignOut={() => void signOut()} onNavigate={() => setMobileOpen(false)} />
       </div>
     </aside>
     <div className="main-column">
@@ -85,7 +78,7 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
         {syncStatus === 'saving' ? 'Enregistrement…' : syncStatus === 'loading' ? 'Chargement…' : syncStatus === 'synced' ? 'Cloud synchronisé' : syncStatus === 'error' ? 'Erreur de sauvegarde' : 'Démo locale'}</span>
         {syncStatus === 'error' && <button onClick={retrySync} className="sync-retry" title={syncError || 'Réessayer'}>Réessayer</button>}<span className="top-separator"/><NotificationCenter userEmail={userEmail} /><AccountMenu userEmail={userEmail} onSignOut={() => void signOut()} /></div>
       </header>
-      <main className="main-content">{ready ? <>{cloudMode && <QuotaAlert/>}{children}</> : <div className="page-loader"><div className="loading-orb"/>Préparation de Nashra…</div>}</main>
+      <main className="main-content">{ready ? <>{cloudMode && <QuotaAlert/>}{children}</> : <PageSkeleton variant={skeletonVariantForPath(pathname)} />}</main>
     </div>
     <DashboardTour userEmail={userEmail} ready={ready} />
     {toast && <div role="status" className="toast"><span className="toast-dot"/>{toast}</div>}

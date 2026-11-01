@@ -1,4 +1,5 @@
 'use client';
+import { PageSkeleton } from '@/components/nashra-skeleton';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
@@ -271,6 +272,8 @@ export default function TelegramPage() {
       setFeedback({ good: true, text: 'Compte Telegram déconnecté. Vos annonces et destinations sont conservées.' });
     });
   }
+
+  if (status === null) return <PageSkeleton variant="telegram" />;
 
   return <>
     <PageHeader

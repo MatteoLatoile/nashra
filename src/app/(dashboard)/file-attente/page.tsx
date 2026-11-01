@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarClock, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -59,7 +60,7 @@ export default function QueuePage() {
     <div className="n23-metrics"><div><span>À approuver</span><strong>{jobs.filter(x => x.status === 'held').length}</strong></div>
       <div><span>Approuvées</span><strong>{jobs.filter(x => x.status === 'approved').length}</strong></div>
       <div><span>Envoyées</span><strong>{jobs.filter(x => x.status === 'sent').length}</strong></div></div>
-    {loading ? <p className="n23-notice">Chargement…</p> : jobs.length ? <div className="n22-table-wrap"><table className="n22-table"><thead><tr>
+    {loading ? <SectionSkeleton variant="table" /> : jobs.length ? <div className="n22-table-wrap"><table className="n22-table"><thead><tr>
       <th>Date prévue</th><th>Campagne</th><th>Annonce</th><th>Destination</th><th>Mode</th><th>État</th><th>Action</th>
     </tr></thead><tbody>{jobs.map(j => <tr key={j.id}>
       <td>{new Date(j.scheduled_at).toLocaleString(localeForIntl(locale))}</td><td>{j.campaign_id}</td><td>{j.announcement_id}</td>

@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ArrowDownToLine, CalendarClock, RefreshCw, ShieldCheck, SlidersHorizontal } from 'lucide-react';
@@ -73,7 +74,7 @@ export default function OperationsPage() {
       <button type="button" className="btn btn-secondary" onClick={download} disabled={!jobs.length}><ArrowDownToLine size={15}/> Export CSV</button>
     </div>
     {error && <div role="alert" className="n25-error">{error}</div>}
-    {busy ? <div className="n25-empty">Chargement des opérations…</div> : jobs.length ?
+    {busy ? <SectionSkeleton variant="table" /> : jobs.length ?
       <div className="n25-table-scroll"><table className="n25-table"><thead><tr><th>Prévue le</th><th>Campagne / annonce</th><th>Destination</th><th>État</th><th>Détails</th></tr></thead><tbody>
         {jobs.map(j => <tr key={j.id} className={j.needsAttention ? 'n25-needs' : ''}><td>{new Date(j.scheduled_at).toLocaleString(localeForIntl(locale))}</td>
           <td><strong>{j.campaign_id}</strong><small>{j.announcement_id}</small></td><td>{j.destination_id}</td>

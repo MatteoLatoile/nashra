@@ -1,4 +1,5 @@
 "use client";
+import { PageSkeleton } from '@/components/nashra-skeleton';
 
 import { useEffect, useState } from "react";
 import {
@@ -139,7 +140,7 @@ export default function ProfilePage() {
     : "N";
 
   if (loading) {
-    return <div className="na-profile-loading">Chargement de votre profil…</div>;
+    return <PageSkeleton variant="profil" />;
   }
 
   return (

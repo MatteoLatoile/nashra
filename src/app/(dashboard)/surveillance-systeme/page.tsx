@@ -1,4 +1,5 @@
 'use client';
+import { SectionSkeleton } from '@/components/nashra-skeleton';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowDownToLine, ArrowLeft, CheckCircle2, CircleAlert, Clock3,
@@ -57,7 +58,7 @@ export default function SystemSurveillance() {
     <div className="n35-toolbar"><div className="n35-switch" aria-label="Période des statistiques">
       {[6,24,72,168].map(h=><button type="button" key={h} className={hours===h?'active':''} onClick={()=>setHours(h)}>{h===168?'7 jours':`${h} h`}</button>)}</div>
       <a className="n35-export" href={`/api/admin/v35/export?hours=${hours}`}><ArrowDownToLine size={16}/> Exporter CSV</a></div>
-    {loading && <div className="n35-placeholder" role="status"><Timer size={20} className="n35-spin"/> Chargement du diagnostic…</div>}
+    {loading && <SectionSkeleton variant="cards" />}
     {error && <div className="n35-failure" role="alert"><CircleAlert size={19}/><div><strong>Impossible de consulter la supervision.</strong><p>{error}</p>
       <small>Vérifiez l’accès administrateur, les migrations SQL 010 et 011 et le serveur.</small></div></div>}
     {report && <>
