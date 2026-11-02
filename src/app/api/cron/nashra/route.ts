@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { runOneDelivery } from '@/lib/automation/worker';
 import { recordWorkerRun } from '@/lib/nashra-monitor/telemetry';
@@ -16,7 +16,7 @@ function authorized(req: NextRequest) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 export async function GET(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: 'Non autorisé.' }, { status: 401,
+  if (!authorized(request)) return NextResponse.json({ error: 'Non autorisÃ©.' }, { status: 401,
     headers: { 'Cache-Control': 'no-store' } });
   // Safe authenticated probe: no claim, no reconciliation, no Telegram call.
   if (request.nextUrl.searchParams.get('dry_run') === '1') {
@@ -38,9 +38,14 @@ export async function GET(request: NextRequest) {
     const result = await runOneDelivery();
     await recordWorkerRun({ state: result.state, startedAt, reconciliation });
     return NextResponse.json({ ...result, reconciliation }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch {
+  } catch (error) {
+    console.error(
+      '[Nashra Cron] Worker failure:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     await recordWorkerRun({ state: 'error', startedAt });
-    return NextResponse.json({ error: 'Worker indisponible. Vérifiez SQL 005, SQL 008 et les secrets serveur.' },
+    return NextResponse.json({ error: 'Worker indisponible. VÃ©rifiez SQL 005, SQL 008 et les secrets serveur.' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
+
