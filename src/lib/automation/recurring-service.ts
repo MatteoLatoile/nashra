@@ -60,10 +60,21 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
     return result;
   }
   const targets = dests.filter((d): d is NonNullable<typeof d> => Boolean(d));
+  if (targets.some(target => campaign?.destinationHandles?.[target.id] && campaign?.destinationHandles?.[target.id] !== target.handle)) {
+    result.problem = 'Groupe Telegram modifié : annulez les anciennes programmations avant de reprendre.';
+    await markRule(rule.id, 'paused', result.problem);
+    return result;
+  }
+  if (targets.some(target => { const snapshot = campaign?.destinationTopics?.[target.id];
+    return (snapshot !== undefined || target.topicId !== undefined) && snapshot !== (target.topicId ?? null); })) {
+    result.problem = 'Sujet Telegram modifié : annulez les anciennes programmations puis créez une nouvelle campagne.';
+    await markRule(rule.id, 'paused', result.problem);
+    return result;
+  }
   let works: ReturnType<typeof buildAnnouncementDelivery>[];
   let album: Buffer[] | undefined;
   try {
-    works = targets.map(target => buildAnnouncementDelivery(announcement, target.handle, 'repost', rule.user_id));
+    works = targets.map(target => buildAnnouncementDelivery(announcement, target.handle, 'repost', rule.user_id, target.topicId));
     album = works[0].kind === 'album' ? await loadAlbum(store, works[0].photos) : undefined;
   } catch (error) {
     result.problem = safeReason(error);

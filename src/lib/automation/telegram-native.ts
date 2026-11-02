@@ -2,6 +2,7 @@
 import { Api, decrypt, makeClient, resolveDialog } from '@/lib/telegram-user/core';
 import type { TelegramClient } from 'teleproto';
 import { DeliveryBlocked, type NativeWorkItem } from './worker';
+import { resolveTopic, topicReply, TopicError } from '@/lib/telegram-user/topics';
 
 function validateSchedule(at: string): number {
   const millis = Date.parse(at);
@@ -31,14 +32,18 @@ async function access(client: TelegramClient, chatId: string) {
 export async function scheduleOnConnectedTelegram(client: TelegramClient, work: NativeWorkItem, when: string, album?: Buffer[]): Promise<number[]> {
   const schedule = validateSchedule(when);
   const entity = await access(client, work.destinationChatId);
+  let topicId: number | undefined;
+  try { topicId = await resolveTopic(client, work.destinationChatId, work.topicId); }
+  catch (error) { if (error instanceof TopicError) throw new DeliveryBlocked(error.message); throw error; }
+  const replyTo = topicReply(topicId);
   if (work.kind === 'text') {
-    return validIds(await client.sendMessage(entity, { message: work.body, schedule }));
+    return validIds(await client.sendMessage(entity, { message: work.body, schedule, replyTo }));
   }
   if (work.kind === 'album') {
     if (!album || album.length !== work.photos.length || !album.length) throw new DeliveryBlocked('Album incomplet.');
     const captions = album.map((_, i) => i === 0 ? work.body : '');
     const sent = await client.sendFile(entity, { file: album.length === 1 ? album[0] : album,
-      caption: album.length === 1 ? work.body : captions, forceDocument: false, scheduleDate: schedule });
+      caption: album.length === 1 ? work.body : captions, forceDocument: false, scheduleDate: schedule, replyTo });
     return validIds(sent);
   }
   const from = await resolveDialog(client, work.sourceChatId);
@@ -46,9 +51,9 @@ export async function scheduleOnConnectedTelegram(client: TelegramClient, work: 
   const source = messages[0];
   if (!source) throw new DeliveryBlocked('Message d’origine introuvable.');
   if (work.method === 'forward') {
-    return validIds(await client.forwardMessages(entity, { messages: [source.id], fromPeer: from.entity, schedule }));
+    return validIds(await client.forwardMessages(entity, { messages: [source.id], fromPeer: from.entity, schedule, ...(topicId !== undefined ? { topMsgId: topicId } : {}) }));
   }
-  return validIds(await client.sendMessage(entity, { message: source, schedule }));
+  return validIds(await client.sendMessage(entity, { message: source, schedule, replyTo }));
 }
 
 export async function withSchedulingClient<T>(sessionEncrypted: string, fn: (client: TelegramClient) => Promise<T>): Promise<T> {

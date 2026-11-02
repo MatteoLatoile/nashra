@@ -1,7 +1,8 @@
 'use client';
+import { SearchableSelect } from '@/components/searchable-select';
 import { PageSkeleton } from '@/components/nashra-skeleton';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight, BookOpen, CalendarDays, Check, CheckCircle2, ChevronDown,
@@ -23,7 +24,9 @@ type Status = {
   username?: string;
   error?: string;
 };
-type Dialog = { id: string; title: string; group: boolean; channel: boolean };
+type Dialog = { id: string; title: string; group: boolean; channel: boolean; forum?: boolean };
+type ForumTopic = { id: number; title: string; closed: boolean; hidden: boolean };
+type TopicList = { isForum: boolean; topics: ForumTopic[]; hasMore: boolean };
 type Message = { id: number; text: string; media: boolean; date: number; groupedId?: string | null };
 type ImportResult = {
   ok: true; text: string; imageUrls: string[];
@@ -79,6 +82,13 @@ export default function TelegramPage() {
   const [messageId, setMessageId] = useState(0);
   const [selectedDestination, setSelectedDestination] = useState('');
   const [telegramAuthorized, setTelegramAuthorized] = useState(false);
+  const [topics, setTopics] = useState<TopicList | null>(null);
+  const [topicId, setTopicId] = useState('');
+  const [topicBusy, setTopicBusy] = useState(false);
+  const [topicError, setTopicError] = useState('');
+  const [remoteTopicSearch, setRemoteTopicSearch] = useState('');
+  const [manyTopics, setManyTopics] = useState(false);
+  const topicRequestId = useRef(0);
 
   // Rédaction d'une annonce sans quitter Telegram.
   const [title, setTitle] = useState('');
@@ -101,6 +111,9 @@ export default function TelegramPage() {
   const existingDestination = selectedChat
     ? data.destinations.find(d => d.handle === selectedChat.id)
     : undefined;
+  const topicChanged = existingDestination?.topicId !== (topicId ? Number(topicId) : undefined);
+  const forumSelectionValid = !(selectedChat?.forum || topics?.isForum) || (!!topics?.isForum && !!topicId && topics.topics.some(t => String(t.id) === topicId && !t.closed && !t.hidden));
+  const destinationUnchanged = !!existingDestination?.authorized && !topicChanged && forumSelectionValid;
   const alreadyImported = Boolean(selectedMessage && source && data.announcements.some(
     a => a.sourceChatId === source && a.sourceMessageId === selectedMessage.id,
   ));
@@ -165,6 +178,39 @@ export default function TelegramPage() {
     });
   }
 
+  async function changeDestination(chatId: string) {
+    const requestId = ++topicRequestId.current;
+    setSelectedDestination(chatId);
+    setTelegramAuthorized(false);
+    setTopics(null);
+    setTopicError(''); setRemoteTopicSearch(''); setManyTopics(false);
+    const existing = data.destinations.find(d => d.handle === chatId);
+    setTopicId(existing?.topicId ? String(existing.topicId) : '');
+    if (!chatId) return;
+    setTopicBusy(true);
+    try {
+      const list = await api<TopicList>(`/api/telegram/user/topics?chat=${encodeURIComponent(chatId)}`);
+      // Don't silently pick General or another topic.
+      if (requestId === topicRequestId.current) { setTopics(list); setManyTopics(list.hasMore); }
+    } catch (err) {
+      if (requestId === topicRequestId.current) setTopicError(err instanceof Error ? err.message : 'Impossible de récupérer les sujets Telegram.');
+    } finally { if (requestId === topicRequestId.current) setTopicBusy(false); }
+  }
+
+  // Telegram can contain hundreds of topics. Search server-side beyond the first 100.
+  useEffect(() => {
+    if (!selectedDestination || !manyTopics) return;
+    const timer = window.setTimeout(async () => {
+      const requestId = ++topicRequestId.current;
+      try {
+        const q = remoteTopicSearch.trim();
+        const list = await api<TopicList>(`/api/telegram/user/topics?chat=${encodeURIComponent(selectedDestination)}&q=${encodeURIComponent(q)}`);
+        if (requestId === topicRequestId.current) setTopics(list);
+      } catch { /* keep the last successfully loaded results */ }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [selectedDestination, manyTopics, remoteTopicSearch]);
+
   function changeSource(chatId: string) {
     setSource(chatId);
     setMessages([]);
@@ -214,19 +260,25 @@ export default function TelegramPage() {
   }
 
   function saveTelegramDestination() {
-    if (!selectedChat || !telegramAuthorized || busy) return;
+    if (!selectedChat || !telegramAuthorized || busy || topicBusy || topicError || !topics || !forumSelectionValid) return;
+    if (existingDestination && topicChanged && data.campaigns.some(c => c.status === 'scheduled' && c.destinationIds.includes(existingDestination.id))) {
+      setFeedback({ good:false, text:'Une campagne active utilise ce groupe. Annulez ses messages déjà programmés avant de changer de rubrique.' });
+      return;
+    }
     if (!validChatId.test(selectedChat.id)) {
       setFeedback({ good: false, text: 'Identifiant du groupe Telegram invalide.' });
       return;
     }
-    if (existingDestination?.authorized) return;
+    if (destinationUnchanged) return;
+    const selectedTopic = topics.isForum ? topics.topics.find(t => String(t.id) === topicId) : undefined;
+    const topicFields = topics.isForum ? { topicId: selectedTopic!.id, topicTitle: selectedTopic!.title } : { topicId: undefined, topicTitle: undefined };
     if (existingDestination) {
       updateDestination(existingDestination.id, {
         name: existingDestination.name, handle: existingDestination.handle,
-        category: existingDestination.category, authorized: true,
+        category: existingDestination.category, authorized: true, ...topicFields,
       });
     } else {
-      addDestination({ name: selectedChat.title, handle: selectedChat.id, category: 'Telegram', authorized: true });
+      addDestination({ name: selectedChat.title, handle: selectedChat.id, category: 'Telegram', authorized: true, ...topicFields });
     }
     setTelegramAuthorized(false);
     setFeedback({ good: true, text: `« ${selectedChat.title} » a été enregistré comme destination autorisée.` });
@@ -267,7 +319,7 @@ export default function TelegramPage() {
     if (!approved) return;
     void task('logout', () => api('/api/telegram/user/logout', {}), () => {
       setDialogs([]); setMessages([]); setSource(''); setMessageId(0);
-      setSelectedDestination(''); setTelegramAuthorized(false);
+      setSelectedDestination(''); setTelegramAuthorized(false); setTopics(null); setTopicId('');
       void refreshStatus();
       setFeedback({ good: true, text: 'Compte Telegram déconnecté. Vos annonces et destinations sont conservées.' });
     });
@@ -386,12 +438,15 @@ export default function TelegramPage() {
             </form> : <div className={styles.importForm}>
               {!connected ? <div className={styles.emptyState}><Smartphone size={22}/><strong>Connexion Telegram nécessaire</strong><span>Connectez votre compte ci-dessus pour importer ses messages.</span></div> : <>
                 <div className={styles.miniToolbar}><span>{dialogs.length ? `${dialogs.length} conversation(s) chargée(s)` : 'Importez vos discussions accessibles'}</span><button type="button" className={styles.smallButton} disabled={!!busy} onClick={loadDialogs}>{busy === 'dialogs' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} {dialogs.length ? 'Actualiser' : 'Charger mes conversations'}</button></div>
-                <label className={styles.field}>Conversation source
-                  <span className={styles.selectWrap}><select value={source} disabled={!!busy || !dialogs.length} onChange={e => changeSource(e.target.value)}><option value="">Choisir une conversation</option>{dialogs.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}</select><ChevronDown size={16}/></span>
-                </label>
-                <label className={styles.field}>Message à importer
-                  <span className={styles.selectWrap}><select disabled={!!busy || !source} value={messageId} onChange={e => setMessageId(Number(e.target.value))}><option value={0}>{busy === 'messages' ? 'Chargement…' : messages.length === 0 && source ? 'Aucun message disponible' : 'Choisir un message'}</option>{messages.map(m => <option key={m.id} value={m.id}>{readableDate(m.date)} · #{m.id} — {(m.text || '[Média]').replace(/\s+/g, ' ').slice(0, 90)}</option>)}</select><ChevronDown size={16}/></span>
-                </label>
+                <div className={styles.field}><span>Conversation source</span><SearchableSelect value={source} onChange={changeSource} ariaLabel="Conversation source"
+  placeholder="Choisir une conversation" searchPlaceholder="Rechercher une conversation…"
+  disabled={!!busy || !dialogs.length} options={dialogs.map(d => ({ value: d.id, label: d.title,
+  detail: d.group ? (d.forum ? 'Groupe avec sujets' : 'Groupe Telegram') : d.channel ? 'Canal Telegram' : 'Conversation' }))}/></div>
+                <div className={styles.field}><span>Message à importer</span><SearchableSelect value={String(messageId)} onChange={value => setMessageId(Number(value))}
+  ariaLabel="Message à importer" placeholder={busy === 'messages' ? 'Chargement…' : messages.length === 0 && source ? 'Aucun message disponible' : 'Choisir un message'}
+  searchPlaceholder="Rechercher dans les messages chargés…" disabled={!!busy || !source || !messages.length}
+  options={messages.map(m => ({ value: String(m.id), label: '#' + m.id + ' — ' + (m.text || '[Média]').replace(/\s+/g, ' ').slice(0, 110),
+    detail: readableDate(m.date) + (m.media ? ' · Média' : '') }))}/></div>
                 {selectedMessage && <div className={styles.messagePreview}><span className={styles.previewLabel}><MessageSquareText size={14}/> APERÇU DU MESSAGE {selectedMessage.media ? '· MÉDIA' : ''}{selectedMessage.groupedId ? ' · ALBUM' : ''}</span><p>{selectedMessage.text?.slice(0, 380) || '[Message contenant un média]'}</p></div>}
                 {selectedMessage && <p className={styles.supportText}>Texte et jusqu’à 10 photos importés. Les vidéos et autres fichiers ne sont pas pris en charge.</p>}
                 <div className={styles.formFooter}><span><ShieldCheck size={14}/> Aucun envoi lors de l’import</span><button type="button" className={styles.primaryButton} onClick={importMessage} disabled={!!busy || !selectedMessage || alreadyImported}>{busy === 'import' ? <LoaderCircle className={styles.spin} size={16}/> : <CloudDownload size={16}/>} {alreadyImported ? 'Déjà importée' : 'Importer l’annonce'}</button></div>
@@ -417,12 +472,27 @@ export default function TelegramPage() {
             {destinationTab === 'telegram' ? <div className={styles.destinationForm}>
               {!connected ? <div className={styles.emptyState}><Smartphone size={22}/><strong>Connexion Telegram nécessaire</strong><span>Connectez votre compte pour retrouver vos groupes et canaux.</span><button className={styles.textButton} type="button" onClick={() => setDestinationTab('manual')}>Ajouter manuellement à la place <ArrowRight size={15}/></button></div> : <>
                 <div className={styles.miniToolbar}><span>{availableChats.length ? `${availableChats.length} groupe(s) ou canal(aux)` : 'Récupérez les groupes de votre compte'}</span><button className={styles.smallButton} type="button" disabled={!!busy} onClick={loadDialogs}>{busy === 'dialogs' ? <LoaderCircle className={styles.spin} size={15}/> : <RefreshCw size={15}/>} {dialogs.length ? 'Actualiser' : 'Charger mes conversations'}</button></div>
-                <label className={styles.field}>Groupe ou canal
-                  <span className={styles.selectWrap}><select value={selectedDestination} disabled={!!busy || !availableChats.length} onChange={e => { setSelectedDestination(e.target.value); setTelegramAuthorized(false); }}><option value="">Choisir une destination</option>{availableChats.map(d => <option key={d.id} value={d.id}>{d.title}{d.channel ? ' · canal' : ''}</option>)}</select><ChevronDown size={16}/></span>
-                </label>
-                {selectedChat && <div className={styles.destinationInfo}><span className={styles.destinationInfoIcon}><UsersRound size={17}/></span><div><strong>{selectedChat.title}</strong><small>{selectedChat.channel ? 'Canal Telegram' : 'Groupe Telegram'} · ID {selectedChat.id}</small></div>{existingDestination?.authorized && <span className={styles.savedTag}><Check size={13}/> Enregistré</span>}</div>}
-                {selectedChat && !existingDestination?.authorized && <label className={styles.consent}><input type="checkbox" checked={telegramAuthorized} onChange={e => setTelegramAuthorized(e.target.checked)}/><span><strong>Je suis autorisé à publier ici.</strong><small>Je respecte les règles du groupe ou du canal et n’envoie pas de publicité non sollicitée.</small></span></label>}
-                <div className={styles.formFooter}><span><ShieldCheck size={14}/> Autorisation requise</span><button className={styles.secondaryButton} type="button" disabled={!!busy || !selectedChat || !telegramAuthorized || Boolean(existingDestination?.authorized)} onClick={saveTelegramDestination}>{existingDestination?.authorized ? <Check size={16}/> : <Plus size={16}/>} {existingDestination?.authorized ? 'Déjà enregistrée' : 'Ajouter la destination'}</button></div>
+                <div className={styles.field}><span>Groupe ou canal</span><SearchableSelect value={selectedDestination} onChange={value => { void changeDestination(value); }}
+  ariaLabel="Destination Telegram" placeholder="Choisir une destination" searchPlaceholder="Rechercher un groupe ou canal…"
+  disabled={!!busy || !availableChats.length}
+  options={availableChats.map(d => ({ value: d.id, label: d.title, detail: d.group ? (d.forum ? 'Groupe avec sujets' : 'Groupe Telegram') : 'Canal Telegram' }))}/></div>
+                {selectedChat && (selectedChat.forum || topics?.isForum) && <div className={styles.field}>
+                  <span>Sujet du groupe Telegram <small>· Choix obligatoire</small></span>
+                  <SearchableSelect value={topicId} onChange={value => { setTopicId(value); setTelegramAuthorized(false); }}
+                    ariaLabel="Sujet Telegram" placeholder={topicBusy ? 'Chargement des sujets…' : 'Choisir une rubrique'}
+                    searchPlaceholder="Rechercher une rubrique…" disabled={!!busy || topicBusy || !topics?.isForum || !!topicError}
+                    options={(topics?.topics ?? []).map(topic => ({ value: String(topic.id), label: topic.title,
+                      detail: topic.closed || topic.hidden ? 'Fermé · publication impossible' : 'Ouvert',
+                      disabled: topic.closed || topic.hidden }))}/>
+                  {manyTopics && <label className={styles.field}><span>Rechercher parmi tous les sujets</span>
+                    <input type="search" value={remoteTopicSearch} onChange={e => setRemoteTopicSearch(e.target.value)}
+                      placeholder="Rechercher aussi au-delà des 100 premiers…" /></label>}
+                  {topicError && <small role="alert">{topicError}</small>}
+                  {!topicError && !topicBusy && topicId === '' && <small>Choisissez explicitement le sujet cible, pas d’envoi automatique dans Général.</small>}
+                </div>}
+                {selectedChat && <div className={styles.destinationInfo}><span className={styles.destinationInfoIcon}><UsersRound size={17}/></span><div><strong>{selectedChat.title}</strong><small>{selectedChat.group ? 'Groupe Telegram' : 'Canal Telegram'} · ID {selectedChat.id}</small></div>{destinationUnchanged && <span className={styles.savedTag}><Check size={13}/> Enregistré</span>}</div>}
+                {selectedChat && !destinationUnchanged && <label className={styles.consent}><input type="checkbox" checked={telegramAuthorized} onChange={e => setTelegramAuthorized(e.target.checked)}/><span><strong>Je suis autorisé à publier ici.</strong><small>Je respecte les règles du groupe ou du canal et n’envoie pas de publicité non sollicitée.</small></span></label>}
+                <div className={styles.formFooter}><span><ShieldCheck size={14}/> Autorisation requise</span><button className={styles.secondaryButton} type="button" disabled={!!busy || !selectedChat || topicBusy || !topics || !!topicError || !forumSelectionValid || !telegramAuthorized || destinationUnchanged} onClick={saveTelegramDestination}>{destinationUnchanged ? <Check size={16}/> : <Plus size={16}/>} {destinationUnchanged ? 'Déjà enregistrée' : existingDestination ? 'Modifier le sujet' : 'Ajouter la destination'}</button></div>
               </>}
             </div> : <form className={styles.destinationForm} onSubmit={saveManualDestination}>
               <label className={styles.field}>Nom de la destination <span>*</span><input maxLength={100} required value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Ex. Groupe annonces Médine"/></label>

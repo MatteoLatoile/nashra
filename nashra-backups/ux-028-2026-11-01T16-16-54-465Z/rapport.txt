@@ -1,0 +1,9 @@
+NASHRA — PRIORITE 1 UX — AUDIT 028
+2026-11-01T16:17:52.129Z
+Branche : main
+Installation : Sidebar premium : deja installee | Skeletons de pages 024 : deja installes | Page Telegram en 3 etapes : deja installee | Suppression des annonces : deja presente | Skeletons prix 026 : deja installes | Landing i18n/footer/logo 027 : deja installee | Copyright du footer : traduction explicite en 10 langues
+Fichiers installes/mis a jour : 1
+ + src/app/page.tsx
+Typecheck/build : OK
+SQL/Stripe/API : AUCUNE MODIFICATION
+A verifier apres livraison : rendu mobile 320px/390px/desktop, langue device + selection, annonce test supprimee.

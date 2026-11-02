@@ -1,0 +1,31 @@
+.root{position:relative;width:100%;min-width:0;font:inherit;color:#f1f4f3}
+.trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:49px;padding:12px 15px;text-align:start;border:1px solid #3a4146;border-radius:11px;background:#202429;color:#f1f4f3;cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
+.trigger:hover:not(:disabled){background:#262b30;border-color:#63716c}
+.trigger:focus-visible,.triggerOpen{outline:2px solid #aaf0cb;outline-offset:2px;border-color:#8ed8b4}
+.trigger:disabled{opacity:.52;cursor:not-allowed}
+.selected{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0;font-size:14px;line-height:20px}
+.placeholder{color:#a2aab1}
+.trigger svg{flex-shrink:0;color:#a4b3b0;transition:transform .18s}
+.chevronOpen{transform:rotate(180deg)}
+.panel{margin-top:7px;overflow:hidden;border:1px solid #3b4946;border-radius:13px;background:#171c1e;box-shadow:0 12px 32px #0006;min-width:0;max-width:100%}
+.searchRow{display:flex;gap:8px;align-items:center;border-bottom:1px solid #303a38;padding:10px 12px;color:#a9b9b3}
+.searchRow>svg{flex-shrink:0}
+.searchRow input{width:100%;min-width:0;min-height:36px;border:0!important;background:transparent!important;box-shadow:none!important;color:#f5f7f6!important;outline:0!important;font-size:14px!important;padding:5px 3px!important;margin:0!important}
+.searchRow input::placeholder{color:#a9b3b0}
+.clear{border:0;background:transparent;color:#b9c1be;display:grid;place-items:center;min-width:30px;min-height:30px;cursor:pointer}
+.options{max-height:min(290px,40vh);overflow-y:auto;overscroll-behavior:contain;padding:5px}
+.option{width:100%;min-height:44px;display:flex;align-items:center;gap:10px;text-align:start;background:none;border:0;border-radius:9px;color:#edf4f1;padding:9px 11px;cursor:pointer;font:inherit}
+.option:hover:not(:disabled),.highlight{background:#293933}
+.option:focus-visible{outline:2px solid #9ee8c5;outline-offset:-2px}
+.option:disabled{opacity:.43;cursor:not-allowed}
+.option[aria-selected="true"],.option[aria-checked="true"]{background:#20382e}
+.optionText{display:flex;flex-direction:column;min-width:0;flex:1;gap:4px;font-size:13px;line-height:1.4}
+.optionText>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.optionText small{font-size:11px;line-height:1.25;color:#99aaa3;overflow-wrap:anywhere}
+.tick{color:#a7efc8;flex-shrink:0}
+.checkbox{width:19px;height:19px;border:1px solid #687772;border-radius:5px;display:grid;place-items:center;flex-shrink:0}
+.checkboxChecked{background:#a7efc8;color:#122119;border-color:#a7efc8}
+.empty{margin:0;padding:20px 13px;font-size:13px;color:#9faeaa;text-align:center}
+.hint{padding:10px 13px;border-top:1px solid #303a38;color:#9baaa4;font-size:11px;line-height:1.3}
+@media (max-width: 480px){.trigger{min-height:48px;padding:11px 12px}.options{max-height:230px}.optionText>span{white-space:normal;overflow-wrap:anywhere}}
+@media (prefers-reduced-motion:reduce){.trigger,.trigger svg{transition:none}}

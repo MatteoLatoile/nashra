@@ -33,7 +33,6 @@ const shortDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
 export default function Dashboard() {
   const { data } = useApp();
   const [probe, setProbe] = useState<Probe>({ kind: 'loading' });
-  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,7 +50,7 @@ export default function Dashboard() {
       .then((value) => { if (!controller.signal.aborted) setProbe({ kind: 'success', value }); })
       .catch(() => { if (!controller.signal.aborted) setProbe({ kind: 'error' }); });
     return () => controller.abort();
-  }, [refreshIndex]);
+  }, []);
 
   const now = Date.now();
   const nextSlot = (campaign: (typeof data.campaigns)[number]) =>
@@ -95,34 +94,6 @@ export default function Dashboard() {
   const activityTotal = activity.reduce((sum, day) => sum + day.count, 0);
   const activityPublishes = activity.reduce((sum, day) => sum + day.publishes, 0);
 
-  let statusLabel = 'État en cours de vérification';
-  let statusDescription = 'Lecture de la configuration de publication.';
-  let statusTone: 'good' | 'warn' | 'neutral' = 'neutral';
-  if (probe.kind === 'error') {
-    statusLabel = 'État indisponible';
-    statusDescription = 'Impossible de vérifier la configuration du moteur. Ne présumez pas que les envois sont actifs.';
-    statusTone = 'warn';
-  } else if (probe.kind === 'success') {
-    const item = probe.value;
-    if (item.emergencyStop) {
-      statusLabel = 'Envois suspendus';
-      statusDescription = 'Arrêt général des publications activé côté serveur.';
-      statusTone = 'warn';
-    } else if (!item.migrationReady) {
-      statusLabel = 'Vérification technique requise';
-      statusDescription = 'Le contrôle de la base de données du moteur n’est pas prêt.';
-      statusTone = 'warn';
-    } else if (!(item.dispatchAllowed ?? item.publishingEnabled)) {
-      statusLabel = 'Envois automatiques désactivés';
-      statusDescription = 'La publication automatique n’est pas autorisée par la configuration serveur.';
-      statusTone = 'warn';
-    } else {
-      statusLabel = 'Publication autorisée côté serveur';
-      statusDescription = 'Les contrôles d’activation passent. La bonne exécution du cron reste à vérifier.';
-      statusTone = 'good';
-    }
-  }
-
   const metrics = [
     { title: 'Annonces', value: data.announcements.length, detail: 'Dans votre bibliothèque', icon: Files, href: '/annonces' },
     { title: 'Destinations', value: allowed, detail: 'Groupes autorisés', icon: UsersRound, href: '/groupes' },
@@ -139,21 +110,6 @@ export default function Dashboard() {
     />
 
     <div className={styles.dashboard}>
-      <section className={styles.topStatus} aria-label="État des automatisations">
-        <div className={styles.statusLeft}>
-          <div className={`${styles.statusIcon} ${styles[statusTone]}`}><Zap size={20}/></div>
-          <div className={styles.statusCopy}>
-            <div className={styles.eyebrow}>PUBLICATION AUTOMATIQUE</div>
-            {probe.kind === 'loading' ? <span className={`${styles.skeleton} ${styles.skeletonTitle}`} aria-label="Chargement de l’état"/> : <strong>{statusLabel}</strong>}
-            <p>{probe.kind === 'loading' ? 'Vérification du moteur…' : statusDescription}</p>
-          </div>
-        </div>
-        <div className={styles.statusActions}>
-          <Link href="/supervision" className={styles.textAction}>Voir la supervision <ArrowUpRight size={15}/></Link>
-          <button type="button" className={styles.refreshButton} aria-label="Actualiser l’état des automatisations" onClick={() => setRefreshIndex((i) => i + 1)}><RefreshCw size={16}/></button>
-        </div>
-      </section>
-
       <section className={styles.stats} aria-label="Statistiques de votre espace">
         {metrics.map(({ title, value, detail, icon: Icon, href }) => <Link href={href} className={styles.stat} key={title}>
           <div className={styles.statTop}><span>{title}</span><Icon size={17}/></div>
@@ -181,7 +137,6 @@ export default function Dashboard() {
               </div>;
             })}
           </div> : <div className={styles.empty}><CalendarClock size={24}/><strong>Aucune campagne à venir</strong><p>Créez une campagne pour organiser vos prochaines publications.</p><Link href="/campagnes?nouveau=1" className={styles.secondaryButton}>Planifier une campagne <ArrowRight size={15}/></Link></div>}
-          <p className={styles.footnote}>Les créneaux affichés ne garantissent pas à eux seuls l’exécution du moteur automatique.</p>
         </section>
 
         <section className={styles.panel} aria-label="Activité récente">

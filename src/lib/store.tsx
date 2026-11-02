@@ -6,7 +6,7 @@ import { createClient as createSupabaseClient } from '@/lib/supabase/client';
 
 export type Method = 'forward' | 'repost';
 export type Announcement = { id: string; title: string; category: string; body: string; sourceUrl: string; sourceChatId?: string; sourceMessageId?: number; imageUrls?: string[]; tags?: string[]; updatedAt?: string; createdAt: string };
-export type Destination = { id: string; name: string; handle: string; category: string; authorized: boolean; createdAt: string };
+export type Destination = { id: string; name: string; handle: string; category: string; authorized: boolean; createdAt: string; topicId?: number; topicTitle?: string };
 // Les anciens champs restent présents pour les pages et données V0.5.
 export type Campaign = {
   id: string;
@@ -14,6 +14,9 @@ export type Campaign = {
   announcementId: string; // compatibilité avec les anciennes campagnes
   announcementIds?: string[];
   destinationIds: string[];
+  /** Snapshot preventing a changed topic from redirecting pending sends. */
+  destinationTopics?: Record<string, number | null>;
+  destinationHandles?: Record<string, string>;
   method: Method;
   scheduledAt: string; // premier créneau, compatibilité avec le tableau de bord
   scheduledDates?: string[];

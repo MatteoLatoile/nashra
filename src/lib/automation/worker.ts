@@ -4,6 +4,7 @@ import { Api, decrypt, makeClient, resolveDialog } from '@/lib/telegram-user/cor
 import { readiness, type Workspace } from './readiness';
 import { parseStoredPhotos, imageExtension, MAX_PHOTO_BYTES, PHOTO_BUCKET, PhotoReferenceError, type StoredPhoto } from './photos';
 import { reserveSend, finalizeSend } from '@/lib/billing/quotas-server';
+import { resolveTopic, topicReply, TopicError, validTopicId } from '@/lib/telegram-user/topics';
 
 type QueueRow = {
   id: string; user_id: string; job_key: string; campaign_id: string;
@@ -12,10 +13,10 @@ type QueueRow = {
 };
 
 export type NativeWorkItem =
-  | { kind: 'source'; sourceChatId: string; sourceMessageId: number; destinationChatId: string;
+  | { kind: 'source'; sourceChatId: string; sourceMessageId: number; destinationChatId: string; topicId?: number;
       method: 'forward' | 'repost' }
-  | { kind: 'text'; destinationChatId: string; body: string; method: 'repost' }
-  | { kind: 'album'; destinationChatId: string; body: string; photos: StoredPhoto[]; method: 'repost' };
+  | { kind: 'text'; destinationChatId: string; topicId?: number; body: string; method: 'repost' }
+  | { kind: 'album'; destinationChatId: string; topicId?: number; body: string; photos: StoredPhoto[]; method: 'repost' };
 export class DeliveryBlocked extends Error {}
 export function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -25,7 +26,8 @@ export function getServiceClient() {
 }
 
 export function buildAnnouncementDelivery(ad: NonNullable<Workspace['announcements']>[number], destinationChatId: string,
-  method: 'forward' | 'repost', userId: string): NativeWorkItem {
+  method: 'forward' | 'repost', userId: string, topicId?: number): NativeWorkItem {
+  if (topicId !== undefined && !validTopicId(topicId)) throw new DeliveryBlocked('Identifiant de sujet Telegram invalide.');
   if (!/^-?\d{3,30}$/.test(destinationChatId)) throw new DeliveryBlocked('Identifiant de destination Telegram invalide.');
   const hasSource = typeof ad.sourceChatId === 'string' && /^-?\d{3,30}$/.test(ad.sourceChatId)
     && Number.isSafeInteger(ad.sourceMessageId) && (ad.sourceMessageId ?? 0) > 0;
@@ -39,7 +41,7 @@ export function buildAnnouncementDelivery(ad: NonNullable<Workspace['announcemen
   if (method === 'forward') {
     if (!hasSource) throw new DeliveryBlocked('Un transfert nécessite un message Telegram source.');
     return { kind: 'source', sourceChatId: ad.sourceChatId!, sourceMessageId: ad.sourceMessageId!,
-      destinationChatId: destinationChatId, method: 'forward' };
+      destinationChatId: destinationChatId, topicId, method: 'forward' };
   }
   const text = typeof ad.body === 'string' ? ad.body.trim() : '';
   const hasImages = Array.isArray(ad.imageUrls) && ad.imageUrls.length > 0;
@@ -52,15 +54,15 @@ export function buildAnnouncementDelivery(ad: NonNullable<Workspace['announcemen
       if (err instanceof PhotoReferenceError) throw new DeliveryBlocked(err.message);
       throw err;
     }
-    return { kind: 'album', destinationChatId: destinationChatId, body: text, photos, method: 'repost' };
+    return { kind: 'album', destinationChatId: destinationChatId, topicId, body: text, photos, method: 'repost' };
   }
   if (text) {
     if (text.length > 4096) throw new DeliveryBlocked('Message texte trop long (maximum 4 096 caractères).');
-    return { kind: 'text', destinationChatId: destinationChatId, body: text, method: 'repost' };
+    return { kind: 'text', destinationChatId: destinationChatId, topicId, body: text, method: 'repost' };
   }
   if (!hasSource) throw new DeliveryBlocked('Annonce vide et aucun message Telegram source.');
   return { kind: 'source', sourceChatId: ad.sourceChatId!, sourceMessageId: ad.sourceMessageId!,
-    destinationChatId: destinationChatId, method: 'repost' };
+    destinationChatId: destinationChatId, topicId, method: 'repost' };
 }
 
 function verifyJob(workspace: Workspace, job: QueueRow): NativeWorkItem {
@@ -85,14 +87,20 @@ function verifyJob(workspace: Workspace, job: QueueRow): NativeWorkItem {
   if (!dest.handle || !/^-?\d{3,30}$/.test(dest.handle)) {
     throw new DeliveryBlocked('Identifiant Telegram destination invalide.');
   }
-  return buildAnnouncementDelivery(ad, dest.handle, job.method as 'forward' | 'repost', job.user_id);
+  if (campaign.destinationHandles?.[dest.id!] && campaign.destinationHandles?.[dest.id!] !== dest.handle)
+    throw new DeliveryBlocked('Groupe Telegram modifié après la programmation : reprogrammez pour éviter un mauvais envoi.');
+  const snapshot = campaign.destinationTopics?.[dest.id!];
+  if ((snapshot !== undefined || dest.topicId !== undefined) && snapshot !== (dest.topicId ?? null))
+    throw new DeliveryBlocked('Sujet Telegram modifié après la planification : reprogrammez pour éviter un mauvais envoi.');
+  return buildAnnouncementDelivery(ad, dest.handle, job.method as 'forward' | 'repost', job.user_id, dest.topicId);
 }
 
 /** No automatic retries: a failed or uncertain attempt requires human review. */
 export function safeReason(err: unknown): string {
-  if (err instanceof DeliveryBlocked) return err.message;
+  if (err instanceof DeliveryBlocked || err instanceof TopicError) return err.message;
   const message = err instanceof Error ? err.message : '';
   if (/^(Votre forfait actuel autorise moins|Le nombre d’envois déjà réservés dépasse|Limite mensuelle d’envois atteinte)/.test(message)) return message;
+  if (/TOPIC_CLOSED|TOPIC_DELETED|TOPIC_ID_INVALID/i.test(message)) return 'Sujet Telegram fermé ou supprimé : vérifiez la destination.';
   if (/FLOOD_WAIT|SLOWMODE_WAIT/i.test(message)) return 'Telegram impose une limitation de fréquence. Aucun nouvel essai automatique.';
   if (/CHAT_WRITE_FORBIDDEN|CHAT_ADMIN_REQUIRED|USER_BANNED|BANNED_IN_CHANNEL|banned from/i.test(message))
     return 'Compte ou destination non autorisé à publier. Vérifiez les permissions et les restrictions.';
@@ -127,6 +135,10 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
     const to = await resolveDialog(client, data.destinationChatId);
     if (!to.isGroup && !to.isChannel) throw new DeliveryBlocked('La destination ne correspond pas à un groupe ou canal.');
     const destination = to.entity;
+    let topicId: number | undefined;
+    try { topicId = await resolveTopic(client, data.destinationChatId, data.topicId); }
+    catch (error) { if (error instanceof TopicError) throw new DeliveryBlocked(error.message); throw error; }
+    const replyTo = topicReply(topicId);
     // A broadcast channel requires explicit posting rights.
     if (destination instanceof Api.Channel && destination.broadcast &&
         !destination.creator && !destination.adminRights?.postMessages) {
@@ -137,7 +149,7 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
     }
     if (data.kind === 'text') {
       // This is a user-authored Nashra announcement, not a bot message.
-      const sent = await client.sendMessage(to.entity!, { message: data.body });
+      const sent = await client.sendMessage(to.entity!, { message: data.body, replyTo });
       if (!sent.id) throw new Error('Confirmation Telegram absente.');
       return sent.id;
     }
@@ -148,7 +160,7 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
       const sent = await client.sendFile(to.entity!, {
         file: album.length === 1 ? album[0] : album,
         caption: album.length === 1 ? data.body : captions,
-        forceDocument: false,
+        forceDocument: false, replyTo,
       });
       const first = Array.isArray(sent) ? sent[0] : sent;
       if (!first?.id) throw new Error('Confirmation Telegram absente pour l’album.');
@@ -159,11 +171,11 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
     const message = messages[0];
     if (!message) throw new DeliveryBlocked('Le message Telegram source est introuvable.');
     if (data.method === 'forward') {
-      const sent = await client.forwardMessages(to.entity!, { messages: [message.id], fromPeer: from.entity! });
+      const sent = await client.forwardMessages(to.entity!, { messages: [message.id], fromPeer: from.entity!, ...(topicId !== undefined ? { topMsgId: topicId } : {}) });
       if (!sent[0]?.id) throw new Error('Confirmation Telegram absente.');
       return sent[0].id;
     }
-    const sent = await client.sendMessage(to.entity!, { message });
+    const sent = await client.sendMessage(to.entity!, { message, replyTo });
     if (!sent.id) throw new Error('Confirmation Telegram absente.');
     return sent.id;
   } finally { await client.disconnect(); }

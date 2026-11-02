@@ -1,4 +1,5 @@
 'use client';
+import { SearchableSelect } from '@/components/searchable-select';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -178,9 +179,12 @@ export default function AnnouncementsPage() {
       <div className="form-stack">
         <div className="n40-publish-preview"><strong>Annonce</strong><p>{publishing.body.slice(0, 350)}{publishing.body.length > 350 ? '…' : ''}</p>
           {(publishing.imageUrls?.length ?? 0) > 0 && <small>{publishing.imageUrls?.length} photo(s)</small>}</div>
-        <label className="field-label">Choisir un groupe autorisé<select value={publishDestinationId} onChange={e => setPublishDestinationId(e.target.value)}>
-          <option value="">Sélectionnez un groupe</option>{eligibleDestinations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select></label>
+        <div className="field-label"><span>Choisir un groupe autorisé</span>
+  <SearchableSelect ariaLabel="Groupe pour publication immédiate" value={publishDestinationId}
+    onChange={setPublishDestinationId} placeholder="Sélectionnez un groupe"
+    searchPlaceholder="Rechercher parmi vos groupes…"
+    options={eligibleDestinations.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/>
+</div>
         {eligibleDestinations.length === 0 && <p className="n40-footnote">Aucun groupe disponible. Connectez votre compte personnel et enregistrez les groupes autorisés dans <Link href="/groupes">Destinations</Link>.</p>}
         <div className="inline-help"><Send size={16}/> Un seul groupe par confirmation. Les limitations de Telegram sont respectées et aucun renvoi automatique ne sera effectué.</div>
         {(publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`)) && <p className="n40-error">Une photo provient d'un lien externe. Réimportez toutes les photos depuis votre ordinateur avant de publier.</p>}

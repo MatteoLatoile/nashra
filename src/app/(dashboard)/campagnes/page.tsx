@@ -1,4 +1,5 @@
 'use client';
+import { SearchableSelect, SearchableMultiSelect } from '@/components/searchable-select';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -24,7 +25,7 @@ export default function CalendarPage() {
   const [name, setName] = useState('');
   const [announcementId, setAnnouncementId] = useState('');
   const [destIds, setDestIds] = useState<string[]>([]);
-  const [date, setDate] = useState(() => localInput(new Date(Date.now() + 24 * 3600_000)));
+  const [date, setDate] = useState(() => localInput(new Date(Date.now() + 10 * 60_000)));
   const [scheduleType,setScheduleType] = useState<'once' | 'interval'>('once');
   const [intervalDays,setIntervalDays] = useState(2);
   const [timeZone,setTimeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
@@ -86,7 +87,7 @@ export default function CalendarPage() {
     setName(ad.title);
     setDestIds([]);
     setError('');
-    setDate(localInput(new Date(Date.now() + 24 * 3600_000)));
+    setDate(localInput(new Date(Date.now() + 10 * 60_000)));
     setScheduleType('once'); setIntervalDays(2); setUntilDate('');
     setOpen(true);
     window.history.replaceState(window.history.state, '', '/campagnes');
@@ -97,13 +98,17 @@ export default function CalendarPage() {
     setName(defaultAd?.title ?? '');
     setDestIds([]);
     setError('');
-    setDate(localInput(new Date(Date.now() + 24 * 3600_000)));
+    setDate(localInput(new Date(Date.now() + 10 * 60_000)));
     setScheduleType('once'); setIntervalDays(2); setUntilDate('');
     setOpen(true);
   }
   async function send(action: 'schedule' | 'pause' | 'resume' | 'delete', campaign?: Campaign) {
     if (!cloudMode || syncStatus !== 'synced') { setError('Attendez la synchronisation cloud avant de programmer.'); return; }
     if (busy) return;
+    if (action === 'schedule' && scheduleType === 'once' && (!Number.isFinite(Date.parse(date)) || Date.parse(date) <= Date.now() + 180_000)) {
+      setError('Choisissez une date et une heure futures (au moins 3 minutes). Vérifiez aussi le jour affiché.');
+      return;
+    }
     setBusy(true); setError('');
     try {
       const isRecurringCreation = action === 'schedule' && scheduleType === 'interval';
@@ -199,9 +204,12 @@ export default function CalendarPage() {
     {open && <Modal title="Programmer une publication" subtitle="Publication automatique aux groupes que vous êtes autorisé à utiliser." onClose={() => !busy && setOpen(false)}>
       <form className="form-stack" onSubmit={e => { e.preventDefault(); void send('schedule'); }}>
         <label className="field-label">Nom de la programmation<input maxLength={90} required value={name} onChange={e => setName(e.target.value)}/></label>
-        <label className="field-label">Annonce<select required value={announcementId} onChange={e => { setAnnouncementId(e.target.value); if (!name.trim()) setName(data.announcements.find(a => a.id === e.target.value)?.title ?? ''); }}>
-          <option value="">Choisir une annonce</option>{data.announcements.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
-        </select></label>
+        <div className="field-label"><span>Annonce</span>
+  <SearchableSelect ariaLabel="Annonce à programmer" value={announcementId}
+    onChange={value => { setAnnouncementId(value); if (!name.trim()) setName(data.announcements.find(a => a.id === value)?.title ?? ''); }}
+    placeholder="Choisir une annonce" searchPlaceholder="Rechercher une annonce…"
+    options={data.announcements.map(a => ({value:a.id,label:a.title,detail:a.category}))}/>
+</div>
         <label className="field-label">Type de programmation
           <select data-tour="schedule-mode" value={scheduleType} onChange={e => setScheduleType(e.target.value as 'once'|'interval')}>
             <option value="once">Une seule fois</option>
@@ -222,11 +230,18 @@ export default function CalendarPage() {
           </label>
         </>}
         <label className="field-label">{scheduleType === 'interval' ? 'Première diffusion (jour et heure)' : 'Date et heure'}
-          <input type="datetime-local" required value={date} onChange={e => setDate(e.target.value)}/>
-        </label>
-        <div className="n40-dest"><strong>Groupes autorisés</strong><span>Uniquement ceux reliés à un identifiant Telegram.</span>
-          {candidates.length ? candidates.map(d => <label key={d.id}><input type="checkbox" checked={destIds.includes(d.id)} onChange={e => setDestIds(prev => e.target.checked ? [...prev, d.id] : prev.filter(x => x !== d.id))}/>{d.name}</label>) : <p>Ajoutez d’abord un groupe depuis <Link href="/groupes">Destinations</Link>.</p>}
-        </div>
+  <input type="datetime-local" required value={date} onChange={e => setDate(e.target.value)}/>
+  <small style={{lineHeight: 1.6}}>Heure locale de votre appareil : {Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}.
+    {Number.isFinite(Date.parse(date)) && <> Publication choisie : <strong>{new Intl.DateTimeFormat('fr-FR', { dateStyle:'full', timeStyle:'short' }).format(new Date(date))}</strong>.</>}
+  </small>
+</label>
+        <div className="n40-dest"><strong>Groupes autorisés</strong><span>Recherchez et sélectionnez jusqu’à {scheduleType === 'interval' ? 10 : 5} destinations autorisées.</span>
+  {candidates.length ? <SearchableMultiSelect values={destIds} onChange={setDestIds}
+    ariaLabel="Destinations à programmer" placeholder="Rechercher et choisir des destinations"
+    max={scheduleType === 'interval' ? 10 : 5}
+    options={candidates.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/> :
+    <p>Ajoutez d’abord un groupe depuis <Link href="/groupes">Destinations</Link>.</p>}
+</div>
         <p className="n40-footnote" data-tour="group-stagger">{scheduleType === 'interval'
           ? `Vous autorisez ${destIds.length} diffusion(s) par occurrence. Le premier groupe démarre à l’heure indiquée ; les suivants à 90 secondes d’intervalle. Nashra prépare les prochains jours sur Telegram et les renouvelle quotidiennement via un Cron serveur. Maximum 10 groupes par règle ; restrictions et quotas toujours applicables.`
           : `Vous autorisez ${destIds.length} publication(s) uniques. Telegram doit accepter chaque programmation. Maximum 5 groupes par action.`}</p>

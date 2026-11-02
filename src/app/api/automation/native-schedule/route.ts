@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (!ad || targetDestinations.some(x => !x?.authorized || !x.handle || !/^-?\d{3,30}$/.test(x.handle)))
       return errorResponse('Annonce introuvable ou groupe non autorisé.');
     const targets = targetDestinations.filter((x): x is NonNullable<typeof x> => Boolean(x));
-    const tasks = targets.map(target => ({ target, work: buildAnnouncementDelivery(ad, target.handle, 'repost', c.userId) }));
+    const tasks = targets.map(target => ({ target, work: buildAnnouncementDelivery(ad, target.handle, 'repost', c.userId, target.topicId) }));
     const account = await getAccount(c);
     if (!account?.session_ciphertext) return errorResponse('Connectez votre compte Telegram personnel.');
     const service = getServiceClient();
@@ -93,7 +93,9 @@ export async function POST(req: NextRequest) {
     const album = firstTask.work.kind === 'album' ? await loadAlbum(service, firstTask.work.photos) : undefined;
     const campaign: Campaign = {
       id: raw.id, name: raw.name.trim(), announcementId: ads[0], announcementIds: ads,
-      destinationIds: dests, method: 'repost', scheduledAt: when, scheduledDates: [when],
+      destinationIds: dests, destinationTopics: Object.fromEntries(targets.map(t => [t.id, t.topicId ?? null])),
+      destinationHandles: Object.fromEntries(targets.map(t => [t.id, t.handle])),
+      method: 'repost', scheduledAt: when, scheduledDates: [when],
       status: 'scheduled', nativeTelegram: true, createdAt: new Date().toISOString(),
     };
     const bookings = new Map<string,{id:string;created:boolean}>();

@@ -2,8 +2,8 @@
 import { parseStoredPhotos } from './photos';
 
 export type Ad = { id?: string; title?: string; sourceChatId?: string; sourceMessageId?: number; body?: string; imageUrls?: string[] };
-export type Dest = { id?: string; name?: string; handle?: string; authorized?: boolean };
-export type CampaignLike = { id?: string; name?: string; status?: string; method?: string; announcementId?: string; announcementIds?: string[]; destinationIds?: string[]; scheduledAt?: string; scheduledDates?: string[] };
+export type Dest = { id?: string; name?: string; handle?: string; authorized?: boolean; topicId?: number; topicTitle?: string };
+export type CampaignLike = { id?: string; name?: string; status?: string; method?: string; announcementId?: string; announcementIds?: string[]; destinationIds?: string[]; destinationTopics?: Record<string, number | null>; destinationHandles?: Record<string, string>; scheduledAt?: string; scheduledDates?: string[] };
 export type Workspace = { announcements?: Ad[]; destinations?: Dest[]; campaigns?: CampaignLike[] };
 export type Issue = { code: string; message: string };
 export type Check = { id: string; name: string; status: string; dates: number; nextDate: string | null; dueSlots: number; totalDeliveries: number; issues: Issue[]; ready: boolean };
@@ -53,6 +53,12 @@ export function readiness(data: Workspace, instant = Date.now()) {
       if (!dest) { add('unknown_dest', 'Une destination est introuvable.'); continue; }
       if (dest.authorized !== true) add('unauthorized', 'Une destination n’est pas déclarée autorisée.');
       if (!dest.handle || !/^(-?\d{3,30}|-100\d{3,30})$/.test(dest.handle)) add('handle', 'Un identifiant de destination Telegram est invalide.');
+      if (dest.topicId !== undefined && (!Number.isSafeInteger(dest.topicId) || dest.topicId < 1)) add('topic', 'Sujet Telegram invalide.');
+      if (c.destinationHandles?.[id] && c.destinationHandles?.[id] !== dest.handle)
+        add('destination_changed', 'Le groupe Telegram a changé depuis la programmation. Recréez la campagne.');
+      const topicSnapshot = c.destinationTopics?.[id];
+      if ((topicSnapshot !== undefined || dest.topicId !== undefined) && topicSnapshot !== (dest.topicId ?? null))
+        add('topic_changed', 'Le sujet Telegram a été modifié après la programmation. Recréez la campagne.');
     }
     const dueSlots = dateValues.filter(x => x <= instant).length;
     const next = dateValues.find(x => x > instant);

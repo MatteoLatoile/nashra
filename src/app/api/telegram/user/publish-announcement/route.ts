@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const ad = row.data.announcements?.find((a: { id: string }) => a.id === body.announcementId);
     const dest = row.data.destinations?.find((d: { id: string }) => d.id === body.destinationId);
     if (!ad || !dest || dest.authorized !== true) throw new DeliveryBlocked('Annonce ou groupe absent, ou publication non autorisée.');
-    const work = buildAnnouncementDelivery(ad, dest.handle, 'repost', c.userId);
+    const work = buildAnnouncementDelivery(ad, dest.handle, 'repost', c.userId, dest.topicId);
     const account = await getAccount(c);
     if (!account?.session_ciphertext) throw new DeliveryBlocked('Connectez votre compte Telegram personnel.');
     service = getServiceClient();

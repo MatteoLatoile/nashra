@@ -12,7 +12,7 @@ const headers = { 'Cache-Control': 'no-store' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type FormCampaign = {
   id: string; name: string; announcementId: string; announcementIds: string[];
-  destinationIds: string[]; method: 'repost'; scheduledAt: string;
+  destinationIds: string[]; destinationTopics: Record<string, number | null>; destinationHandles: Record<string, string>; method: 'repost'; scheduledAt: string;
   scheduledDates: string[]; status: 'scheduled'; createdAt: string;
 };
 
@@ -40,10 +40,12 @@ function validate(raw: unknown, userId: string, workspace: Workspace): FormCampa
   for (const dest of selectedDestinations) {
     if (dest.authorized !== true || !dest.handle || !/^-?\d{3,30}$/.test(dest.handle))
       throw new DeliveryBlocked('Seuls les groupes autorisés avec identifiant Telegram numérique peuvent être programmés.');
-    for (const ad of ads) buildAnnouncementDelivery(ad, dest.handle, 'repost', userId);
+    for (const ad of ads) buildAnnouncementDelivery(ad, dest.handle, 'repost', userId, dest.topicId);
   }
   return { id: c.id, name: c.name.trim(), announcementId: ids[0], announcementIds: ids,
-    destinationIds: dests, method: 'repost', scheduledAt: slots[0], scheduledDates: slots.sort(),
+    destinationIds: dests, destinationTopics: Object.fromEntries(selectedDestinations.map(d => [d.id!, d.topicId ?? null])),
+    destinationHandles: Object.fromEntries(selectedDestinations.map(d => [d.id!, d.handle!])),
+    method: 'repost', scheduledAt: slots[0], scheduledDates: slots.sort(),
     status: 'scheduled', createdAt: typeof c.createdAt === 'string' && Number.isFinite(Date.parse(c.createdAt))
       ? c.createdAt : new Date().toISOString() };
 }

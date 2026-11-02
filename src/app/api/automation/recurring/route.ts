@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       const targets = dests.map(id => previous.destinations.find(d => d.id === id));
       if (!ad || targets.some(d => !d?.authorized || !d.handle || !/^-?\d{3,30}$/.test(d.handle)))
         return sendError('Annonce ou destination introuvable/non autorisée.');
-      for (const d of targets) buildAnnouncementDelivery(ad,d!.handle,'repost',c.userId);
+      for (const d of targets) buildAnnouncementDelivery(ad,d!.handle,'repost',c.userId,d!.topicId);
       const account = await getAccount(c);
       if (!account?.session_ciphertext) return sendError('Connectez d’abord votre compte Telegram.');
       const untilDay = recurrence.until || null;
@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
       if (untilDay && untilDay < firstCivilDay) return sendError('La date de fin doit être après le début.');
       const campaign: Campaign = {
         id:raw.id, name:raw.name.trim(), announcementId:ads[0], announcementIds:ads,
-        destinationIds:dests, method:'repost', scheduledAt:raw.scheduledAt,
+        destinationIds:dests, destinationTopics:Object.fromEntries(targets.map(d => [d!.id, d!.topicId ?? null])),
+        destinationHandles:Object.fromEntries(targets.map(d => [d!.id, d!.handle])),
+        method:'repost', scheduledAt:raw.scheduledAt,
         scheduledDates:[raw.scheduledAt], recurrence, nativeTelegram:true,
         status:'scheduled', createdAt:new Date().toISOString(),
       };
