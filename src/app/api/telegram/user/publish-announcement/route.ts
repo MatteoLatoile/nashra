@@ -67,6 +67,13 @@ export async function POST(req: NextRequest) {
       if (saveError) return NextResponse.json({ error: 'Telegram a confirmé le message, mais l’historique n’a pas été mis à jour. Vérifiez avant une nouvelle tentative.', uncertain: true }, { status: 500, headers: noStore });
       return NextResponse.json({ ok: true, telegramMessageId: Number(telegramId), jobId }, { headers: noStore });
     } catch (err) {
+      // Server-only diagnostic: no session, user content, identifiers, or secrets.
+      const rawCode = (err && typeof err === 'object' && 'code' in err) ? String(err.code) : '';
+      const errorCode = /^[A-Z][A-Z0-9_]{2,64}$/.test(rawCode) ? rawCode : 'UNCLASSIFIED';
+      console.error('[Nashra Manual Send] Telegram delivery failed', {
+        kind: work.kind, photoCount: work.kind === 'album' ? work.photos.length : 0,
+        errorName: err instanceof Error ? err.name : 'Unknown', errorCode,
+      });
       const reason = safeReason(err);
       const state = err instanceof DeliveryBlocked ? 'blocked' : 'needs_review';
       await service.from('delivery_queue').update({ status: state, last_error: reason,
