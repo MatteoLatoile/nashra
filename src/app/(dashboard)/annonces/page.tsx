@@ -54,17 +54,20 @@ export default function AnnouncementsPage() {
   const [publishDestinationId, setPublishDestinationId] = useState('');
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishResult, setPublishResult] = useState('');
+  const [publishSuccess, setPublishSuccess] = useState(false);
   const eligibleDestinations = data.destinations.filter(d => d.authorized && /^-?\d{3,30}$/.test(d.handle));
 
   function openPublish(a: Announcement) {
     setPublishing(a);
     setPublishDestinationId('');
     setPublishResult('');
+    setPublishSuccess(false);
   }
   async function publishNow() {
     if (!publishing || !publishDestinationId || publishBusy) return;
     setPublishBusy(true);
     setPublishResult('');
+    setPublishSuccess(false);
     try {
       const response = await fetch('/api/telegram/user/publish-announcement', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -73,9 +76,10 @@ export default function AnnouncementsPage() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Envoi impossible.');
+      setPublishSuccess(true);
       setPublishResult(`Message confirmé par Telegram (#${result.telegramMessageId}). Consultez l’historique.`);
       notify('Publication confirmée.');
-    } catch (e) { setPublishResult(e instanceof Error ? e.message : 'Résultat incertain. Vérifiez Telegram.'); }
+    } catch (e) { setPublishSuccess(false); setPublishResult(e instanceof Error ? e.message : 'Résultat incertain. Vérifiez Telegram.'); }
     finally { setPublishBusy(false); }
   }
 
@@ -188,7 +192,7 @@ export default function AnnouncementsPage() {
         {eligibleDestinations.length === 0 && <p className="n40-footnote">Aucun groupe disponible. Connectez votre compte personnel et enregistrez les groupes autorisés dans <Link href="/groupes">Destinations</Link>.</p>}
         <div className="inline-help"><Send size={16}/> Un seul groupe par confirmation. Les limitations de Telegram sont respectées et aucun renvoi automatique ne sera effectué.</div>
         {(publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`)) && <p className="n40-error">Une photo provient d'un lien externe. Réimportez toutes les photos depuis votre ordinateur avant de publier.</p>}
-        {publishResult && <p className="n40-error" role="status">{publishResult}</p>}
+        {publishResult && <p className={publishSuccess ? "n40-success" : "n40-error"} role={publishSuccess ? "status" : "alert"}>{publishSuccess && <Check size={15} aria-hidden="true" />}{publishResult}</p>}
         <div className="modal-actions">{!publishBusy && <Link href={`/campagnes?annonce=${encodeURIComponent(publishing.id)}`} className="btn btn-secondary" onClick={() => setPublishing(null)}><CalendarDays size={16}/> Programmer</Link>}<button type="button" className="btn btn-secondary" disabled={publishBusy} onClick={() => setPublishing(null)}>Fermer</button>
           <button type="button" className="btn btn-primary" onClick={() => void publishNow()}
             disabled={!publishDestinationId || publishBusy || !cloudMode || syncStatus !== 'synced' || publishResult !== '' ||
