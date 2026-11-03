@@ -3,6 +3,7 @@ import { Api, decrypt, makeClient, resolveDialog } from '@/lib/telegram-user/cor
 import type { TelegramClient } from 'teleproto';
 import { DeliveryBlocked, type NativeWorkItem } from './worker';
 import { resolveTopic, topicReply, TopicError } from '@/lib/telegram-user/topics';
+import { verifyAlbumResponse } from './album-confirmation';
 
 function validateSchedule(at: string): number {
   const millis = Date.parse(at);
@@ -23,8 +24,8 @@ async function access(client: TelegramClient, chatId: string) {
   const entity = target.entity;
   if (entity instanceof Api.Channel && entity.broadcast && !entity.creator && !entity.adminRights?.postMessages)
     throw new DeliveryBlocked('Vous ne pouvez pas publier dans ce canal.');
-  if (entity instanceof Api.Channel && entity.bannedRights?.sendMessages)
-    throw new DeliveryBlocked('Telegram interdit l’envoi dans ce groupe.');
+  // A cached bannedRights flag is not a reliable substitute for Telegram's
+  // authoritative permission check when scheduling the message.
   return entity;
 }
 
@@ -37,14 +38,15 @@ export async function scheduleOnConnectedTelegram(client: TelegramClient, work: 
   catch (error) { if (error instanceof TopicError) throw new DeliveryBlocked(error.message); throw error; }
   const replyTo = topicReply(topicId);
   if (work.kind === 'text') {
-    return validIds(await client.sendMessage(entity, { message: work.body, schedule, replyTo }));
+    return validIds(await client.sendMessage(entity, { message: work.body, schedule, replyTo, parseMode: false }));
   }
   if (work.kind === 'album') {
     if (!album || album.length !== work.photos.length || !album.length) throw new DeliveryBlocked('Album incomplet.');
-    const captions = album.map((_, i) => i === 0 ? work.body : '');
+
     const sent = await client.sendFile(entity, { file: album.length === 1 ? album[0] : album,
-      caption: album.length === 1 ? work.body : captions, forceDocument: false, scheduleDate: schedule, replyTo });
-    return validIds(sent);
+      caption: work.body, formattingEntities: [], parseMode: false,
+      forceDocument: false, scheduleDate: schedule, replyTo });
+    return verifyAlbumResponse(sent, album.length, work.body);
   }
   const from = await resolveDialog(client, work.sourceChatId);
   const messages = await client.getMessages(from.entity, { ids: [work.sourceMessageId] });

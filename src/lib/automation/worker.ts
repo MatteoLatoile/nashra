@@ -5,6 +5,7 @@ import { readiness, type Workspace } from './readiness';
 import { parseStoredPhotos, imageExtension, MAX_PHOTO_BYTES, PHOTO_BUCKET, PhotoReferenceError, type StoredPhoto } from './photos';
 import { reserveSend, finalizeSend } from '@/lib/billing/quotas-server';
 import { resolveTopic, topicReply, TopicError, validTopicId } from '@/lib/telegram-user/topics';
+import { verifyAlbumResponse } from './album-confirmation';
 
 type QueueRow = {
   id: string; user_id: string; job_key: string; campaign_id: string;
@@ -100,9 +101,11 @@ export function safeReason(err: unknown): string {
   if (err instanceof DeliveryBlocked || err instanceof TopicError) return err.message;
   const message = err instanceof Error ? err.message : '';
   if (/^(Votre forfait actuel autorise moins|Le nombre d’envois déjà réservés dépasse|Limite mensuelle d’envois atteinte)/.test(message)) return message;
+  if (/TELEGRAM_ALBUM_CONFIRMATION_INCOMPLETE/.test(message)) return 'Album Telegram non confirmé en totalité : vérifiez les photos dans le sujet avant toute nouvelle tentative.';
+  if (/TELEGRAM_CAPTION_NOT_CONFIRMED/.test(message)) return 'Photos reçues, mais légende non confirmée : vérifiez le message Telegram avant toute nouvelle tentative.';
   if (/TOPIC_CLOSED|TOPIC_DELETED|TOPIC_ID_INVALID/i.test(message)) return 'Sujet Telegram fermé ou supprimé : vérifiez la destination.';
   if (/FLOOD_WAIT|SLOWMODE_WAIT/i.test(message)) return 'Telegram impose une limitation de fréquence. Aucun nouvel essai automatique.';
-  if (/CHAT_WRITE_FORBIDDEN|CHAT_ADMIN_REQUIRED|USER_BANNED|BANNED_IN_CHANNEL|banned from/i.test(message))
+  if (/CHAT_WRITE_FORBIDDEN|CHAT_ADMIN_REQUIRED|USER_BANNED|BANNED_IN_CHANNEL|CHAT_SEND_PHOTOS_FORBIDDEN|CHAT_SEND_MEDIA_FORBIDDEN|banned from/i.test(message))
     return 'Compte ou destination non autorisé à publier. Vérifiez les permissions et les restrictions.';
   if (/CHAT_FORWARDS_RESTRICTED/i.test(message)) return 'Le transfert de ce message est protégé par Telegram.';
   if (/SESSION_PASSWORD_NEEDED|AUTH_KEY_UNREGISTERED|SESSION_REVOKED/i.test(message)) return 'Session Telegram expirée : reconnectez votre compte.';
@@ -144,27 +147,27 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
         !destination.creator && !destination.adminRights?.postMessages) {
       throw new DeliveryBlocked('Vous ne possédez pas les droits de publication dans ce canal.');
     }
-    if (destination instanceof Api.Channel && destination.bannedRights?.sendMessages) {
-      throw new DeliveryBlocked('Telegram interdit la publication dans cette destination.');
-    }
+    // Avoid rejecting a group using an incomplete/stale bannedRights snapshot.
+    // Telegram itself authoritatively validates write permissions at send time.
     if (data.kind === 'text') {
       // This is a user-authored Nashra announcement, not a bot message.
-      const sent = await client.sendMessage(to.entity!, { message: data.body, replyTo });
+      const sent = await client.sendMessage(to.entity!, { message: data.body, replyTo, parseMode: false });
       if (!sent.id) throw new Error('Confirmation Telegram absente.');
       return sent.id;
     }
     if (data.kind === 'album') {
       if (!album || album.length !== data.photos.length) throw new DeliveryBlocked('Album incomplet : aucun envoi effectué.');
-      const captions = album.map((_, index) => index === 0 ? data.body : '');
+
       // ONE Telegram request for the album, no separate text message and no silent photo loss.
       const sent = await client.sendFile(to.entity!, {
         file: album.length === 1 ? album[0] : album,
-        caption: album.length === 1 ? data.body : captions,
+        // Preserve the exact user text (no implicit Markdown/HTML parsing).
+        // For a multi-photo album exactly ONE photo must contain the caption.
+        caption: data.body, formattingEntities: [], parseMode: false,
         forceDocument: false, replyTo,
       });
-      const first = Array.isArray(sent) ? sent[0] : sent;
-      if (!first?.id) throw new Error('Confirmation Telegram absente pour l’album.');
-      return first.id;
+      // Verify Telegram returned every photo AND the text; no automatic retries.
+      return verifyAlbumResponse(sent, album.length, data.body)[0];
     }
     const from = await resolveDialog(client, data.sourceChatId);
     const messages = await client.getMessages(from.entity!, { ids: [data.sourceMessageId] });

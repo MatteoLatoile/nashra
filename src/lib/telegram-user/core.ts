@@ -123,54 +123,70 @@ function peerId(peer: Api.TypePeer): string | null {
   return null;
 }
 
-export async function listDialogsRaw(client: TelegramClient): Promise<SafeDialog[]> {
-  const result = await client.invoke(new Api.messages.GetDialogs({
-    offsetDate: 0,
-    offsetId: 0,
-    offsetPeer: new Api.InputPeerEmpty(),
-    limit: 100,
-    hash: bigInt.zero,
-  }));
-  if (result instanceof Api.messages.DialogsNotModified) return [];
-  if (!('dialogs' in result) || !('chats' in result) || !('users' in result)) {
-    throw new Error('Réponse Telegram inattendue lors du chargement des conversations.');
-  }
-
-  const byId = new Map<string, SafeDialog>();
-  for (const entity of [...result.users, ...result.chats]) {
-    if (entity instanceof Api.User) {
-      const id = entity.id.toString();
-      const title = entity.self ? 'Messages enregistrés' :
-        [entity.firstName, entity.lastName].filter(Boolean).join(' ') || entity.username || 'Discussion';
-      byId.set(id, { id, title, group: false, channel: false, entity });
-    } else if (entity instanceof Api.Chat) {
-      const id = (-BigInt(entity.id.toString())).toString();
-      byId.set(id, { id, title: entity.title || 'Groupe', group: true, channel: false, entity });
-    } else if (entity instanceof Api.Channel) {
-      const id = '-100' + entity.id.toString();
-      byId.set(id, {
-        id, title: entity.title || 'Canal', group: !!entity.megagroup,
-        channel: true, entity,
-      });
-    }
-  }
-
+/** Fetch dialog pages safely, without high-level getDialogs() crashes on missing entities.
+ * Max five pages/500 conversations; stop early as soon as an exact ID is found.
+ */
+export async function listDialogsRaw(client: TelegramClient, stopAtId?: string): Promise<SafeDialog[]> {
   const output: SafeDialog[] = [];
   const seen = new Set<string>();
-  for (const dialog of result.dialogs) {
-    if (!(dialog instanceof Api.Dialog)) continue;
-    const id = peerId(dialog.peer);
-    if (!id || seen.has(id)) continue;
-    const found = byId.get(id);
-    if (!found) continue; // groupe supprimé/inaccessible : ne pas faire échouer toute la liste
-    seen.add(id);
-    output.push(found);
+  let offsetDate = 0;
+  let offsetId = 0;
+  let offsetPeer: Api.TypeInputPeer = new Api.InputPeerEmpty();
+  let previousLast = '';
+  for (let page = 0; page < 5; page++) {
+    const result = await client.invoke(new Api.messages.GetDialogs({
+      offsetDate, offsetId, offsetPeer, limit: 100, hash: bigInt.zero,
+    }));
+    if (result instanceof Api.messages.DialogsNotModified) break;
+    if (!('dialogs' in result) || !('chats' in result) || !('users' in result)) {
+      throw new Error('Réponse Telegram inattendue lors du chargement des conversations.');
+    }
+    const byId = new Map<string, SafeDialog>();
+    for (const entity of [...result.users, ...result.chats]) {
+      if (entity instanceof Api.User) {
+        const id = entity.id.toString();
+        const title = entity.self ? 'Messages enregistrés' :
+          [entity.firstName, entity.lastName].filter(Boolean).join(' ') || entity.username || 'Discussion';
+        byId.set(id, { id, title, group: false, channel: false, entity });
+      } else if (entity instanceof Api.Chat) {
+        const id = (-BigInt(entity.id.toString())).toString();
+        byId.set(id, { id, title: entity.title || 'Groupe', group: true, channel: false, entity });
+      } else if (entity instanceof Api.Channel) {
+        const id = '-100' + entity.id.toString();
+        byId.set(id, { id, title: entity.title || 'Canal', group: !!entity.megagroup,
+          channel: true, entity });
+      }
+    }
+    for (const dialog of result.dialogs) {
+      if (!(dialog instanceof Api.Dialog)) continue;
+      const id = peerId(dialog.peer);
+      if (!id || seen.has(id)) continue;
+      const found = byId.get(id);
+      if (!found) continue;
+      seen.add(id);
+      output.push(found);
+      if (stopAtId === id) return output;
+    }
+    if (result.dialogs.length < 100) break;
+    const last = [...result.dialogs].reverse().find(d => d instanceof Api.Dialog);
+    if (!(last instanceof Api.Dialog)) break;
+    const lastId = peerId(last.peer);
+    const lastEntity = lastId ? byId.get(lastId)?.entity : undefined;
+    if (!lastEntity || !lastId || lastId === previousLast || !last.topMessage) break;
+    previousLast = lastId;
+    // Telegram's pagination cursor = last dialog's last message date/id/peer.
+    const matching = 'messages' in result ? result.messages.find(m =>
+      m instanceof Api.Message && m.id === last.topMessage && peerId(m.peerId) === lastId) : undefined;
+    offsetDate = matching instanceof Api.Message ? matching.date : 0;
+    offsetId = last.topMessage;
+    offsetPeer = await client.getInputEntity(lastEntity);
   }
   return output;
 }
 
 export async function resolveDialog(client: TelegramClient, id: string) {
-  const found = (await listDialogsRaw(client)).find(d => d.id === id);
-  if (!found) throw new Error('Discussion introuvable parmi vos 100 conversations récentes ou inaccessible.');
+  if (!/^-?\d{3,30}$/.test(id)) throw new Error('Identifiant Telegram invalide.');
+  const found = (await listDialogsRaw(client, id)).find(d => d.id === id);
+  if (!found) throw new Error('Groupe Telegram introuvable ou inaccessible dans les 500 dernières conversations.');
   return { entity: found.entity, isGroup: found.group, isChannel: found.channel };
 }

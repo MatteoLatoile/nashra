@@ -49,8 +49,10 @@ export async function POST(req: NextRequest) {
       if (!existingJob && reservationId) await finalizeSend(c.userId, reservationId, 'released');
       if (/unique|duplicate|23505/i.test(claimError.message))
         return NextResponse.json({ error: 'Demande déjà traitée : consultez l’historique avant toute autre action.' }, { status: 409, headers: noStore });
-      if (/NASHRA_MANUAL_COOLDOWN/i.test(claimError.message))
-        return NextResponse.json({ error: 'Délai de sécurité actif : une tentative par compte toutes les 10 minutes.' }, { status: 429, headers: noStore });
+      if (/NASHRA_MANUAL_COOLDOWN_ACCOUNT/i.test(claimError.message))
+        return NextResponse.json({ error: 'Une publication vient d’être tentée : réessayez après 30 secondes, sans renvoyer la même annonce.' }, { status: 429, headers: noStore });
+      if (/NASHRA_MANUAL_COOLDOWN_DESTINATION/i.test(claimError.message))
+        return NextResponse.json({ error: 'Une publication récente a ciblé ce groupe : réessayez après 2 minutes.' }, { status: 429, headers: noStore });
       throw new DeliveryBlocked('Réservation impossible. Exécutez la migration SQL 012 et vérifiez votre file d’attente.');
     }
     if (typeof insertedId !== 'string') {

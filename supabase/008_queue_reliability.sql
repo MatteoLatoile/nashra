@@ -36,7 +36,7 @@ begin
        set status = 'needs_review',
            last_error = 'Tentative interrompue ou non confirmée : vérifiez manuellement Telegram avant toute action.',
            finished_at = now(), updated_at = now()
-     where q.id in (select a.id from affected) and q.status = 'processing'
+     where q.id in (select id from affected) and q.status = 'processing'
      returning q.id
   ) select count(*)::integer into stalled_count from updated;
 
@@ -51,7 +51,7 @@ begin
        set status = 'blocked',
            last_error = 'Créneau expiré depuis plus de 24 heures : aucun envoi effectué.',
            finished_at = now(), updated_at = now()
-     where q.id in (select a.id from affected) and q.status = 'approved'
+     where q.id in (select id from affected) and q.status = 'approved'
      returning q.id
   ) select count(*)::integer into expired_count from updated;
 
