@@ -112,21 +112,26 @@ export function safeReason(err: unknown): string {
   return 'Envoi non confirmé : intervention manuelle nécessaire. Ne relancez pas sans vérification.';
 }
 
-/** Fetch all images BEFORE any Telegram side effect. No arbitrary HTTP URL requests. */
+/** Download photos BEFORE Telegram side effects. Three parallel downloads reduce preparation latency. */
 export async function loadAlbum(db: ReturnType<typeof getServiceClient>, photos: StoredPhoto[]): Promise<Buffer[]> {
-  const files: Buffer[] = [];
-  for (const [index, photo] of photos.entries()) {
-    const { data, error } = await db.storage.from(PHOTO_BUCKET).download(photo.key);
-    if (error || !data) throw new DeliveryBlocked('Photo indisponible dans Supabase Storage : vérifiez le fichier et le SQL 003.');
-    if (data.size < 1 || data.size > MAX_PHOTO_BYTES) throw new DeliveryBlocked('Photo vide ou dépassant 8 Mo.');
-    const bytes = Buffer.from(await data.arrayBuffer());
-    if (bytes.length < 1 || bytes.length > MAX_PHOTO_BYTES || imageExtension(bytes) !== photo.extension) {
-      throw new DeliveryBlocked('Photo invalide ou type de fichier différent de son extension.');
+  const files = new Array<Buffer>(photos.length);
+  const DOWNLOAD_CONCURRENCY = 3;
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(DOWNLOAD_CONCURRENCY, photos.length) }, async () => {
+    while (cursor < photos.length) {
+      const index = cursor++;
+      const photo = photos[index];
+      const { data, error } = await db.storage.from(PHOTO_BUCKET).download(photo.key);
+      if (error || !data) throw new DeliveryBlocked('Photo indisponible dans Supabase Storage : vérifiez le fichier et le SQL 003.');
+      if (data.size < 1 || data.size > MAX_PHOTO_BYTES) throw new DeliveryBlocked('Photo vide ou dépassant 8 Mo.');
+      const bytes = Buffer.from(await data.arrayBuffer());
+      if (bytes.length < 1 || bytes.length > MAX_PHOTO_BYTES || imageExtension(bytes) !== photo.extension) {
+        throw new DeliveryBlocked('Photo invalide ou type de fichier différent de son extension.');
+      }
+      Object.assign(bytes, { name: `nashra-photo-${index + 1}.${photo.extension}` });
+      files[index] = bytes; // Preserve photo order regardless of network completion order.
     }
-    // Teleproto accepts a named Buffer for file uploads and media albums.
-    Object.assign(bytes, { name: `nashra-photo-${index + 1}.${photo.extension}` });
-    files.push(bytes);
-  }
+  }));
   return files;
 }
 

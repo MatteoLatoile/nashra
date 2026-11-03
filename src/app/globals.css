@@ -2095,3 +2095,18 @@ html[dir="rtl"] .sidebar .brand-name{direction:ltr;unicode-bidi:isolate}
 @media(max-height:530px){.ntour2-card{padding:12px 14px}.ntour2-card p{min-height:0;margin-bottom:10px}.ntour2-header{margin-bottom:9px}.ntour2-row{margin-bottom:8px}.ntour2-card h2{font-size:17px;margin-bottom:7px}}
 @media(prefers-reduced-motion:reduce){.ntour2-card{animation:none}.ntour2-spotlight,.ntour2-track>div{transition:none}}
 
+
+/* Nashra 039 — confirmation visuelle honnête pendant la publication Telegram. */
+.n39-send-progress{border:1px solid #315f50;background:#172722;border-radius:11px;padding:15px 16px;margin:4px 0 16px;color:#dbf2e7}
+.n39-send-progress-top,.n39-send-progress-heading{display:flex;align-items:center;gap:9px}
+.n39-send-progress-top{justify-content:space-between}
+.n39-send-progress-heading strong{font-size:12.5px;font-weight:650}
+.n39-send-progress-time{font-variant-numeric:tabular-nums;color:#a8d8c6;font-size:12px;white-space:nowrap}
+.n39-send-progress p{font-size:11.5px;line-height:1.5;color:#c6e1d5;margin:10px 0}
+.n39-send-progress small{display:block;color:#a2bfb3;font-size:11px;line-height:1.5;margin-top:9px}
+.n39-send-progress-track{width:100%;height:5px;overflow:hidden;border-radius:99px;background:#2d4a40}
+.n39-send-progress-track>span{display:block;width:34%;height:100%;border-radius:99px;background:linear-gradient(90deg,#5aa98b,#baf2d9,#5aa98b);animation:n39-send-move 1.45s ease-in-out infinite}
+.n39-send-spinner{flex-shrink:0;animation:n39-spin 1.2s linear infinite}
+@keyframes n39-spin{to{transform:rotate(360deg)}}
+@keyframes n39-send-move{from{transform:translateX(-110%)}to{transform:translateX(310%)}}
+@media(prefers-reduced-motion:reduce){.n39-send-progress-track>span,.n39-send-spinner{animation:none}}

@@ -1,13 +1,13 @@
 'use client';
 import { SearchableSelect } from '@/components/searchable-select';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnnouncementImageUpload } from '@/components/announcement-image-upload';
 import {
   Plus, Search, FileText, Trash2, Eye, ArrowUpRight, Copy, MessageSquareText,
   Images, Pencil, Layers3, SlidersHorizontal, CalendarDays, Link2, Check,
-  ExternalLink, ChevronLeft, ChevronRight, Send, X,
+  ExternalLink, ChevronLeft, ChevronRight, Send, LoaderCircle, X,
 } from 'lucide-react';
 import { Badge, EmptyState, Modal, PageHeader } from '@/components/ui';
 import { useConfirm } from '@/components/confirm-dialog';
@@ -53,19 +53,32 @@ export default function AnnouncementsPage() {
   const [publishing, setPublishing] = useState<Announcement | null>(null);
   const [publishDestinationId, setPublishDestinationId] = useState('');
   const [publishBusy, setPublishBusy] = useState(false);
+  const [publishElapsed, setPublishElapsed] = useState(0);
   const [publishResult, setPublishResult] = useState('');
   const [publishSuccess, setPublishSuccess] = useState(false);
   const eligibleDestinations = data.destinations.filter(d => d.authorized && /^-?\d{3,30}$/.test(d.handle));
 
+  // Temps réellement écoulé ; aucune progression artificielle en pourcentage.
+  useEffect(() => {
+    if (!publishBusy) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setPublishElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [publishBusy]);
+
   function openPublish(a: Announcement) {
     setPublishing(a);
     setPublishDestinationId('');
+    setPublishElapsed(0);
     setPublishResult('');
     setPublishSuccess(false);
   }
   async function publishNow() {
     if (!publishing || !publishDestinationId || publishBusy) return;
     setPublishBusy(true);
+    setPublishElapsed(0);
     setPublishResult('');
     setPublishSuccess(false);
     try {
@@ -193,11 +206,24 @@ export default function AnnouncementsPage() {
         <div className="inline-help"><Send size={16}/> Un seul groupe par confirmation. Les limitations de Telegram sont respectées et aucun renvoi automatique ne sera effectué.</div>
         {(publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`)) && <p className="n40-error">Une photo provient d'un lien externe. Réimportez toutes les photos depuis votre ordinateur avant de publier.</p>}
         {publishResult && <p className={publishSuccess ? "n40-success" : "n40-error"} role={publishSuccess ? "status" : "alert"}>{publishSuccess && <Check size={15} aria-hidden="true" />}{publishResult}</p>}
+        {publishBusy && <div className="n39-send-progress" role="status" aria-label="Publication Telegram en cours">
+          <div className="n39-send-progress-top">
+            <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Envoi vers Telegram</strong></span>
+            <span className="n39-send-progress-time" aria-hidden="true">{publishElapsed} s</span>
+          </div>
+          <p>{(publishing.imageUrls?.length ?? 0) > 0
+            ? `Transmission de ${publishing.imageUrls?.length} photo(s)${publishing.body.trim() ? ' et du texte' : ''}…`
+            : 'Transmission du message…'}</p>
+          <div className="n39-send-progress-track" aria-hidden="true"><span/></div>
+          <small>{publishElapsed < 20 ? 'En attente de la confirmation de Telegram.'
+            : 'Telegram met plus de temps que prévu. Ne relancez pas la publication.'}</small>
+        </div>}
         <div className="modal-actions">{!publishBusy && <Link href={`/campagnes?annonce=${encodeURIComponent(publishing.id)}`} className="btn btn-secondary" onClick={() => setPublishing(null)}><CalendarDays size={16}/> Programmer</Link>}<button type="button" className="btn btn-secondary" disabled={publishBusy} onClick={() => setPublishing(null)}>Fermer</button>
           <button type="button" className="btn btn-primary" onClick={() => void publishNow()}
             disabled={!publishDestinationId || publishBusy || !cloudMode || syncStatus !== 'synced' || publishResult !== '' ||
               (publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`))}>
-            <Send size={16}/>{publishBusy ? 'Envoi en cours…' : 'Confirmer et publier'}</button>
+            {publishBusy ? <LoaderCircle size={16} className="n39-send-spinner" aria-hidden="true"/> : <Send size={16}/>}
+            {publishBusy ? 'Publication en cours…' : 'Confirmer et publier'}</button>
         </div>
       </div>
     </Modal>}
