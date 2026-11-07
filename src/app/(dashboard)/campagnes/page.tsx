@@ -1,9 +1,9 @@
 'use client';
 import { SearchableSelect, SearchableMultiSelect } from '@/components/searchable-select';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Pause, Play, Plus, Trash2, AlertTriangle, Send } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Pause, Play, Plus, Trash2, AlertTriangle, Send, LoaderCircle } from 'lucide-react';
 import { Badge, EmptyState, Modal, PageHeader } from '@/components/ui';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useApp, type AppData, type Campaign } from '@/lib/store';
@@ -35,8 +35,20 @@ export default function CalendarPage() {
   const [ruleStates,setRuleStates] = useState<Record<string,string>>({});
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [busy, setBusy] = useState(false);
+  // NASHRA_040_SCHEDULE_PROGRESS — délai réel, verrou de double soumission.
+  const [scheduleElapsed, setScheduleElapsed] = useState(0);
+  const submitLock = useRef(false);
   const [error, setError] = useState('');
   const [queue, setQueue] = useState<QueueItem[]>([]);
+
+  useEffect(() => {
+    if (!busy || !open) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setScheduleElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [busy, open]);
 
   useEffect(() => {
     const showRecurrence = () => setScheduleType('interval');
@@ -104,10 +116,14 @@ export default function CalendarPage() {
   }
   async function send(action: 'schedule' | 'pause' | 'resume' | 'delete', campaign?: Campaign) {
     if (!cloudMode || syncStatus !== 'synced') { setError('Attendez la synchronisation cloud avant de programmer.'); return; }
-    if (busy) return;
+    if (busy || submitLock.current) return;
     if (action === 'schedule' && scheduleType === 'once' && (!Number.isFinite(Date.parse(date)) || Date.parse(date) <= Date.now() + 180_000)) {
       setError('Choisissez une date et une heure futures (au moins 3 minutes). Vérifiez aussi le jour affiché.');
       return;
+    }
+    if (action === 'schedule') {
+      submitLock.current = true;
+      setScheduleElapsed(0);
     }
     setBusy(true); setError('');
     try {
@@ -144,7 +160,10 @@ export default function CalendarPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de programmation.');
       await refreshQueue();
-    } finally { setBusy(false); }
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
+    }
   }
   async function actionOn(c: Campaign, action: 'pause' | 'resume' | 'delete') {
     const yes = await confirm({
@@ -201,42 +220,42 @@ export default function CalendarPage() {
           })}
       </section>
     </div>
-    {open && <Modal title="Programmer une publication" subtitle="Publication automatique aux groupes que vous êtes autorisé à utiliser." onClose={() => !busy && setOpen(false)}>
-      <form className="form-stack" onSubmit={e => { e.preventDefault(); void send('schedule'); }}>
-        <label className="field-label">Nom de la programmation<input maxLength={90} required value={name} onChange={e => setName(e.target.value)}/></label>
+    {open && <Modal title="Programmer une publication" subtitle="Publication automatique aux groupes que vous êtes autorisé à utiliser." onClose={() => !busy && !submitLock.current && setOpen(false)}>
+      <form className="form-stack" aria-busy={busy} onSubmit={e => { e.preventDefault(); void send('schedule'); }}>
+        <label className="field-label">Nom de la programmation<input maxLength={90} required disabled={busy} value={name} onChange={e => setName(e.target.value)}/></label>
         <div className="field-label"><span>Annonce</span>
-  <SearchableSelect ariaLabel="Annonce à programmer" value={announcementId}
+  <SearchableSelect ariaLabel="Annonce à programmer" disabled={busy} value={announcementId}
     onChange={value => { setAnnouncementId(value); if (!name.trim()) setName(data.announcements.find(a => a.id === value)?.title ?? ''); }}
     placeholder="Choisir une annonce" searchPlaceholder="Rechercher une annonce…"
     options={data.announcements.map(a => ({value:a.id,label:a.title,detail:a.category}))}/>
 </div>
         <label className="field-label">Type de programmation
-          <select data-tour="schedule-mode" value={scheduleType} onChange={e => setScheduleType(e.target.value as 'once'|'interval')}>
+          <select data-tour="schedule-mode" disabled={busy} value={scheduleType} onChange={e => setScheduleType(e.target.value as 'once'|'interval')}>
             <option value="once">Une seule fois</option>
             <option value="interval">Répéter automatiquement</option>
           </select>
         </label>
         {scheduleType === 'interval' && <>
           <label className="field-label">Répéter tous les combien de jours ?
-            <select data-tour="schedule-interval" value={intervalDays} onChange={e => setIntervalDays(Number(e.target.value))}>
+            <select data-tour="schedule-interval" disabled={busy} value={intervalDays} onChange={e => setIntervalDays(Number(e.target.value))}>
               {[1,2,3,4,5,7,14,30].map(n => <option key={n} value={n}>Tous les {n} jour{n > 1 ? 's' : ''}</option>)}
             </select>
           </label>
           <label className="field-label">Fuseau horaire (IANA)
-            <input value={timeZone} onChange={e => setTimeZone(e.target.value)} data-tour="schedule-timezone" placeholder="Asia/Riyadh" required maxLength={80}/>
+            <input disabled={busy} value={timeZone} onChange={e => setTimeZone(e.target.value)} data-tour="schedule-timezone" placeholder="Asia/Riyadh" required maxLength={80}/>
           </label>
           <label className="field-label">Date de fin (facultative)
-            <input data-tour="schedule-until" type="date" value={untilDate} onChange={e => setUntilDate(e.target.value)} />
+            <input data-tour="schedule-until" type="date" disabled={busy} value={untilDate} onChange={e => setUntilDate(e.target.value)} />
           </label>
         </>}
         <label className="field-label">{scheduleType === 'interval' ? 'Première diffusion (jour et heure)' : 'Date et heure'}
-  <input type="datetime-local" required value={date} onChange={e => setDate(e.target.value)}/>
+  <input type="datetime-local" required disabled={busy} value={date} onChange={e => setDate(e.target.value)}/>
   <small style={{lineHeight: 1.6}}>Heure locale de votre appareil : {Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}.
     {Number.isFinite(Date.parse(date)) && <> Publication choisie : <strong>{new Intl.DateTimeFormat('fr-FR', { dateStyle:'full', timeStyle:'short' }).format(new Date(date))}</strong>.</>}
   </small>
 </label>
         <div className="n40-dest"><strong>Groupes autorisés</strong><span>Recherchez et sélectionnez jusqu’à {scheduleType === 'interval' ? 10 : 5} destinations autorisées.</span>
-  {candidates.length ? <SearchableMultiSelect values={destIds} onChange={setDestIds}
+  {candidates.length ? <SearchableMultiSelect disabled={busy} values={destIds} onChange={setDestIds}
     ariaLabel="Destinations à programmer" placeholder="Rechercher et choisir des destinations"
     max={scheduleType === 'interval' ? 10 : 5}
     options={candidates.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/> :
@@ -247,9 +266,20 @@ export default function CalendarPage() {
           : `Vous autorisez ${destIds.length} publication(s) uniques. Telegram doit accepter chaque programmation. Maximum 5 groupes par action.`}</p>
         {scheduleType === 'interval' && !recurringEnabled && <p className="n40-error" role="status">Le moteur récurrent doit être activé côté serveur (NASHRA_RECURRING_ENABLED=1 et Cron configuré).</p>}
         {error && <p className="n40-error" role="alert">{error}</p>}
+        {busy && <div className="n39-send-progress" role="status" aria-live="polite" aria-label="Enregistrement de la programmation en cours">
+          <div className="n39-send-progress-top">
+            <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Programmation en cours</strong></span>
+            <span className="n39-send-progress-time" aria-hidden="true">{scheduleElapsed} s</span>
+          </div>
+          <p>Enregistrement et vérification de {destIds.length} destination{destIds.length > 1 ? 's' : ''}…</p>
+          <div className="n39-send-progress-track" aria-hidden="true"><span/></div>
+          <small>{scheduleElapsed < 15 ? 'En attente de la confirmation. Ne fermez pas cette fenêtre.'
+            : 'La confirmation prend plus de temps que prévu. Ne relancez pas la programmation.'}</small>
+        </div>}
         <div className="modal-actions"><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => setOpen(false)}>Annuler</button>
           <button type="submit" className="btn btn-primary" disabled={busy || !announcementId || !destIds.length || destIds.length > (scheduleType === 'interval' ? 10 : 5) || !cloudMode || syncStatus !== 'synced' || (scheduleType === 'interval' && !recurringEnabled)}>
-            <CalendarDays size={16}/>{busy ? 'Enregistrement…' : 'Confirmer la programmation'}</button></div>
+            {busy ? <LoaderCircle size={16} className="n39-send-spinner" aria-hidden="true"/> : <CalendarDays size={16}/>}
+            {busy ? 'Programmation en cours…' : 'Confirmer la programmation'}</button></div>
       </form>
     </Modal>}
   </>;
