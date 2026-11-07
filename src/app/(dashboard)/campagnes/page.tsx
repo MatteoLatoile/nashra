@@ -2,6 +2,7 @@
 import { SearchableSelect, SearchableMultiSelect } from '@/components/searchable-select';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Pause, Play, Plus, Trash2, AlertTriangle, Send, LoaderCircle } from 'lucide-react';
 import { Badge, EmptyState, Modal, PageHeader } from '@/components/ui';
@@ -266,21 +267,23 @@ export default function CalendarPage() {
           : `Vous autorisez ${destIds.length} publication(s) uniques. Telegram doit accepter chaque programmation. Maximum 5 groupes par action.`}</p>
         {scheduleType === 'interval' && !recurringEnabled && <p className="n40-error" role="status">Le moteur récurrent doit être activé côté serveur (NASHRA_RECURRING_ENABLED=1 et Cron configuré).</p>}
         {error && <p className="n40-error" role="alert">{error}</p>}
-        {busy && <div className="n39-send-progress" role="status" aria-live="polite" aria-label="Enregistrement de la programmation en cours">
-          <div className="n39-send-progress-top">
-            <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Programmation en cours</strong></span>
-            <span className="n39-send-progress-time" aria-hidden="true">{scheduleElapsed} s</span>
-          </div>
-          <p>Enregistrement et vérification de {destIds.length} destination{destIds.length > 1 ? 's' : ''}…</p>
-          <div className="n39-send-progress-track" aria-hidden="true"><span/></div>
-          <small>{scheduleElapsed < 15 ? 'En attente de la confirmation. Ne fermez pas cette fenêtre.'
-            : 'La confirmation prend plus de temps que prévu. Ne relancez pas la programmation.'}</small>
-        </div>}
         <div className="modal-actions"><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => setOpen(false)}>Annuler</button>
           <button type="submit" className="btn btn-primary" disabled={busy || !announcementId || !destIds.length || destIds.length > (scheduleType === 'interval' ? 10 : 5) || !cloudMode || syncStatus !== 'synced' || (scheduleType === 'interval' && !recurringEnabled)}>
             {busy ? <LoaderCircle size={16} className="n39-send-spinner" aria-hidden="true"/> : <CalendarDays size={16}/>}
             {busy ? 'Programmation en cours…' : 'Confirmer la programmation'}</button></div>
       </form>
     </Modal>}
+    {/* NASHRA_041_VISIBLE_SCHEDULE_PROGRESS — portal outside scrollable modal */}
+    {busy && open && typeof document !== 'undefined' && createPortal(
+      <div className="n41-schedule-overlay" role="status" aria-live="polite" aria-label="Enregistrement de la programmation en cours">
+        <div className="n41-schedule-panel">
+          <span className="n41-schedule-eyebrow">Nashra · Publications programmées</span>
+          <div className="n41-schedule-row"><LoaderCircle size={20} aria-hidden="true"/><strong>Programmation en cours</strong><span className="n41-schedule-seconds" aria-hidden="true">{scheduleElapsed} s</span></div>
+          <div className="n41-schedule-track" aria-hidden="true"><span/></div>
+          <p>Nous enregistrons votre publication et vérifions {destIds.length} destination{destIds.length > 1 ? 's' : ''}.</p>
+          <small>{scheduleElapsed < 15 ? 'Ne fermez pas la page pendant cette opération.' : 'La confirmation prend plus de temps que prévu. Ne relancez pas la publication.'}</small>
+        </div>
+      </div>, document.body
+    )}
   </>;
 }

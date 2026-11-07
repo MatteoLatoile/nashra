@@ -2110,3 +2110,19 @@ html[dir="rtl"] .sidebar .brand-name{direction:ltr;unicode-bidi:isolate}
 @keyframes n39-spin{to{transform:rotate(360deg)}}
 @keyframes n39-send-move{from{transform:translateX(-110%)}to{transform:translateX(310%)}}
 @media(prefers-reduced-motion:reduce){.n39-send-progress-track>span,.n39-send-spinner{animation:none}}
+
+/* NASHRA_041_VISIBLE_PROGRESS_CSS — always visible above scrollable dialogs */
+.n41-schedule-overlay{position:fixed;z-index:10030;inset:0;display:grid;place-items:center;background:rgba(4,6,9,.75);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:20px;color:#f5f6f7}
+.n41-schedule-panel{width:min(100%,430px);border-radius:16px;padding:26px 25px 23px;background:linear-gradient(160deg,#23272a,#17191c 75%);border:1px solid #484d50;box-shadow:0 28px 100px #000b;max-height:calc(100dvh - 36px);overflow:auto}
+.n41-schedule-eyebrow{display:block;color:#a9c7ba;font-weight:700;font-size:10px;letter-spacing:.13em;text-transform:uppercase;margin-bottom:13px}
+.n41-schedule-row{display:flex;align-items:center;gap:10px;font-size:16px;line-height:1.3;font-weight:750;margin-bottom:19px}
+.n41-schedule-row svg{flex:none;color:#8ad9b9;animation:n41-rotate 1.1s linear infinite}
+.n41-schedule-seconds{margin-left:auto;color:#a8afb1;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.n41-schedule-track{position:relative;width:100%;height:5px;background:#3c4244;border-radius:100px;overflow:hidden;margin-bottom:16px}
+.n41-schedule-track>span{position:absolute;top:0;bottom:0;left:0;width:38%;border-radius:inherit;background:linear-gradient(90deg,#75bca2,#b5ead8);animation:n41-sweep 1.45s ease-in-out infinite}
+.n41-schedule-panel p{font-size:12px;line-height:1.6;color:#dadcde;margin:0 0 7px}
+.n41-schedule-panel small{display:block;font-size:11px;line-height:1.6;color:#aeb4b5}
+@keyframes n41-sweep{from{transform:translateX(-110%)}to{transform:translateX(275%)}}
+@keyframes n41-rotate{to{transform:rotate(360deg)}}
+@media(max-width:480px){.n41-schedule-panel{padding:22px 19px}.n41-schedule-row{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.n41-schedule-row svg{animation:none}.n41-schedule-track>span{animation:none;width:100%}}
