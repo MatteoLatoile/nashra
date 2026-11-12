@@ -150,6 +150,9 @@
 .feedback p { margin: 0; flex: 1; overflow-wrap: anywhere; }
 .feedbackGood { color: #c5ecd5; border-color: #365d49; background: #192a21; }
 .feedbackError { color: #ffd3c4; border-color: #73443c; background: #352423; }
+.feedbackStack { display: grid; gap: 9px; }
+.feedbackWarning { color: #f7ddb1; border-color: #79603a; background: #30291e; }
+.feedbackInfo { color: #cbd5df; border-color: #485260; background: #252b32; }
 .feedback button { border: 0; background: transparent; color: inherit; display: grid; place-items: center; }
 .nextStep { display: flex; justify-content: space-between; align-items: center; gap: 30px; padding: 27px 30px; border: 1px solid rgba(169,235,199,.2); border-radius: 19px; background: radial-gradient(circle at 80% 20%, #263c2e 0, transparent 43%), linear-gradient(125deg, #182821, #17221d 65%); }
 .nextCopy h2 { font-size: clamp(21px, 2vw, 27px); line-height: 1.25; letter-spacing: -.035em; font-weight: 790; margin: 10px 0 8px; }

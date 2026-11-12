@@ -32,7 +32,7 @@ type ImportResult = {
   ok: true; text: string; imageUrls: string[];
   photoCount: number; skipped: number; warnings: string[]; albumCount: number;
 };
-type Feedback = { good: boolean; text: string };
+type Feedback = { good: boolean; text: string; warning?: string; info?: boolean };
 type AnnouncementTab = 'compose' | 'import';
 type DestinationTab = 'telegram' | 'manual';
 
@@ -240,11 +240,11 @@ export default function TelegramPage() {
         tags: [],
       }]);
       const info = `${result.imageUrls.length} photo(s) enregistrée(s)${result.albumCount > 1 ? ` · album de ${result.albumCount} messages` : ''}.`;
-      const warning = result.warnings.length ? ` ${result.warnings.join(' ')}` : '';
-      setFeedback({
-        good: added > 0 && result.warnings.length === 0,
-        text: added > 0 ? `Annonce ajoutée à la bibliothèque. ${info}${warning}` : 'Ce message est déjà dans la bibliothèque.',
-      });
+      setFeedback(added > 0 ? {
+        good: true,
+        text: `Annonce ajoutée à la bibliothèque. ${info}`,
+        warning: result.warnings.length ? result.warnings.join(' ') : undefined,
+      } : { good: true, info: true, text: 'Ce message est déjà dans la bibliothèque.' });
     });
   }
 
@@ -507,7 +507,16 @@ export default function TelegramPage() {
         </section>
       </div>
 
-      {feedback && <div className={`${styles.feedback} ${feedback.good ? styles.feedbackGood : styles.feedbackError}`} role="status"><span>{feedback.good ? <CheckCircle2 size={19}/> : <Info size={19}/>}</span><p>{feedback.text}</p><button type="button" aria-label="Fermer le message" onClick={() => setFeedback(null)}><X size={16}/></button></div>}
+      {feedback && <div className={styles.feedbackStack}>
+        <div className={`${styles.feedback} ${feedback.info ? styles.feedbackInfo : feedback.good ? styles.feedbackGood : styles.feedbackError}`} role="status">
+          <span>{feedback.good && !feedback.info ? <CheckCircle2 size={19}/> : <Info size={19}/>}</span>
+          <p>{feedback.text}</p>
+          <button type="button" aria-label="Fermer le message" onClick={() => setFeedback(null)}><X size={16}/></button>
+        </div>
+        {feedback.warning && <div className={`${styles.feedback} ${styles.feedbackWarning}`} role="status">
+          <span><Info size={19}/></span><p>{feedback.warning}</p>
+        </div>}
+      </div>}
 
       <section className={styles.nextStep} aria-labelledby="ntg-next-heading">
         <div className={styles.nextCopy}><span className={styles.eyebrow}>03 · PASSER À L’ACTION</span><h2 id="ntg-next-heading">Tout est prêt pour publier ?</h2><p>Une fois l’annonce et la destination enregistrées, choisissez quand envoyer votre message.</p><div className={styles.readyIndicators}><span><FileText size={14}/> {data.announcements.length} annonce(s)</span><span><UsersRound size={14}/> {authorizedCount} destination(s) autorisée(s)</span></div></div>
