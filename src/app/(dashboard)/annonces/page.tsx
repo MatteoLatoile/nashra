@@ -3,8 +3,13 @@ import { campaignFailure, readable, type Tone } from '@/lib/feedback';
 import { SearchableSelect } from '@/components/searchable-select';
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { AnnouncementImageUpload } from '@/components/announcement-image-upload';
+// The image uploader is only needed inside the announcement editor.
+const AnnouncementImageUpload = dynamic(
+  () => import('@/components/announcement-image-upload').then(mod => mod.AnnouncementImageUpload),
+  { ssr: false, loading: () => <div className="n40-footnote" role="status">Préparation de l’import des photos…</div> },
+);
 import {
   Plus, Search, FileText, Trash2, Eye, ArrowUpRight, Copy, MessageSquareText,
   Images, Pencil, Layers3, SlidersHorizontal, CalendarDays, Link2, Check,
@@ -107,15 +112,20 @@ export default function AnnouncementsPage() {
 
 
   const categories = useMemo(() => ['Toutes', ...new Set([...mainCategories, ...data.announcements.map(a => a.category)].filter(Boolean))], [data.announcements]);
+  // Index the searchable text once per workspace revision, rather than rebuilding
+  // potentially long announcement bodies on every filter or search keystroke.
+  const searchIndex = useMemo(() => data.announcements.map(a => ({
+    announcement: a,
+    text: `${a.title} ${a.body} ${a.category} ${(a.tags || []).join(' ')}`.toLocaleLowerCase(),
+  })), [data.announcements]);
   const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
-  const filtered = useMemo(() => data.announcements.filter(a => {
+  const filtered = useMemo(() => searchIndex.filter(({ announcement: a, text }) => {
     if (filter !== 'Toutes' && a.category !== filter) return false;
     if (origin === 'Telegram' && !a.sourceMessageId) return false;
     if (origin === 'Manuelles' && a.sourceMessageId) return false;
-    const haystack = `${a.title} ${a.body} ${a.category} ${(a.tags || []).join(' ')}`.toLocaleLowerCase();
-    return haystack.includes(normalizedQuery);
-  }).sort((a, b) => sort === 'az' ? a.title.localeCompare(b.title) : sort === 'oldest'
-    ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)), [data.announcements, filter, origin, normalizedQuery, sort]);
+    return !normalizedQuery || text.includes(normalizedQuery);
+  }).map(({ announcement }) => announcement).sort((a, b) => sort === 'az' ? a.title.localeCompare(b.title) : sort === 'oldest'
+    ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)), [searchIndex, filter, origin, normalizedQuery, sort]);
   useEffect(() => { setVisibleCount(24); }, [filter, origin, sort, normalizedQuery]);
   const visibleAnnouncements = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const preview = data.announcements.find(a => a.id === previewId) || null;
