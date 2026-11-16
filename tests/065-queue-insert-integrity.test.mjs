@@ -1,0 +1,18 @@
+﻿import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const sql = readFileSync(new URL('../supabase/028_queue_insert_integrity_065.sql', import.meta.url), 'utf8');
+test('065: user insert cannot prefill Telegram delivery evidence', () => {
+  for (const field of ['attempted_at', 'finished_at', 'telegram_message_id', 'last_error', 'telegram_scheduled_ids']) {
+    assert.match(sql, new RegExp(`NEW\\.${field}`));
+  }
+  assert.match(sql, /auth\.role\(\) = 'authenticated'/);
+  assert.match(sql, /NEW\.status IS DISTINCT FROM 'held'/);
+});
+test('065: service-role inserts remain possible and old queue guards retained', () => {
+  assert.match(sql, /auth\.role\(\) IS DISTINCT FROM 'service_role'/);
+  assert.match(sql, /nashra_v32_queue_insert/);
+  assert.match(sql, /nashra_v31_queue_transition/);
+  assert.doesNotMatch(sql, /UPDATE public\.delivery_queue|DELETE FROM public\.delivery_queue/);
+});
+
