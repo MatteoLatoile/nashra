@@ -26,12 +26,17 @@ export async function GET(req: NextRequest) {
     const runsReq = db.from('nashra_worker_runs')
       .select('id,started_at,finished_at,duration_ms,outcome,stalled_flagged,expired_flagged')
       .gte('started_at', since).order('started_at', { ascending:false }).limit(200);
+    const recurringRunsReq = db.from('nashra_recurring_cron_runs')
+      .select('id,started_at,duration_ms,outcome,rules_checked,scheduled_count,warning_count')
+      .gte('started_at', since).order('started_at',{ ascending:false }).limit(100);
+    const recurringLatestReq = db.from('nashra_recurring_cron_runs')
+      .select('started_at,outcome').order('started_at',{ ascending:false }).limit(1);
     const latestReq = db.from('nashra_worker_runs').select('started_at,outcome')
       .order('started_at',{ ascending:false }).limit(1);
     const queryStatus = statuses.map(status =>
       db.from('delivery_queue').select('id', { count:'exact', head:true }).eq('status', status));
-    const [runs, latest, queue, queueSchema, entitlements, subscriptions, adminCases, securityGuard, reliability] = await Promise.all([
-      runsReq, latestReq, Promise.all(queryStatus),
+    const [runs, latest, recurringRuns, recurringLatest, queue, queueSchema, entitlements, subscriptions, adminCases, securityGuard, reliability] = await Promise.all([
+      runsReq, latestReq, recurringRunsReq, recurringLatestReq, Promise.all(queryStatus),
       db.from('delivery_queue').select('attempted_at,finished_at').limit(0),
       db.from('nashra_entitlements').select('user_id').limit(0),
       db.from('nashra_subscriptions').select('user_id').limit(0),
@@ -47,8 +52,22 @@ export async function GET(req: NextRequest) {
         Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') && process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')),
     };
     const newest = latest.data?.[0]?.started_at || null;
+    const recurringNewest = recurringLatest.data?.[0]?.started_at || null;
+    const recurringAgeHours = recurringNewest ? (Date.now() - Date.parse(recurringNewest)) / 3_600_000 : null;
+    const recurringEnabled = process.env.NASHRA_RECURRING_ENABLED === '1' && process.env.NASHRA_DISABLE_ALL_SENDS !== '1';
+    const recurringLastOutcome = recurringLatest.data?.[0]?.outcome || null;
     const lastAge = newest ? (Date.now() - Date.parse(newest)) / 60000 : null;
     const checks: ServiceCheck[] = [
+      check('recurring','Cron récurrent', !recurringEnabled ? 'disabled' :
+        recurringRuns.error || recurringLatest.error || !recurringNewest ? 'warning' :
+        recurringAgeHours !== null && recurringAgeHours > 36 ? 'warning' :
+        recurringLastOutcome === 'error' ? 'error' : recurringLastOutcome === 'disabled' ? 'warning' : 'ok',
+        !recurringEnabled ? 'Récurrence désactivée côté serveur.' :
+        recurringRuns.error || recurringLatest.error ? 'Historique indisponible : vérifiez SQL 026.' :
+        !recurringNewest ? 'Aucun passage enregistré : vérifiez le déploiement, le Cron quotidien et SQL 026.' :
+        recurringAgeHours !== null && recurringAgeHours > 36 ? 'Dernier passage de plus de 36 heures : vérifiez le Cron Vercel.' :
+        recurringLastOutcome === 'error' ? 'Le dernier passage a échoué.' :
+        recurringLastOutcome === 'disabled' ? 'Le dernier passage était désactivé.' : 'Dernier passage quotidien enregistré.'),
       check('storage','Journal du worker', runs.error || latest.error ? 'error':'ok',
         runs.error || latest.error ? 'SQL 011 manquant ou inaccessible.' : 'Journal chiffré par transport, sans identifiants de messages ni sessions.'),
       check('queue','Schéma de la file', queueSchema.error || queue.some(x=>x.error) ? 'error':'ok',
@@ -79,6 +98,14 @@ export async function GET(req: NextRequest) {
     return jsonNoStore({
       generatedAt: new Date().toISOString(), hours, checks,
       lastRunAt: newest, partialHistory: rows.length === 200,
+      recurring: {
+        enabled: recurringEnabled,
+        available: !recurringRuns.error && !recurringLatest.error,
+        lastRunAt: recurringNewest,
+        lastOutcome: recurringLastOutcome,
+        stale: recurringEnabled && (recurringAgeHours === null || recurringAgeHours > 36),
+        history: recurringRuns.error ? [] : (recurringRuns.data || []),
+      },
       history: rows,
       summary: { attemptsRecorded: rows.length, sent: outcomes.sent, incidents: outcomes.error + outcomes.needs_review + outcomes.blocked,
         averageDurationMs: rows.length ? Math.round(rows.reduce((a,r)=>a+r.duration_ms,0)/rows.length) : 0,

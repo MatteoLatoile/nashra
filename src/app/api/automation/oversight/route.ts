@@ -5,7 +5,7 @@ import { attentionReason } from '@/lib/automation/attention';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-const STATES = ['held','approved','processing','sent','needs_review','blocked','cancelled'] as const;
+const STATES = ['held','approved','processing','telegram_scheduled','sent','needs_review','blocked','cancelled'] as const;
 type QueueItem = { status: string; scheduled_at: string; attempted_at: string | null };
 export async function GET() {
   try {

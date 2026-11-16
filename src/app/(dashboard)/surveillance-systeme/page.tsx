@@ -10,7 +10,9 @@ import { PageHeader } from '@/components/ui';
 type Status = 'ok' | 'warning' | 'error' | 'disabled';
 type Check = { key:string; label:string; state:Status; detail:string };
 type Run = {id:number;started_at:string;finished_at:string;duration_ms:number;outcome:string;stalled_flagged:number;expired_flagged:number};
+type RecurringRun = {id:number;started_at:string;duration_ms:number;outcome:string;rules_checked:number;scheduled_count:number;warning_count:number};
 type Report = {generatedAt:string;hours:number;checks:Check[];history:Run[];
+  recurring?:{enabled:boolean;available:boolean;lastRunAt:string|null;lastOutcome:string|null;stale:boolean;history:RecurringRun[]};
   lastRunAt:string|null;partialHistory:boolean;publishingEnabled:boolean;
   summary:{attemptsRecorded:number;sent:number;incidents:number;averageDurationMs:number;
     outcomes:Record<string,number>;queue:Record<string,number>};disclaimer:string;readOnly:boolean};
@@ -88,6 +90,21 @@ export default function SystemSurveillance() {
           </section>
         </div>
       </div>
+      {report.recurring && <section className="n35-panel n35-timeline" aria-label="Historique du Cron récurrent">
+        <header><div><h2>Cron récurrent · journal interne</h2><p>Programmations préparées automatiquement, sans logs Vercel payants</p></div><Clock3 size={18}/></header>
+        <div className="n35-last"><strong>{report.recurring.lastRunAt ? `Dernier passage : ${formatDate(report.recurring.lastRunAt)}` : 'Aucun passage enregistré'}</strong>
+          <p role="status">{!report.recurring.available ? 'Journal indisponible : appliquer SQL 026 puis redéployer.' :
+            !report.recurring.enabled ? 'Récurrence désactivée sur ce déploiement.' :
+            report.recurring.stale ? 'Aucune exécution récente (plus de 36 h) : vérifier le Cron quotidien.' :
+            report.recurring.lastOutcome === 'error' ? 'Dernier passage en erreur.' : 'Dernier passage enregistré.'}</p></div>
+        <div className="n35-table-wrap"><table><thead><tr><th>Date</th><th>État</th><th>Règles</th><th>Programmations</th><th>Avertissements</th><th>Durée</th></tr></thead>
+          <tbody>{report.recurring.history.map(run=><tr key={run.id}><td>{formatDate(run.started_at)}</td>
+            <td>{run.outcome === 'done' ? 'Terminé' : run.outcome === 'disabled' ? 'Désactivé' : 'Erreur'}</td>
+            <td>{number(run.rules_checked)}</td><td>{number(run.scheduled_count)}</td><td>{number(run.warning_count)}</td>
+            <td>{number(run.duration_ms)} ms</td></tr>)}</tbody></table>
+          {!report.recurring.history.length && <div className="n35-empty">Aucune exécution dans cette période. Les données commencent après déploiement de Nashra 055.</div>}</div>
+        <p className="n35-notice">Historique privé limité aux 30 derniers jours. Les contrôles sont en lecture seule et ne déclenchent aucun message Telegram.</p>
+      </section>}
       <section className="n35-panel n35-timeline"><header><div><h2>Historique des exécutions</h2><p>Invocations du worker enregistrées dans Supabase</p></div><Server size={18}/></header>
         <div className="n35-table-wrap"><table><thead><tr><th>Début</th><th>Résultat</th><th>Durée</th><th>À examiner</th><th>Expirées</th></tr></thead>
         <tbody>{report.history.map(run=><tr key={run.id}><td>{formatDate(run.started_at)}</td><td><span className={`n35-tag ${['error','needs_review','blocked'].includes(run.outcome)?'n35-risk':''}`}>{outcomeCopy[run.outcome]||run.outcome}</span></td>

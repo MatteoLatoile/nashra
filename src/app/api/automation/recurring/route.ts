@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { context, getAccount } from '@/lib/telegram-user/core';
 import { buildAnnouncementDelivery, getServiceClient, DeliveryBlocked } from '@/lib/automation/worker';
 import { checkRecurrence, type IntervalRecurrence } from '@/lib/automation/recurrence';
-import { fillRecurringRule, cancelRecurringFuture, type RecurringRule } from '@/lib/automation/recurring-service';
+import { fillRecurringRule, cancelRecurringFuture, recurringMismatch, type RecurringRule } from '@/lib/automation/recurring-service';
 import type { AppData, Campaign } from '@/lib/store';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const headers = { 'Cache-Control':'no-store' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sendError = (message: string, code = 400) => NextResponse.json({ error:message }, { status:code, headers });
-type Body = { action?: 'create' | 'pause' | 'resume' | 'delete'; confirmed?: boolean;
+type Body = { action?: 'create' | 'pause' | 'resume' | 'delete' | 'repair' | 'repair_safe'; confirmed?: boolean;
   campaign?: Partial<Campaign>; campaignId?: string; reviewed?: boolean };
 
 export async function GET(req: NextRequest) {
@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
   try {
     const c = await context(req, true);
     const body = await req.json() as Body;
-    if (body.confirmed !== true) return sendError('Confirmez explicitement cette programmation.');
+    // Safe repair never activates a rule or calls Telegram; other writes require approval.
+    if (body.action !== 'repair_safe' && body.confirmed !== true) return sendError('Confirmez explicitement cette programmation.');
     const service = getServiceClient();
     const { data: ws, error: wsError } = await c.supabase.from('workspaces')
       .select('data').eq('user_id',c.userId).maybeSingle();
@@ -92,16 +93,59 @@ export async function POST(req: NextRequest) {
           'Règle enregistrée, mais aucun message Telegram encore confirmé. Vérifiez le statut.' }, { headers });
     }
     const id = body.campaignId;
-    if (!id || !UUID.test(id) || !['pause','resume','delete'].includes(body.action ?? '')) return sendError('Action invalide.');
+    if (!id || !UUID.test(id) || !['pause','resume','delete','repair','repair_safe'].includes(body.action ?? '')) return sendError('Action invalide.');
     const campaign = previous.campaigns.find(x => x.id === id && x.recurrence?.mode === 'interval');
     if (!campaign) return sendError('Récurrence introuvable.',404);
     const { data, error: ruleErr } = await service.from('nashra_recurring_rules')
       .select('*').eq('user_id',c.userId).eq('id',id).maybeSingle();
     if (ruleErr || !data) return sendError('Règle introuvable : migration 018.',404);
     const rule = data as RecurringRule;
+    if (body.action === 'repair' || body.action === 'repair_safe') {
+      // Restore workspace metadata from the server-side rule only. No Telegram calls,
+      // no rule activation, no quota reservations and no future scheduling.
+      if (rule.status !== 'paused') return sendError('Mettez d’abord la règle en pause pour la resynchroniser.',409);
+      const original = campaign.destinationHandles ?? {};
+      const originalTopics = campaign.destinationTopics ?? {};
+      const missing = rule.destination_ids.some(destId => {
+        const dest = previous.destinations.find(d => d.id === destId);
+        return !dest?.authorized || !original[destId] || original[destId] !== dest.handle
+          || (originalTopics[destId] ?? null) !== (dest.topicId ?? null);
+      });
+      if (missing) return sendError('Destination Telegram modifiée ou manquante : réparation automatique bloquée. Vérifiez le groupe et les messages programmés.',409);
+      if (!previous.announcements.some(a => a.id === rule.announcement_id))
+        return sendError('Annonce originale introuvable : réparation impossible.',409);
+      const differences = recurringMismatch(rule,campaign);
+      const repaired: Campaign = { ...campaign, status:'paused', announcementId:rule.announcement_id,
+        announcementIds:[rule.announcement_id], destinationIds:[...rule.destination_ids],
+        scheduledAt:rule.anchor_at, scheduledDates:[rule.anchor_at],
+        recurrence:{ mode:'interval', intervalDays:rule.interval_days,
+          timeZone:rule.time_zone, until:rule.until_day }, nativeTelegram:true };
+      const next: AppData = { ...previous,
+        campaigns:previous.campaigns.map(x => x.id === id ? repaired : x) };
+      const { error: writeError } = await c.supabase.from('workspaces')
+        .update({ data:next }).eq('user_id',c.userId);
+      if (writeError) return sendError('Impossible de sauvegarder la synchronisation.',500);
+      const { error: clearError } = await service.from('nashra_recurring_rules')
+        .update({ last_problem:null, updated_at:new Date().toISOString() })
+        .eq('id',id).eq('user_id',c.userId).eq('status','paused');
+      if (clearError) return sendError('Campagne resynchronisée, mais le diagnostic de la règle ne peut pas être actualisé.',500);
+      return NextResponse.json({ ok:true,workspace:next, repaired:differences,
+        partial:true, warning:differences.length
+          ? 'Règle resynchronisée, toujours en pause. Vérifiez les messages futurs incertains dans Telegram avant de reprendre.'
+          : 'Règle et campagne déjà cohérentes. La règle reste en pause jusqu’à une reprise explicite.'
+      },{headers});
+    }
     if (body.action === 'resume') {
       if (process.env.NASHRA_RECURRING_ENABLED !== '1' || process.env.NASHRA_DISABLE_ALL_SENDS === '1')
         return sendError('Moteur de récurrence désactivé sur le serveur.',503);
+      const differences = recurringMismatch(rule,campaign);
+      if (differences.length) return sendError('Règle désynchronisée (' + differences.join(', ') + '). Utilisez « Réparer la règle » avant de reprendre.',409);
+      const { count: unsafeFuture, error: futureError } = await service.from('delivery_queue')
+        .select('id',{head:true,count:'exact'}).eq('user_id',c.userId).eq('campaign_id',id)
+        .in('status',['needs_review','processing'])
+        .gt('scheduled_at',new Date().toISOString());
+      if (futureError) return sendError('Impossible de vérifier les envois futurs : reprise bloquée.',503);
+      if ((unsafeFuture ?? 0) > 0) return sendError('Des envois futurs restent incertains. Vérifiez ou annulez-les dans Telegram avant toute reprise. Une confirmation générale ne suffit pas.',409);
       const { count } = await service.from('delivery_queue').select('id',{head:true,count:'exact'})
         .eq('user_id',c.userId).eq('campaign_id',id).eq('status','needs_review');
       if ((count ?? 0) > 0 && body.reviewed !== true) return sendError('Vérifiez d’abord les messages incertains dans Telegram avant de reprendre.',409);
@@ -125,19 +169,27 @@ export async function POST(req: NextRequest) {
     const account = await getAccount(c);
     if (!account?.session_ciphertext) return NextResponse.json({ ok:true,workspace:paused,partial:true,
       warning:'Règle en pause. Connectez Telegram pour annuler les messages déjà programmés.' }, { headers });
-    const canceled = await cancelRecurringFuture(rule,previous,account.session_ciphertext);
+    let canceled: Awaited<ReturnType<typeof cancelRecurringFuture>>;
+    try {
+      canceled = await cancelRecurringFuture(rule,previous,account.session_ciphertext);
+    } catch {
+      return NextResponse.json({ ok:true,workspace:paused,partial:true,
+        warning:'La répétition est arrêtée dans Nashra, mais l’annulation Telegram n’a pas pu être vérifiée. Contrôlez les messages programmés dans Telegram avant toute nouvelle action.' },{headers});
+    }
     const { count: ongoing } = await service.from('delivery_queue').select('id',{head:true,count:'exact'})
       .eq('user_id',c.userId).eq('campaign_id',id).eq('status','processing');
     if ((ongoing ?? 0) > 0) return NextResponse.json({ok:true,workspace:paused,partial:true,
       cancelled:canceled.cancelled,
       warning:'Une programmation est encore en cours. La règle est en pause ; revérifiez dans Telegram puis relancez l’annulation.'},{headers});
-    if (canceled.failures) return NextResponse.json({ ok:true,workspace:paused,partial:true,
-      warning:`${canceled.failures} annulation(s) non confirmée(s). Vérifiez directement Telegram.`,cancelled:canceled.cancelled },{headers});
+    if (canceled.failures || canceled.unverified) return NextResponse.json({ ok:true,workspace:paused,partial:true,
+      warning:`Arrêt côté Nashra effectué, mais ${canceled.failures} annulation(s) Telegram non confirmée(s) et ${canceled.unverified} envoi(s) futur(s) incertain(s). Vérifiez Telegram avant de supprimer ou reprendre.`,
+      cancelled:canceled.cancelled,unverified:canceled.unverified },{headers});
     if (body.action === 'delete') {
       const next = { ...paused,campaigns:paused.campaigns.filter(x => x.id !== id) };
       const { error: deleteWsErr } = await c.supabase.from('workspaces').update({ data:next }).eq('user_id',c.userId);
       if (deleteWsErr) return sendError('Messages annulés ; impossible de retirer la carte. Actualisez.',500);
-      await service.from('nashra_recurring_rules').delete().eq('user_id',c.userId).eq('id',id);
+      const { error: removeErr } = await service.from('nashra_recurring_rules').delete().eq('user_id',c.userId).eq('id',id);
+      if (removeErr) return sendError('Les envois ont été annulés, mais la suppression de la règle a échoué. Actualisez.',500);
       return NextResponse.json({ ok:true,workspace:next,cancelled:canceled.cancelled },{headers});
     }
     return NextResponse.json({ ok:true,workspace:paused,cancelled:canceled.cancelled },{headers});

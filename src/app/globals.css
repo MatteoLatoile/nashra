@@ -2126,3 +2126,107 @@ html[dir="rtl"] .sidebar .brand-name{direction:ltr;unicode-bidi:isolate}
 @keyframes n41-rotate{to{transform:rotate(360deg)}}
 @media(max-width:480px){.n41-schedule-panel{padding:22px 19px}.n41-schedule-row{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.n41-schedule-row svg{animation:none}.n41-schedule-track>span{animation:none;width:100%}}
+
+.feedback-box { padding: .7rem 1rem; border: 1px solid; border-radius: 8px; }
+.feedback-success { color:#c5ecd5; background:#192a21; border-color:#365d49; }
+.feedback-info { color:#cbd5df; background:#252b32; border-color:#485260; }
+.feedback-warning { color:#f7ddb1; background:#30291e; border-color:#79603a; }
+.feedback-error { color:#ffd3cf; background:#352023; border-color:#854246; }
+.toast .toast-dot { background:currentColor; }
+
+/* NASHRA 046 — Calm scheduling interface, high-contrast warnings only when actionable. */
+.n46-page-help{margin:0 0 16px;padding:10px 13px;border:1px solid var(--border);border-radius:8px;color:#a6abb3;font-size:12px}
+.n46-page-help summary,.n46-details summary{cursor:pointer;user-select:none}
+.n46-page-help p{margin:10px 0 0;line-height:1.65}
+.n46-count{color:#9ea4ad;font-size:11px;white-space:nowrap}
+.n46-action-needed{display:flex;align-items:flex-start;gap:9px;margin:12px 0;padding:12px;border-radius:8px;border:1px solid #775f35;background:#302719;color:#ecd4a0;font-size:11.5px;line-height:1.6}
+.n46-action-needed svg{flex-shrink:0;margin-top:2px}
+.n46-action-needed div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.n46-action-needed strong{color:#f3dbad}
+.n46-action-needed a{color:#fff1ce;text-decoration:underline;text-underline-offset:2px;margin-top:3px}
+.n46-details{margin-top:13px;padding-top:11px;border-top:1px solid #303236;color:#9da2aa;font-size:11px;line-height:1.6}
+.n46-details summary{color:#b2b7c0}
+.n46-details ul{margin:8px 0;padding-left:20px}
+.n46-details p{display:block;line-height:1.55}
+.n46-details:focus-within,.n46-page-help:focus-within{outline-offset:3px}
+
+/* Nashra 047 — actionable, compact verification without extra status badges. */
+.n47-checker{margin-top:13px;padding-top:13px;border-top:1px solid rgba(214,166,77,.26);min-width:0}
+.n47-checker-top,.n47-job-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.n47-checker-top strong{font-size:13px}
+.n47-recheck,.n47-resolve button,.n47-expand{display:inline-flex;gap:7px;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:inherit;border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer}
+.n47-recheck:hover,.n47-resolve button:hover,.n47-expand:hover{background:rgba(255,255,255,.11)}
+.n47-recheck:disabled,.n47-resolve button:disabled{opacity:.55;cursor:wait}
+.n47-small-note{color:#a5adc1;font-size:11px;line-height:1.5;margin:6px 0 10px}
+.n47-job-list{display:grid;gap:8px;margin:12px 0}
+.n47-job{padding:11px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.16);border-radius:10px;min-width:0}
+.n47-job-head strong{font-size:12px;overflow-wrap:anywhere}
+.n47-job-head span{color:#e4b86a;font-size:11px}
+.n47-job-meta{color:#bfc6d6;font-size:11px;margin-top:5px;overflow-wrap:anywhere}
+.n47-check-result{display:flex;gap:7px;align-items:flex-start;color:#f6d7a0;font-size:12px;margin:8px 0 0;line-height:1.5}
+.n47-check-result svg{flex:none;margin-top:2px}
+.n47-job-error{color:#e4b86a;font-size:11px;margin:7px 0 0;overflow-wrap:anywhere}
+.n47-resolve{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.n47-resolve button{font-size:11px;padding:6px 8px}
+.n47-expand{margin-bottom:9px}
+.n47-review-notice{margin:10px 0;color:#f8d49d;font-size:12px;line-height:1.5}
+@keyframes n47-rotate{to{transform:rotate(360deg)}}
+.n47-spin{animation:n47-rotate 1s linear infinite}
+
+/* Nashra 048 — focused review panel, feedback and loading states. */
+.n48-attention{display:flex;gap:12px;padding:13px 14px;margin:14px 0 0;border:1px solid rgba(214,166,77,.36);border-radius:10px;background:rgba(173,115,28,.09);color:#f4dfbc;line-height:1.45}
+.n48-attention>svg{flex:none;margin-top:2px;color:#e8b666}
+.n48-attention strong{display:block;font-size:13px;margin-bottom:3px}
+.n48-attention p{font-size:12px;line-height:1.5;margin:0 0 7px;color:#e0cdae}
+.n48-attention a{font-size:12px;font-weight:600;color:#f1ce8d;text-decoration:underline;text-underline-offset:3px}
+.n48-attention details{font-size:11px;color:#c5ad84;margin-top:9px}
+.n48-attention summary{cursor:pointer;user-select:none}
+.n48-attention details p{font-size:11px;margin:4px 0 0;color:#c5ad84}
+.n48-verification{padding-top:14px;margin-top:14px;border-top:1px solid rgba(255,255,255,.11);min-width:0}
+.n48-verification-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.n48-verification-head strong{font-size:13px}
+.n48-verification-head p{color:#aeb8c9;font-size:11px;line-height:1.4;margin:5px 0 0}
+.n48-verify-btn,.n48-job-actions button,.n48-show-more{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer;padding:9px 11px;font-size:12px;font-weight:500;transition:background .15s,border-color .15s}
+.n48-verify-btn:hover,.n48-job-actions button:hover,.n48-show-more:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.32)}
+.n48-verify-btn:disabled,.n48-job-actions button:disabled{opacity:.6;cursor:wait}
+.n48-job-list{display:grid;gap:9px;margin-top:12px}
+.n48-job{border:1px solid rgba(255,255,255,.11);border-radius:11px;padding:12px;background:rgba(255,255,255,.025);min-width:0}
+.n48-job-top{display:flex;align-items:baseline;justify-content:space-between;gap:7px;flex-wrap:wrap}
+.n48-job-top strong{font-size:12px;overflow-wrap:anywhere}
+.n48-job-top span{font-size:11px;color:#efc37b}
+.n48-job-time{margin:7px 0 0;color:#b7c0cf;font-size:12px}
+.n48-job-check,.n48-job-hint{font-size:11px;line-height:1.55;color:#b6c0d0;margin:9px 0 0}
+.n48-job-check{display:flex;align-items:flex-start;gap:7px;color:#eed1a6}
+.n48-job-check svg{flex:none;margin-top:2px}
+.n48-job-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.n48-job-actions button{font-size:11px;padding:8px 10px}
+.n48-job-details{color:#aeb8c9;font-size:11px;margin-top:12px}
+.n48-job-details summary{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.n48-job-details[open] summary svg{transform:rotate(180deg)}
+.n48-job-details p{font-size:11px;line-height:1.5;margin:6px 0 0;overflow-wrap:anywhere}
+.n48-show-more{margin-top:10px}
+.n48-feedback{border-radius:8px;padding:9px 11px;margin:10px 0 0;background:rgba(30,130,90,.12);color:#bfead5;font-size:12px;line-height:1.45}
+.n48-feedback-error{background:rgba(150,45,45,.16);color:#f0b5b5}
+.n48-progress,.n48-operation-status{display:flex;align-items:center;gap:8px;line-height:1.45;font-size:12px;color:#d6b678;margin:10px 0 0}
+.n48-progress svg,.n48-operation-status svg{flex:none}
+@keyframes n48-rotate{to{transform:rotate(360deg)}}
+.n48-spin{animation:n48-rotate .9s linear infinite}
+@media(max-width:520px){.n48-verify-btn{width:100%}.n48-verification-head{align-items:stretch}.n48-job-actions button{flex:1 1 auto}}
+@media(prefers-reduced-motion:reduce){.n48-spin{animation-duration:2s}.n48-verify-btn,.n48-job-actions button,.n48-show-more{transition:none}}
+
+
+/* Nashra 052 — progressive disclosure, accessible controls, no new CSS framework */
+.n52-compact-warning{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(207,156,67,.3);background:rgba(207,156,67,.07);border-radius:10px;padding:11px 12px;margin:11px 0;color:#e8c58d}
+.n52-compact-warning>svg{flex:none;margin-top:2px}
+.n52-compact-warning strong{font-size:12px;color:#f2d4a2}
+.n52-compact-warning p{font-size:11px;line-height:1.5;color:#bfc4ce;margin:5px 0 0}
+.n52-verification-summary{min-width:0}
+.n52-detail-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left}
+.n52-detail-toggle span{display:flex;flex-direction:column;gap:3px}
+.n52-detail-toggle strong{font-size:12px}
+.n52-detail-toggle small{font-size:11px;color:#9eabc0;line-height:1.4}
+.n52-detail-toggle svg{flex-shrink:0;transition:transform .15s}
+.n52-chevron-open{transform:rotate(180deg)}
+.n52-verification-detail{padding-top:9px}
+.n52-verification-detail .n48-verify-btn{width:auto}
+@media (prefers-reduced-motion: reduce){.n52-detail-toggle svg{transition:none}}

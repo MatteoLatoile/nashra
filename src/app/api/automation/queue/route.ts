@@ -17,11 +17,12 @@ function sameOrigin(req: NextRequest) {
   const origin = req.headers.get('origin');
   return !!origin && origin === req.nextUrl.origin;
 }
-export async function GET() {
+export async function GET(req: NextRequest) {
   const c = await auth();
   if (!c) return NextResponse.json({ error: 'Connexion requise.' }, { status: 401, headers });
+  const compact = req.nextUrl.searchParams.get('view') === 'campaigns';
   const { data, error } = await c.db.from('delivery_queue')
-    .select('id,job_key,campaign_id,announcement_id,destination_id,scheduled_at,method,status,created_at,attempted_at,finished_at,telegram_message_id,last_error')
+    .select(compact ? 'campaign_id,status' : 'id,job_key,campaign_id,announcement_id,destination_id,scheduled_at,method,status,created_at,attempted_at,finished_at,telegram_message_id,telegram_scheduled_ids,last_error')
     .eq('user_id', c.userId).order('created_at', { ascending: false }).limit(500);
   if (error) return NextResponse.json({ error: 'File inaccessible : appliquez les migrations 004 et 005 dans Supabase.' }, { status: 500, headers });
   return NextResponse.json({ jobs: data ?? [], nativeSchedulingAvailable: true, publishingEnabled: process.env.NASHRA_AUTOMATION_ENABLED === '1' && process.env.NASHRA_PUBLISHING_ENABLED === '1', approvalRequired: true }, { headers });

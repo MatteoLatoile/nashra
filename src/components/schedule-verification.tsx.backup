@@ -1,0 +1,115 @@
+'use client';
+import { useEffect, useMemo, useState } from 'react';
+import { CheckCheck, CircleHelp, LoaderCircle, RefreshCw } from 'lucide-react';
+import { useConfirm } from '@/components/confirm-dialog';
+
+export type VerificationJob = {
+  id: string; destination_id: string; status: string; scheduled_at: string;
+  last_error?: string | null; telegram_message_id?: number | null;
+  telegram_scheduled_ids?: number[] | null; attempted_at?: string | null;
+};
+type Check = { jobId:string;status:'scheduled'|'partial'|'missing'|'possible'|'unknown'|'error';detail:string };
+const pretty = (date:string) => Number.isFinite(Date.parse(date)) ?
+  new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(date)) : 'Date inconnue';
+const reviewStatuses = ['needs_review','telegram_scheduled','processing'];
+const formatStatus = (status:string) => ({
+  needs_review:'Envoi incertain', telegram_scheduled:'Programmé dans Nashra', processing:'Opération en cours',
+  blocked:'Bloqué', cancelled:'Annulé', sent:'Envoyé', failed:'Échec',
+} as Record<string,string>)[status] ?? 'À examiner';
+
+export function ScheduleVerification({campaignId, jobs, destinations, originalHandles, onChanged}:{
+  campaignId:string; jobs:readonly VerificationJob[];
+  destinations:Readonly<Record<string,string>>; originalHandles?:Readonly<Record<string,string | undefined>>; onChanged:()=>Promise<void>;
+}){
+  const confirm=useConfirm();
+  const [checking,setChecking]=useState(false);
+  const [resolving,setResolving]=useState<string|null>(null);
+  const [results,setResults]=useState<Record<string,Check>>({});
+  const [message,setMessage]=useState('');
+  const [expanded,setExpanded]=useState(false);
+  useEffect(()=>{setResults({});setMessage('');setExpanded(false);},[campaignId]);
+  const affected=useMemo(()=>jobs.filter(j=>reviewStatuses.includes(j.status)&&(
+    j.status!=='telegram_scheduled'||Date.parse(j.scheduled_at)<Date.now()
+    || j.status==='needs_review')).sort((a,b)=>b.scheduled_at.localeCompare(a.scheduled_at)),[jobs]);
+  if(!affected.length)return <p className="n47-small-note">Aucun message incertain identifiable dans la file Nashra.</p>;
+  const shown=expanded?affected:affected.slice(0,3);
+  const names=destinations;
+  const labelFor=(id:string)=>names[id]||originalHandles?.[id]||'Destination supprimée';
+  async function request(payload:Record<string,unknown>){
+    const response=await fetch('/api/automation/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campaignId,...payload})});
+    const json=await response.json() as {ok?:boolean;error?:string;message?:string;results?:Check[];partial?:boolean};
+    if(!response.ok||!json.ok)throw new Error(json.error||'Vérification indisponible.');
+    return json;
+  }
+  async function check(){
+    if(checking||resolving)return;
+    setChecking(true);setMessage('');
+    try{
+      const info=await request({action:'check'});
+      setResults(Object.fromEntries((info.results??[]).map(x=>[x.jobId,x])));
+      setMessage(info.partial?'Vérification partielle : certains messages anciens n’ont pas été contrôlés.':'Vérification Telegram terminée. Une absence de la file ne prouve pas la livraison.');
+      await onChanged();
+    }catch(error){setMessage(error instanceof Error?error.message:'Erreur de vérification.');}
+    finally{setChecking(false);}
+  }
+  async function resolve(job:VerificationJob,action:'mark_sent'|'mark_not_sent'){
+    if(checking||resolving)return;
+    const sent=action==='mark_sent';
+    const yes=await confirm({
+      title:sent?'Confirmer cet envoi dans Nashra ?':'Déclarer ce message non envoyé ?',
+      description:sent?
+        'À utiliser uniquement après avoir retrouvé le message publié dans Telegram. Nashra enregistrera VOTRE déclaration, sans preuve automatique ni nouvel envoi.':
+        'À utiliser seulement après avoir vérifié dans Telegram que le message n’a pas été publié. Nashra enregistrera VOTRE déclaration, sans annuler ni renvoyer de message Telegram.',
+      item:`${labelFor(job.destination_id)} · ${pretty(job.scheduled_at)}`,
+      confirmText:sent?'Oui, j’ai vu le message publié':'Oui, j’ai vérifié : non envoyé',
+      tone:sent?'warning':'danger',
+    });
+    if(!yes)return;
+    setResolving(job.id);setMessage('');
+    try{
+      const info=await request({action,jobId:job.id,confirmed:true});
+      setMessage(info.message||'Déclaration enregistrée.');
+      setResults(previous=>{const next={...previous};delete next[job.id];return next;});
+      await onChanged();
+    }catch(error){setMessage(error instanceof Error?error.message:'Impossible d’enregistrer la déclaration.');}
+    finally{setResolving(null);}
+  }
+  return <div className="n47-checker">
+    <div className="n47-checker-top"><strong>Messages concernés ({affected.length})</strong>
+      <button type="button" className="n47-recheck" disabled={checking||Boolean(resolving)} onClick={()=>void check()}>
+        {checking?<LoaderCircle className="n47-spin" size={15}/>:<RefreshCw size={15}/>}
+        {checking?'Vérification…':'Vérifier à nouveau'}
+      </button>
+    </div>
+    <p className="n47-small-note">Nashra consulte les programmations du groupe d’origine, sans publier de message.</p>
+    <div className="n47-job-list">{shown.map(job=>{
+      const checked=results[job.id];
+      const ids=Array.isArray(job.telegram_scheduled_ids)&&job.telegram_scheduled_ids.length
+        ?job.telegram_scheduled_ids : typeof job.telegram_message_id==='number'?[job.telegram_message_id]:[];
+      const canResolve=Number.isFinite(Date.parse(job.scheduled_at))&&Date.now()-Date.parse(job.scheduled_at)>=30*60_000
+        && checked?.status!=='scheduled'&&checked?.status!=='partial';
+      return <div className="n47-job" key={job.id}>
+        <div className="n47-job-head"><strong>{labelFor(job.destination_id)}</strong><span>{formatStatus(job.status)}</span></div>
+        <div className="n47-job-meta">{pretty(job.scheduled_at)} · {ids.length?`ID Telegram : ${ids.join(', ')}`:'Identifiant Telegram indisponible'}</div>
+        {checked&&<p className="n47-check-result"><CircleHelp size={14}/><span>{checked.detail}</span></p>}
+        {job.last_error&&!checked&&<p className="n47-job-error">{job.last_error}</p>}
+        {canResolve&&<div className="n47-resolve">
+          <button type="button" disabled={checking||Boolean(resolving)} onClick={()=>void resolve(job,'mark_sent')}>
+            {resolving===job.id?<LoaderCircle size={13}/>:<CheckCheck size={13}/>} J’ai vérifié : envoyé
+          </button>
+          <button type="button" disabled={checking||Boolean(resolving)} onClick={()=>void resolve(job,'mark_not_sent')}>
+            J’ai vérifié : non envoyé
+          </button>
+        </div>}
+        {!canResolve&&<p className="n47-small-note">{checked?.status==='scheduled'||checked?.status==='partial'
+          ?'Ce message semble encore programmé sur Telegram : ne le déclarez pas envoyé.'
+          :'Résolution manuelle disponible 30 minutes après l’heure prévue.'}</p>}
+      </div>;
+    })}</div>
+    {affected.length>3&&<button type="button" className="n47-expand" onClick={()=>setExpanded(v=>!v)}>
+      {expanded?'Afficher moins':`Voir les ${affected.length-3} autres messages`}
+    </button>}
+    {message&&<p role="status" aria-live="polite" className="n47-review-notice">{message}</p>}
+    <p className="n47-small-note">Une confirmation manuelle met uniquement à jour le suivi Nashra : elle ne publie, n’annule et ne reprogramme rien dans Telegram.</p>
+  </div>;
+}

@@ -1,7 +1,7 @@
 "use client";
 import { HelpCircle as NashraTourHelp } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n/provider';
-import { TOUR_REPLAY_LABELS } from '@/components/dashboard-tour';
+import { TOUR_REPLAY_LABELS } from '@/components/tour-labels';
 import { OnboardingAccountLink } from '@/components/onboarding-link';
 
 import { useEffect, useRef, useState } from "react";
@@ -61,15 +61,15 @@ export function AccountMenu({
     let active = true;
 
     async function loadProfile() {
-      const { data } = await createClient().auth.getUser();
+      const { data } = await createClient().auth.getSession();
 
-      if (!active || !data.user) return;
+      if (!active || !data.session?.user) return;
 
-      const metadata = data.user.user_metadata || {};
+      const metadata = data.session?.user.user_metadata || {};
 
       setProfile({
         name: metadata.full_name || metadata.name || "",
-        email: data.user.email || "",
+        email: data.session?.user.email || "",
         company: metadata.company_name || "",
         avatar: metadata.avatar_url || metadata.picture || ""
       });

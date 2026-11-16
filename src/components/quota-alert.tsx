@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/provider';
 import { usageCopy } from '@/lib/billing/usage-copy';
+import { invalidateLimits, loadLimits } from '@/lib/billing/client-snapshot';
 
 type Meter = { used: number; limit: number };
 type Snapshot = { usage?: {
   telegramAccounts: Meter; activeGroups: Meter; monthlySends: Meter; pendingSchedules: Meter;
 } };
-export function QuotaAlert() {
+export function QuotaAlert({ userKey = 'current' }: { userKey?: string }) {
   const {locale} = useLanguage();
   const pathname = usePathname();
   const words = usageCopy(locale);
@@ -18,16 +19,16 @@ export function QuotaAlert() {
     let live = true;
     const refresh = async () => {
       try {
-        const res = await fetch('/api/billing/limits',{cache:'no-store'});
-        if (!res.ok) return;
-        const json = await res.json() as Snapshot;
+        const json = await loadLimits(userKey) as Snapshot;
         if (live) setUsage(json.usage);
       } catch { /* Do not show stale or invented metrics. */ }
     };
     void refresh();
+    const billingUpdated = () => { invalidateLimits(); void refresh(); };
     window.addEventListener('focus',refresh);
-    return () => { live=false; window.removeEventListener('focus',refresh); };
-  },[pathname]);
+    window.addEventListener('nashra:billing-updated', billingUpdated);
+    return () => { live=false; window.removeEventListener('focus',refresh); window.removeEventListener('nashra:billing-updated', billingUpdated); };
+  },[pathname,userKey]);
   if (!usage) return null;
   const rows: {key:string;label:string;meter:Meter}[] = [
     {key:'groups',label:words.groups,meter:usage.activeGroups},

@@ -29,9 +29,9 @@ export default function AutomationReadinessPage() {
   useEffect(() => { if (ready) void refresh(); /* refresh on entry only */ // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, cloudMode]);
   return <>
-    <PageHeader eyebrow="AUTOMATISATION · AUDIT" title="Préparer les publications" description="Contrôle des créneaux et des autorisations avant activation du moteur serveur." actions={<button className="btn btn-secondary" onClick={() => void refresh()} disabled={loading}><RefreshCw size={16}/>{loading ? 'Analyse…' : 'Actualiser'}</button>}/>
-    <div className="notice-row notice-dark"><ShieldAlert size={20}/><div><strong>Aucun envoi automatique dans cette version</strong><span>Il s'agit d'un audit en lecture seule. Ni Telegram ni vos groupes ne reçoivent de message. L'autorisation d'une destination doit correspondre à une permission réelle.</span></div></div>
-    <div className="n21-actions"><Link href="/campagnes" className="btn btn-secondary"><ArrowLeft size={16}/> Retour aux campagnes</Link><span>{cloudMode ? 'Espace Supabase' : 'Données locales de démonstration'}</span></div>
+    <PageHeader eyebrow="AUTOMATISATION · AUDIT" title="Préparer les publications" description="Contrôlez les créneaux et les autorisations avant toute publication." actions={<button className="btn btn-secondary" onClick={() => void refresh()} disabled={loading}><RefreshCw size={16}/>{loading ? 'Analyse…' : 'Actualiser'}</button>}/>
+    <div className="notice-row notice-dark"><ShieldAlert size={20}/><div><strong>Audit en lecture seule : aucun envoi déclenché ici</strong><span>Il s'agit d'un audit en lecture seule. Ni Telegram ni vos groupes ne reçoivent de message. L'autorisation d'une destination doit correspondre à une permission réelle.</span></div></div>
+    <div className="n21-actions"><Link href="/campagnes" className="btn btn-secondary"><ArrowLeft size={16}/> Retour aux campagnes</Link><span>{cloudMode ? 'Espace Supabase' : 'Données locales'}</span></div>
     {error && <p className="n21-error" role="alert">{error}</p>}
     {report && <>
       <div className="n21-metrics">

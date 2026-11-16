@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowUpRight, LogOut, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { invalidateLimits, loadLimits } from '@/lib/billing/client-snapshot';
 import styles from './sidebar-premium.module.css';
 
 type Tier = 'free' | 'pro' | 'business' | 'unknown';
@@ -14,7 +15,7 @@ function normalizeTier(value: unknown): Tier {
   return 'unknown';
 }
 
-export function SidebarPlanCard({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarPlanCard({ onNavigate, userKey = 'current' }: { onNavigate?: () => void; userKey?: string }) {
   const pathname = usePathname();
   const [tier, setTier] = useState<Tier>('unknown');
   const [loading, setLoading] = useState(true);
@@ -27,15 +28,8 @@ export function SidebarPlanCard({ onNavigate }: { onNavigate?: () => void }) {
       if (mounted) setLoading(true);
       try {
         let nextTier: Tier = 'unknown';
-        const res = await fetch('/api/billing/limits', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        if (res.ok) {
-          const data: { tier?: unknown } = await res.json();
-          nextTier = normalizeTier(data.tier);
-        }
+        const data = await loadLimits(userKey);
+        nextTier = normalizeTier(data.tier);
         // The status route provides a fallback if the quota snapshot is unavailable.
         if (nextTier === 'unknown') {
           const status = await fetch('/api/billing/status', {
@@ -59,14 +53,15 @@ export function SidebarPlanCard({ onNavigate }: { onNavigate?: () => void }) {
     void updatePlan();
     // Keep the badge up to date after Checkout, profile navigation or tab focus.
     window.addEventListener('focus', updatePlan);
-    window.addEventListener('nashra:billing-updated', updatePlan);
+    const billingUpdated = () => { invalidateLimits(); void updatePlan(); };
+    window.addEventListener('nashra:billing-updated', billingUpdated);
     return () => {
       mounted = false;
       controller.abort();
       window.removeEventListener('focus', updatePlan);
-      window.removeEventListener('nashra:billing-updated', updatePlan);
+      window.removeEventListener('nashra:billing-updated', billingUpdated);
     };
-  }, [pathname]);
+  }, [pathname, userKey]);
 
   const label = tier === 'business' ? 'Business' : tier === 'pro' ? 'Pro' : tier === 'free' ? 'Gratuit' : '—';
   const description = tier === 'unknown' ? 'Consulter mon abonnement' : tier === 'free' ? 'Découvrir les offres' : 'Abonnement actif';
@@ -116,10 +111,10 @@ export function SidebarUser({
     let active = true;
     async function refreshProfile() {
       try {
-        const { data } = await createClient().auth.getUser();
-        if (!active || !data.user) return;
-        setName(fullName(data.user.user_metadata || {}));
-        setEmail(data.user.email || userEmail || '');
+        const { data } = await createClient().auth.getSession();
+        if (!active || !data.session?.user) return;
+        setName(fullName(data.session?.user.user_metadata || {}));
+        setEmail(data.session?.user.email || userEmail || '');
       } catch { /* Keep the current user label when offline. */ }
     }
     void refreshProfile();

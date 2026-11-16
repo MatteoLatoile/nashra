@@ -1,4 +1,5 @@
 "use client";
+import { readable } from '@/lib/feedback';
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -75,8 +76,8 @@ export function NotificationCenter({
 
   const activity = data.activity.slice(0, 20).map(item => ({
     id: `activity-${item.id}`,
-    title: item.title,
-    detail: item.detail,
+    title: readable(item.title, 'Activité'),
+    detail: readable(item.detail, 'Consultez l’historique pour les détails.'),
     date: item.createdAt,
     href: "/historique",
     type: "activity"
@@ -231,7 +232,7 @@ export function NotificationCenter({
                       setOpen(false);
                     }}
                   >
-                    <span className="n9-item-icon">
+                    <span className={`n9-item-icon feedback-${item.type === 'error' ? 'error' : 'info'}`}>
                       <Icon size={17} />
                     </span>
 

@@ -1,6 +1,6 @@
 'use client';
 import { PageSkeleton, skeletonVariantForPath } from '@/components/nashra-skeleton';
-import { DashboardTour } from '@/components/dashboard-tour';
+import { DashboardTourGate } from '@/components/dashboard-tour-gate';
 import { QuotaAlert } from '@/components/quota-alert';
 import { AccountMenu } from '@/components/account-menu';
 import { SidebarPlanCard, SidebarUser } from '@/components/sidebar-membership';
@@ -57,7 +57,7 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
         </Link>
         <button className="mob-close icon-button" onClick={() => setMobileOpen(false)} aria-label="Fermer"><X size={19}/></button>
       </div>
-      <SidebarPlanCard onNavigate={() => setMobileOpen(false)} />
+      <SidebarPlanCard userKey={userEmail || 'current'} onNavigate={() => setMobileOpen(false)} />
       <div className="sidebar-label">ESPACE DE TRAVAIL</div>
       <nav className="nav-list" aria-label="Navigation principale">
         {menu.map(({ label, href, Icon }) => <Link key={href} href={href} onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === href ? 'nav-active' : ''}`}><Icon size={18} strokeWidth={1.8}/><span>{t(label)}</span>{href === '/campagnes' && <span className="nav-pin"/>}</Link>)}
@@ -78,9 +78,9 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
         {syncStatus === 'saving' ? 'Enregistrement…' : syncStatus === 'loading' ? 'Chargement…' : syncStatus === 'synced' ? 'Cloud synchronisé' : syncStatus === 'error' ? 'Erreur de sauvegarde' : 'Démo locale'}</span>
         {syncStatus === 'error' && <button onClick={retrySync} className="sync-retry" title={syncError || 'Réessayer'}>Réessayer</button>}<span className="top-separator"/><NotificationCenter userEmail={userEmail} /><AccountMenu userEmail={userEmail} onSignOut={() => void signOut()} /></div>
       </header>
-      <main className="main-content">{ready ? <>{cloudMode && <QuotaAlert/>}{children}</> : <PageSkeleton variant={skeletonVariantForPath(pathname)} />}</main>
+      <main className="main-content">{ready ? <>{cloudMode && <QuotaAlert userKey={userEmail || 'current'}/>}{children}</> : <PageSkeleton variant={skeletonVariantForPath(pathname)} />}</main>
     </div>
-    <DashboardTour userEmail={userEmail} ready={ready} />
-    {toast && <div role="status" className="toast"><span className="toast-dot"/>{toast}</div>}
+    <DashboardTourGate userEmail={userEmail} ready={ready} />
+    {toast && <div role={toast.tone === 'error' ? 'alert' : 'status'} className={`toast feedback-${toast.tone}`}><span className="toast-dot"/>{toast.text}</div>}
   </div>;
 }

@@ -192,10 +192,6 @@ const LABELS: Record<Locale, Labels> = {
   ur: { chapters:{intro:'خوش آمدید',annonces:'اعلانات',telegram:'ٹیلیگرام',groupes:'گروپس',agenda:'کیلنڈر',historique:'تاریخچہ',compte:'اکاؤنٹ'},previous:'پچھلا',next:'اگلا',done:'مکمل',skip:'چھوڑیں',pause:'وقفہ',resume:'جاری رکھیں',explore:'خود آزمائیں',step:'مرحلہ',missing:'ضروری ترتیب مکمل ہونے پر یہ اختیار دکھائی دے گا۔ آپ آگے بڑھ سکتے ہیں۔',readOnly:'رہنمائی · کوئی پیغام نہیں بھیجا یا محفوظ کیا جاتا',replay:'دوبارہ رہنمائی' },
 };
 
-export const TOUR_REPLAY_LABELS: Record<Locale, string> = Object.fromEntries(
-  Object.entries(LABELS).map(([language, value]) => [language, value.replay])
-) as Record<Locale, string>;
-
 const MODAL_TRIGGERS: Record<ModalName, string> = {
   announcement: '.n12-header-actions button, .heading-actions button',
   publish: '.n12-card-actions button[title="Publier maintenant"]',

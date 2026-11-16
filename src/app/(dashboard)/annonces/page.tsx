@@ -1,7 +1,8 @@
 'use client';
+import { campaignFailure, readable, type Tone } from '@/lib/feedback';
 import { SearchableSelect } from '@/components/searchable-select';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnnouncementImageUpload } from '@/components/announcement-image-upload';
 import {
@@ -47,6 +48,8 @@ export default function AnnouncementsPage() {
   const [origin, setOrigin] = useState('Toutes');
   const [sort, setSort] = useState<'newest' | 'oldest' | 'az'>('newest');
   const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [visibleCount, setVisibleCount] = useState(24);
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [mediaTab, setMediaTab] = useState<'upload' | 'links'>('upload');
   const [draftPreview, setDraftPreview] = useState(false);
@@ -55,8 +58,8 @@ export default function AnnouncementsPage() {
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishElapsed, setPublishElapsed] = useState(0);
   const [publishResult, setPublishResult] = useState('');
-  const [publishSuccess, setPublishSuccess] = useState(false);
-  const eligibleDestinations = data.destinations.filter(d => d.authorized && /^-?\d{3,30}$/.test(d.handle));
+  const [publishTone, setPublishTone] = useState<Tone>('info');
+  const eligibleDestinations = useMemo(() => data.destinations.filter(d => d.authorized && /^-?\d{3,30}$/.test(d.handle)), [data.destinations]);
 
   // Temps réellement écoulé ; aucune progression artificielle en pourcentage.
   useEffect(() => {
@@ -73,14 +76,14 @@ export default function AnnouncementsPage() {
     setPublishDestinationId('');
     setPublishElapsed(0);
     setPublishResult('');
-    setPublishSuccess(false);
+    setPublishTone('info');
   }
   async function publishNow() {
     if (!publishing || !publishDestinationId || publishBusy) return;
     setPublishBusy(true);
     setPublishElapsed(0);
     setPublishResult('');
-    setPublishSuccess(false);
+    setPublishTone('info');
     try {
       const response = await fetch('/api/telegram/user/publish-announcement', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -88,28 +91,39 @@ export default function AnnouncementsPage() {
           destinationId: publishDestinationId, confirmed: true, requestId: crypto.randomUUID() }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Envoi impossible.');
-      setPublishSuccess(true);
+      if (!response.ok) {
+        const notice = campaignFailure(result?.error || 'Envoi impossible.');
+        setPublishTone(result?.uncertain ? 'warning' : notice.tone);
+        setPublishResult(readable(result?.error, notice.text));
+        return;
+      }
+      if (result?.ok !== true || !(Number.isSafeInteger(result.telegramMessageId) && result.telegramMessageId > 0)) throw new SyntaxError();
+      setPublishTone('success');
       setPublishResult(`Message confirmé par Telegram (#${result.telegramMessageId}). Consultez l’historique.`);
       notify('Publication confirmée.');
-    } catch (e) { setPublishSuccess(false); setPublishResult(e instanceof Error ? e.message : 'Résultat incertain. Vérifiez Telegram.'); }
+    } catch (e) { const notice = campaignFailure(e); setPublishTone(notice.tone); setPublishResult(notice.text); }
     finally { setPublishBusy(false); }
   }
 
 
   const categories = useMemo(() => ['Toutes', ...new Set([...mainCategories, ...data.announcements.map(a => a.category)].filter(Boolean))], [data.announcements]);
+  const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
   const filtered = useMemo(() => data.announcements.filter(a => {
     if (filter !== 'Toutes' && a.category !== filter) return false;
     if (origin === 'Telegram' && !a.sourceMessageId) return false;
     if (origin === 'Manuelles' && a.sourceMessageId) return false;
     const haystack = `${a.title} ${a.body} ${a.category} ${(a.tags || []).join(' ')}`.toLocaleLowerCase();
-    return haystack.includes(query.trim().toLocaleLowerCase());
+    return haystack.includes(normalizedQuery);
   }).sort((a, b) => sort === 'az' ? a.title.localeCompare(b.title) : sort === 'oldest'
-    ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)), [data.announcements, filter, origin, query, sort]);
+    ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)), [data.announcements, filter, origin, normalizedQuery, sort]);
+  useEffect(() => { setVisibleCount(24); }, [filter, origin, sort, normalizedQuery]);
+  const visibleAnnouncements = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const preview = data.announcements.find(a => a.id === previewId) || null;
   const images = preview ? imageUrls(preview) : [];
-  const sourceCount = data.announcements.filter(a => a.sourceMessageId).length;
-  const imagesCount = data.announcements.filter(a => imageUrls(a).length).length;
+  const { sourceCount, imagesCount } = useMemo(() => ({
+    sourceCount: data.announcements.filter(a => a.sourceMessageId).length,
+    imagesCount: data.announcements.filter(a => imageUrls(a).length > 0).length,
+  }), [data.announcements]);
 
   function startCreate() { setEditor(emptyEditor()); setEditorError(''); setMediaTab('upload'); setDraftPreview(false); }
   function startEdit(a: Announcement) {
@@ -150,7 +164,7 @@ export default function AnnouncementsPage() {
   }
   async function copy(a: Announcement) {
     try { await navigator.clipboard.writeText(a.body); notify('Texte copié.'); }
-    catch { notify('Le presse-papiers est indisponible.'); }
+    catch { notify('Le presse-papiers est indisponible.', 'error'); }
   }
 
   return <div className="n12-library">
@@ -173,7 +187,7 @@ export default function AnnouncementsPage() {
     <div className="n12-results"><span><strong>{filtered.length}</strong> résultat{filtered.length !== 1 ? 's' : ''}</span><span>Publiez ponctuellement ou programmez dans le calendrier.</span></div>
 
     {filtered.length ? <div className={view === 'grid' ? 'n12-grid' : 'n12-grid n12-list'}>
-      {filtered.map(a => <article className="n12-card" key={a.id}>
+      {visibleAnnouncements.map(a => <article className="n12-card" key={a.id}>
         <button type="button" className="n12-cover" onClick={() => startPreview(a.id)} aria-label={`Prévisualiser ${a.title}`}>
           {imageUrls(a).length ? <><img src={imageUrls(a)[0]} alt="" loading="lazy"/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
         </button>
@@ -191,6 +205,11 @@ export default function AnnouncementsPage() {
       </article>)}
     </div> : <EmptyState icon={<FileText size={27}/>} title="Aucune annonce à afficher" description={data.announcements.length ? 'Modifiez vos filtres pour retrouver vos publications.' : 'Commencez par créer une annonce ou importer un message depuis Telegram.'}
       action={<div className="n12-empty-actions"><button className="btn btn-primary" onClick={startCreate}><Plus size={16}/> Créer une annonce</button><Link className="btn btn-secondary" href="/telegram">Importer de Telegram</Link></div>}/>}
+    {visibleCount < filtered.length && <div className="n12-results" style={{ justifyContent: 'center', marginTop: 20 }}>
+      <button type="button" className="btn btn-secondary" onClick={() => setVisibleCount(current => current + 24)}>
+        Afficher 24 annonces supplémentaires ({filtered.length - visibleCount} restantes)
+      </button>
+    </div>}
 
     {publishing && <Modal title="Publier maintenant" subtitle={publishing.title} onClose={() => !publishBusy && setPublishing(null)}>
       <div className="form-stack">
@@ -205,7 +224,7 @@ export default function AnnouncementsPage() {
         {eligibleDestinations.length === 0 && <p className="n40-footnote">Aucun groupe disponible. Connectez votre compte personnel et enregistrez les groupes autorisés dans <Link href="/groupes">Destinations</Link>.</p>}
         <div className="inline-help"><Send size={16}/> Un seul groupe par confirmation. Les limitations de Telegram sont respectées et aucun renvoi automatique ne sera effectué.</div>
         {(publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`)) && <p className="n40-error">Une photo provient d'un lien externe. Réimportez toutes les photos depuis votre ordinateur avant de publier.</p>}
-        {publishResult && <p className={publishSuccess ? "n40-success" : "n40-error"} role={publishSuccess ? "status" : "alert"}>{publishSuccess && <Check size={15} aria-hidden="true" />}{publishResult}</p>}
+        {publishResult && <p className={`feedback-box feedback-${publishTone}`} role={publishTone === "error" ? "alert" : "status"}>{publishTone === "success" && <Check size={15} aria-hidden="true" />}{publishResult}</p>}
         {publishBusy && <div className="n39-send-progress" role="status" aria-label="Publication Telegram en cours">
           <div className="n39-send-progress-top">
             <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Envoi vers Telegram</strong></span>

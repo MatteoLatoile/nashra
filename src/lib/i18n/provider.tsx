@@ -68,59 +68,93 @@ function useLegacyTextBridge(locale: Locale) {
       return outer[1] + (target || source) + outer[3];
     }
 
+    // Translate only mutated subtrees after the first pass instead of rescanning
+    // the complete document for every React update or text change.
+    const dirty = new Set<Node>();
+    let frame = 0;
+    const attrs = ['placeholder', 'title', 'aria-label', 'alt'] as const;
+    const attrSelector = '[placeholder],[title],[aria-label],[alt]';
+
+    function translateText(item: Text) {
+      const parent = item.parentElement;
+      if (!parent || parent.closest(blocked)) return;
+      const current = item.nodeValue || '';
+      if (!current.trim()) return;
+      let cache = textCache.get(item);
+      if (!cache || (current !== cache.applied && current !== cache.source)) {
+        cache = { source: current, applied: current };
+      }
+      const result = translate(cache.source);
+      if (current !== result) item.nodeValue = result;
+      cache.applied = result;
+      textCache.set(item, cache);
+    }
+
+    function translateAttributes(element: Element) {
+      if (element.closest(blocked)) return;
+      const cache = attributeCache.get(element) || {};
+      for (const attr of attrs) {
+        const current = element.getAttribute(attr);
+        if (!current) continue;
+        const old = cache[attr];
+        const source = old && (current === old.applied || current === old.source) ? old.source : current;
+        const result = translate(source);
+        if (result !== current) element.setAttribute(attr, result);
+        cache[attr] = { source, applied: result };
+      }
+      attributeCache.set(element, cache);
+    }
+
+    function processNode(node: Node) {
+      if (!node.isConnected) return;
+      if (node.nodeType === Node.TEXT_NODE) { translateText(node as Text); return; }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const element = node as Element;
+      if (element.closest(blocked)) return;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      let current: Node | null;
+      while ((current = walker.nextNode())) translateText(current as Text);
+      translateAttributes(element);
+      element.querySelectorAll(attrSelector).forEach(translateAttributes);
+    }
+
     function apply() {
-      if (applying || !document.body) return;
+      if (applying || !document.body || !dirty.size) return;
       applying = true;
       observer.disconnect();
       try {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        let node: Node | null;
-        while ((node = walker.nextNode())) {
-          const item = node as Text;
-          const parent = item.parentElement;
-          if (!parent || parent.closest(blocked)) continue;
-          const current = item.nodeValue || '';
-          if (!current.trim()) continue;
-          let cache = textCache.get(item);
-          if (!cache || (current !== cache.applied && current !== cache.source)) {
-            cache = { source: current, applied: current };
-          }
-          const result = translate(cache.source);
-          if (current !== result) item.nodeValue = result;
-          cache.applied = result;
-          textCache.set(item, cache);
-        }
-        const attrs = ['placeholder', 'title', 'aria-label', 'alt'];
-        document.body.querySelectorAll<HTMLElement>('[placeholder],[title],[aria-label],[alt]').forEach(element => {
-          if (element.closest(blocked)) return;
-          const cache = attributeCache.get(element) || {};
-          for (const attr of attrs) {
-            const current = element.getAttribute(attr);
-            if (!current) continue;
-            const old = cache[attr];
-            const source = old && (current === old.applied || current === old.source) ? old.source : current;
-            const result = translate(source);
-            if (result !== current) element.setAttribute(attr, result);
-            cache[attr] = { source, applied: result };
-          }
-          attributeCache.set(element, cache);
-        });
+        // Do not visit a child twice when its parent is already dirty.
+        const nodes = Array.from(dirty);
+        dirty.clear();
+        const roots = nodes.filter(node => !nodes.some(parent => parent !== node && parent.contains(node)));
+        roots.forEach(processNode);
       } finally {
         applying = false;
         observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
-          attributeFilter: ['placeholder', 'title', 'aria-label', 'alt'] });
+          attributeFilter: [...attrs] });
       }
     }
 
     function schedule() {
       if (scheduled || applying) return;
       scheduled = true;
-      queueMicrotask(() => { scheduled = false; apply(); });
+      frame = requestAnimationFrame(() => { scheduled = false; frame = 0; apply(); });
     }
-    const observer = new MutationObserver(schedule);
+
+    const observer = new MutationObserver(records => {
+      for (const record of records) {
+        if (record.type === 'childList') {
+          record.addedNodes.forEach(node => dirty.add(node));
+        } else {
+          dirty.add(record.target);
+        }
+      }
+      if (dirty.size) schedule();
+    });
+    dirty.add(document.body);
     apply();
     // A route change or async UI update may create new React nodes.
-    return () => { observer.disconnect(); };
+    return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); dirty.clear(); };
   }, [locale]);
 }
 
@@ -139,24 +173,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     // Supabase Auth is optional for demo installations.
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return;
     const supabase = createClient();
-    async function loadUser() {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (!mounted) return;
-        const user = data.user;
-        const id = user?.id || null;
-        setUserId(id);
-        if (!id) { setChoice('auto'); return; }
-        const locallySaved = localStorage.getItem(`nashra:locale:${id}`);
-        const cloudSaved = user?.user_metadata?.nashra_language;
-        setChoice(isChoice(locallySaved) ? locallySaved : isChoice(cloudSaved) ? cloudSaved : 'auto');
-      } catch { /* Remain on device language when offline. */ }
-    }
-    void loadUser();
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    function applySession(user: { id: string; user_metadata?: Record<string, unknown> } | null | undefined) {
       if (!mounted) return;
-      if (!session) { setUserId(null); setChoice('auto'); }
-      else void loadUser();
+      const id = user?.id || null;
+      setUserId(id);
+      if (!id) { setChoice('auto'); return; }
+      const locallySaved = localStorage.getItem(`nashra:locale:${id}`);
+      const cloudSaved = user?.user_metadata?.nashra_language;
+      setChoice(isChoice(locallySaved) ? locallySaved : isChoice(cloudSaved) ? cloudSaved : 'auto');
+    }
+    // Language choice only: local session data is sufficient here (not used for authorization).
+    void supabase.auth.getSession().then(({ data }) => applySession(data.session?.user)).catch(() => {});
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session?.user);
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);

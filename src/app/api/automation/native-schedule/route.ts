@@ -34,10 +34,11 @@ async function cancel(c: Awaited<ReturnType<typeof context>>, campaignId: string
   if (!account?.session_ciphertext) throw new DeliveryBlocked('Reconnectez votre compte Telegram pour annuler.');
   let errors = 0;
   for (const job of active) {
-    const dest = previous.destinations.find(x => x.id === job.destination_id);
+    const originalChatId = campaign.destinationHandles?.[job.destination_id];
     try {
-      if (!dest?.handle) throw new DeliveryBlocked('Groupe supprimé : annulation manuelle dans Telegram nécessaire.');
-      await cancelTelegramSchedule(account.session_ciphertext, dest.handle, job.telegram_scheduled_ids as number[] || []);
+      if (!originalChatId || !/^-?\d{3,30}$/.test(originalChatId))
+        throw new DeliveryBlocked('Groupe d’origine inconnu : annulation manuelle dans Telegram nécessaire.');
+      await cancelTelegramSchedule(account.session_ciphertext, originalChatId, job.telegram_scheduled_ids as number[] || []);
       const { error } = await service.from('delivery_queue').update({ status: 'cancelled', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', job.id).eq('user_id', c.userId).eq('status', 'telegram_scheduled');
       if (error) throw error;

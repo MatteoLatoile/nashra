@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { readiness } from '@/lib/automation/readiness';
 import type { Workspace } from '@/lib/automation/readiness';
 import { attentionReason } from '@/lib/automation/attention';
+import { billingMode, configuredPrice } from '@/lib/nashra-bundle/stripe';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,11 +23,11 @@ export async function GET() {
       telegram: Number.isSafeInteger(Number(process.env.TELEGRAM_API_ID)) && Number(process.env.TELEGRAM_API_ID) > 0 &&
         Boolean(process.env.TELEGRAM_API_HASH?.trim()) && /^[a-f0-9]{64}$/i.test(process.env.NASHRA_SESSION_ENCRYPTION_KEY || ''),
       worker: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY && (process.env.CRON_SECRET?.length || 0) >= 32),
-      publishing: process.env.NASHRA_AUTOMATION_ENABLED === '1' && process.env.NASHRA_PUBLISHING_ENABLED === '1',
-      stripeTest: Boolean(process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') && process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_')),
-      billing: process.env.NASHRA_BILLING_ENABLED === '1',
+      publishing: process.env.NASHRA_AUTOMATION_ENABLED === '1' && process.env.NASHRA_PUBLISHING_ENABLED === '1'
+        && process.env.NASHRA_DISABLE_ALL_SENDS !== '1',
+      recurring: process.env.NASHRA_RECURRING_ENABLED === '1' && process.env.NASHRA_DISABLE_ALL_SENDS !== '1',
     };
-    const [workspaceRes, telegramRes, queueRes, billingRes, guardRes, reliabilityRes] = await Promise.allSettled([
+    const [workspaceRes, telegramRes, queueRes, billingRes, guardRes, reliabilityRes, plansRes] = await Promise.allSettled([
       db.from('workspaces').select('data').eq('user_id', user.id).maybeSingle(),
       db.from('telegram_accounts').select('session_ciphertext').eq('user_id', user.id).maybeSingle(),
       db.from('delivery_queue').select('status,scheduled_at,attempted_at').eq('user_id', user.id)
@@ -34,6 +35,7 @@ export async function GET() {
       db.from('nashra_subscriptions').select('status').eq('user_id', user.id).maybeSingle(),
       db.rpc('nashra_v31_guard_version'),
       db.rpc('nashra_v32_migration_ready'),
+      db.from('nashra_plans').select('slug,max_telegram_accounts,max_active_groups,max_monthly_sends,max_pending_schedules'),
     ]);
 
     let campaignStats = { total: 0, ready: 0, blocked: 0 };
@@ -75,14 +77,50 @@ export async function GET() {
     if (billingRes.status === 'rejected' || billingRes.value.error) {
       checks.push(check('subscription', 'error', 'Abonnements indisponibles. Vérifiez SQL 006.', '/abonnement'));
     } else checks.push(check('subscription', 'ok', 'Lecture de votre abonnement disponible.', '/abonnement'));
-    checks.push(check('worker', configuration.worker ? 'ok' : 'warning',
-      configuration.worker ? 'Secrets serveur présents. Cron non exécuté pendant le diagnostic.' :
-        'Service role ou secret Cron manquant. Envois automatiques non prêts.'));
+    const expectedPlans = {
+      free: [1, 3, 30, 5],
+      pro: [1, 30, 1000, 150],
+      business: [1, 30, 2000, 300],
+    } as const;
+    if (plansRes.status === 'rejected' || plansRes.value.error || !plansRes.value.data) {
+      checks.push(check('plans', 'warning', 'Catalogue des quotas inaccessible : vérifier SQL 015 et 025.', '/abonnement'));
+    } else {
+      const rows = plansRes.value.data;
+      const matches = Object.entries(expectedPlans).every(([slug, expected]) => {
+        const plan = rows.find(row => row.slug === slug);
+        return plan && [plan.max_telegram_accounts, plan.max_active_groups,
+          plan.max_monthly_sends, plan.max_pending_schedules].every((value, index) => value === expected[index]);
+      });
+      checks.push(check('plans', matches ? 'ok' : 'warning', matches
+        ? 'Free, Pro et Business conformes aux limites prévues (SQL 025).'
+        : 'Les quotas en base ne correspondent pas aux forfaits : appliquer SQL 025.', '/abonnement'));
+    }
+    checks.push(check('worker', 'warning', configuration.worker
+      ? 'Secrets du moteur présents. Son exécution réelle et les déclencheurs Cron restent à contrôler.'
+      : 'Service role ou secret Cron manquant : moteur automatique non prêt.', '/operations'));
     checks.push(check('publishing', configuration.publishing ? 'warning' : 'disabled',
-      configuration.publishing ? 'Deux flags de publication actifs : vérifier le Cron et les autorisations.' : 'Publication automatique désactivée.'));
-    checks.push(check('billing', configuration.billing && configuration.stripeTest ? 'ok' : 'disabled',
-      configuration.billing && configuration.stripeTest ? 'Stripe test configuré. Aucun paiement déclenché.' :
-        'Facturation test désactivée ou incomplète.', '/abonnement'));
+      configuration.publishing
+        ? 'Publication activée dans la configuration. Tester le Cron et les autorisations avant tout envoi.'
+        : process.env.NASHRA_DISABLE_ALL_SENDS === '1'
+          ? 'Envois suspendus par l’interrupteur de sécurité global.'
+          : 'Publication automatique désactivée dans la configuration.', '/automatisation'));
+    checks.push(check('recurring', configuration.recurring ? 'warning' : 'disabled',
+      configuration.recurring
+        ? 'Récurrence activée dans la configuration. Vérifier le Cron récurrent et SQL 018.'
+        : 'Réapprovisionnement automatique des récurrences désactivé.', '/campagnes'));
+    const stripeMode = billingMode();
+    if (stripeMode === 'disabled') {
+      checks.push(check('billing', 'disabled', 'Facturation Stripe non activée ou configuration incomplète.', '/abonnement'));
+    } else {
+      const priceCount = (['pro', 'business'] as const).flatMap(tier =>
+        (['month', 'year'] as const).map(interval => configuredPrice(tier, interval))
+      ).filter(Boolean).length;
+      const webhookConfigured = Boolean(process.env.STRIPE_WEBHOOK_SECRET?.startsWith('whsec_'));
+      const priceStatus = `${priceCount}/4 identifiants de prix configurés`;
+      checks.push(check('billing', 'warning',
+        `Stripe ${stripeMode === 'live' ? 'production' : 'test'} configuré ; ${priceStatus}${webhookConfigured ? '' : ' ; secret webhook absent'}. ` +
+        'Le diagnostic ne contacte pas Stripe et ne valide pas la réception des webhooks.', '/abonnement'));
+    }
     // Storage requires a signed write or elevated bucket privileges; do not claim it is ready.
     checks.push(check('storage', 'warning', 'Stockage photo non testé ici. Vérifier avec une image non sensible.', '/annonces'));
     return NextResponse.json({ generatedAt: new Date().toISOString(), checks, campaignStats,

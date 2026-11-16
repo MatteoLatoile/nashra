@@ -86,7 +86,8 @@ export async function getQuotaSnapshot(userId: string): Promise<{
   const utcMonth = `${first.getUTCFullYear()}-${String(first.getUTCMonth()+1).padStart(2,'0')}-01`;
   const [entitlements, groups, account, pending, monthly, catalog] = await Promise.all([
     db.rpc('nashra_effective_plan', { p_user_id: userId }),
-    db.from('workspaces').select('data').eq('user_id',userId).maybeSingle(),
+    // Fetch only the destinations JSON, not every announcement/campaign/activity.
+    db.from('workspaces').select('destinations:data->destinations').eq('user_id',userId).maybeSingle(),
     db.from('telegram_accounts').select('session_ciphertext').eq('user_id',userId).maybeSingle(),
     db.from('delivery_queue').select('id',{head:true,count:'exact'}).eq('user_id',userId)
       .not('job_key','like','manual:%').in('status',['held','approved','processing','telegram_scheduled']),
@@ -98,12 +99,12 @@ export async function getQuotaSnapshot(userId: string): Promise<{
     throw new Error('Quotas indisponibles : vérifiez les migrations SQL 015 et 016.');
   }
   const plan = entitlements.data[0] as QuotaPlan;
-  const dests = groups.data?.data?.destinations;
+  const dests = groups.data?.destinations;
   return {
     tier: plan.plan_slug,
     usage: {
       telegramAccounts: { used: account.data?.session_ciphertext ? 1 : 0, limit: plan.max_telegram_accounts },
-      activeGroups: { used: Array.isArray(dests) ? dests.filter((d: { authorized?: unknown }) => d?.authorized === true).length : 0,
+      activeGroups: { used: Array.isArray(dests) ? dests.filter(d => d !== null && typeof d === 'object' && !Array.isArray(d) && 'authorized' in d && d.authorized === true).length : 0,
         limit: plan.max_active_groups },
       monthlySends: { used: monthly.data?.allocated_sends ?? 0,
         confirmed: monthly.data?.confirmed_sends ?? 0, limit: plan.max_monthly_sends, monthUtc: utcMonth },

@@ -1,4 +1,5 @@
 'use client';
+import { readable, type Notice, type Tone } from '@/lib/feedback';
 import { isLocale, localeForIntl } from '@/lib/i18n';
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -33,7 +34,7 @@ type AddAnnouncementInput = Omit<Announcement, 'id' | 'createdAt'>;
 type AddDestinationInput = Omit<Destination, 'id' | 'createdAt'>;
 type AddCampaignInput = Omit<Campaign, 'id' | 'createdAt' | 'status'>;
 type AppContextType = {
-  data: AppData; ready: boolean; toast: string | null; cloudMode: boolean; syncStatus: 'local' | 'loading' | 'synced' | 'saving' | 'error'; syncError: string | null;
+  data: AppData; ready: boolean; toast: Notice | null; cloudMode: boolean; syncStatus: 'local' | 'loading' | 'synced' | 'saving' | 'error'; syncError: string | null;
   retrySync: () => void; importLocalDemo: () => boolean;
   acceptServerWorkspace: (next: AppData) => void;
   addAnnouncement: (a: AddAnnouncementInput) => void;
@@ -49,7 +50,7 @@ type AppContextType = {
   removeCampaign: (id: string) => void;
   toggleCampaign: (id: string) => void;
   resetDemo: () => void;
-  notify: (text: string) => void;
+  notify: (text: string, tone?: Tone) => void;
 };
 
 const STORAGE_KEY = 'nashra_demo_v1';
@@ -93,7 +94,7 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children, userId }: { children: React.ReactNode; userId?: string }) {
   const [data, setData] = useState<AppData>(empty);
   const [ready, setReady] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Notice | null>(null);
   const [syncStatus, setSyncStatus] = useState<'local' | 'loading' | 'synced' | 'saving' | 'error'>(userId ? 'loading' : 'local');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -161,7 +162,7 @@ export function AppProvider({ children, userId }: { children: React.ReactNode; u
       }).catch(error => {
         if (index === saveNumber.current) {
           setSyncStatus('error');
-          const detail = error instanceof Error ? error.message : 'Sauvegarde cloud impossible.';
+          const detail = readable(error, 'Sauvegarde cloud impossible.');
           setSyncError(detail.includes('NASHRA_ACTIVE_GROUP_QUOTA_EXCEEDED')
             ? 'Limite de groupes actifs atteinte : consultez /abonnement. La modification n’a pas été enregistrée.' : detail);
         }
@@ -184,7 +185,7 @@ export function AppProvider({ children, userId }: { children: React.ReactNode; u
     setSyncError(null);
     setSyncStatus(userId ? 'synced' : 'local');
   }
-  function notify(message: string) { setToast(message); }
+  function notify(message: string, tone: Tone = 'success') { setToast({ text: message, tone }); }
   function update(action: (previous: AppData) => AppData) { setData(action); }
   const log = (title: string, detail: string): Activity => ({ id: newId(), title, detail, createdAt: now() });
   function addAnnouncement(a: AddAnnouncementInput) {
@@ -264,13 +265,13 @@ export function AppProvider({ children, userId }: { children: React.ReactNode; u
     if (!userId) return false;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) { notify('Aucune ancienne donnée locale trouvée.'); return false; }
+      if (!raw) { notify('Aucune ancienne donnée locale trouvée.', 'info'); return false; }
       const imported = JSON.parse(raw) as AppData;
       if (!Array.isArray(imported.announcements) || !Array.isArray(imported.destinations) || !Array.isArray(imported.campaigns) || !Array.isArray(imported.activity)) throw new Error('Données locales invalides.');
       setData(imported);
       notify('Anciennes données importées. Synchronisation cloud en cours.');
       return true;
-    } catch { notify('Impossible de lire les anciennes données locales.'); return false; }
+    } catch { notify('Impossible de lire les anciennes données locales.', 'error'); return false; }
   }
 
   if (loadError) return <div className="cloud-error-screen"><div><strong>Impossible d’ouvrir votre espace Nashra</strong><p>{loadError}</p><p>Vérifiez les clés Supabase, l’exécution du script SQL et votre connexion réseau.</p><button onClick={() => setLoadAttempt(x => x + 1)} className="btn btn-primary">Réessayer</button></div></div>;

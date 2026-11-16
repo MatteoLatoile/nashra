@@ -40,6 +40,7 @@ export default function SupervisionPage() {
     {error && <div className="n25-error" role="alert">{error}</div>}
     {loading && !data ? <SectionSkeleton variant="table" /> : data && <>
       <div className="n32-stat-grid">
+        <article><div><CalendarClock size={17}/>{t('Programmés sur Telegram')}</div><strong>{data.counts.telegram_scheduled ?? 0}</strong></article>
         <article><div><CheckCircle2 size={17}/>{t('Envois confirmés')}</div><strong>{data.counts.sent ?? 0}</strong></article>
         <article><div><CalendarClock size={17}/>{t('En attente de validation')}</div><strong>{(data.counts.held ?? 0) + (data.counts.approved ?? 0)}</strong></article>
         <article className={data.requiresManualReview ? 'n32-critical' : ''}><div><AlertTriangle size={17}/>{t('À vérifier manuellement')}</div><strong>{data.requiresManualReview}</strong></article>

@@ -7,15 +7,33 @@ export const dynamic = 'force-dynamic';
 
 type PriceView = { available: boolean; amount: number | null; currency: string | null;
   interval: string | null; intervalCount: number };
+// Only cache verified public price metadata; checkout still validates real payments.
+// Serverless cold starts may still need Stripe, but warm invocations avoid four API calls.
+const priceCache = new Map<string, { until: number; result: PriceView }>();
+const pendingPrices = new Map<string, Promise<PriceView>>();
+const PRICE_CACHE_TTL = 5 * 60_000;
+
 async function priceView(tier: PaidTier, interval: BillingInterval, expectedCents: number | null): Promise<PriceView> {
   const price = configuredPrice(tier, interval);
-  const absent = { available: false, amount: null, currency: null, interval: null, intervalCount: 1 };
+  const absent: PriceView = { available: false, amount: null, currency: null, interval: null, intervalCount: 1 };
   if (!price || expectedCents === null) return absent;
-  try {
-    const remote = await stripeGet(`prices/${price}`);
-    if (remote.id !== price || !validStripePrice(remote, interval, expectedCents)) return absent;
-    return { available: true, amount: expectedCents, currency: 'usd', interval, intervalCount: 1 };
-  } catch { return absent; }
+  const key = `${price}:${interval}:${expectedCents}`;
+  const saved = priceCache.get(key);
+  if (saved && saved.until > Date.now()) return saved.result;
+  const existing = pendingPrices.get(key);
+  if (existing) return existing;
+  const pending = (async () => {
+    try {
+      const remote = await stripeGet(`prices/${price}`);
+      const result: PriceView = remote.id === price && validStripePrice(remote, interval, expectedCents)
+        ? { available: true, amount: expectedCents, currency: 'usd', interval, intervalCount: 1 } : absent;
+      priceCache.set(key, { until: Date.now() + PRICE_CACHE_TTL, result });
+      return result;
+    } catch { return absent; }
+  })();
+  pendingPrices.set(key, pending);
+  try { return await pending; }
+  finally { if (pendingPrices.get(key) === pending) pendingPrices.delete(key); }
 }
 
 export async function GET() {

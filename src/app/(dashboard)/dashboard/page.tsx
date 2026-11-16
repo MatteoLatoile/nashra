@@ -52,16 +52,23 @@ export default function Dashboard() {
     return () => controller.abort();
   }, []);
 
-  const now = Date.now();
-  const nextSlot = (campaign: (typeof data.campaigns)[number]) =>
-    (campaign.scheduledDates?.length ? campaign.scheduledDates : [campaign.scheduledAt])
-      .filter((at) => at && Number.isFinite(Date.parse(at)) && Date.parse(at) > now)
-      .sort()[0];
-  const campaigns = data.campaigns
-    .filter((campaign) => campaign.status === 'scheduled' && nextSlot(campaign))
-    .sort((a, b) => Date.parse(nextSlot(a)!) - Date.parse(nextSlot(b)!));
-  const allowed = data.destinations.filter((d) => d.authorized).length;
-  const publishedCount = data.activity.filter((a) => a.title === 'Publication Telegram effectuée').length;
+  const { campaigns, allowed, publishedCount } = useMemo(() => {
+    const now = Date.now();
+    const nextSlot = (campaign: (typeof data.campaigns)[number]) =>
+      (campaign.scheduledDates?.length ? campaign.scheduledDates : [campaign.scheduledAt])
+        .filter((at) => at && Number.isFinite(Date.parse(at)) && Date.parse(at) > now)
+        .sort()[0];
+    const campaigns = data.campaigns
+      .filter((campaign) => campaign.status === 'scheduled' && nextSlot(campaign))
+      .sort((a, b) => Date.parse(nextSlot(a)!) - Date.parse(nextSlot(b)!));
+    return { campaigns, allowed: data.destinations.filter((d) => d.authorized).length,
+      publishedCount: data.activity.filter((a) => a.title === 'Publication Telegram effectuée').length };
+  }, [data.campaigns, data.destinations, data.activity]);
+  const nextSlot = (campaign: (typeof data.campaigns)[number]) => {
+    const now = Date.now();
+    return (campaign.scheduledDates?.length ? campaign.scheduledDates : [campaign.scheduledAt])
+      .filter((at) => at && Number.isFinite(Date.parse(at)) && Date.parse(at) > now).sort()[0];
+  };
   const alerts = probe.kind === 'success' ? probe.value.requiresManualReview ?? 0 : null;
 
   const readySteps = [

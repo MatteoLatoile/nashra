@@ -15,7 +15,8 @@ type Result = { generatedAt?: string; checks?: Check[]; campaignStats?: { total:
 const labels: Record<string, string> = {
   workspace: 'Espace de travail', campaigns: 'Campagnes', telegram: 'Compte Telegram', queue: 'File de publication',
   queueLimit: 'Limite du rapport', migration: 'Sécurité de la file', subscription: 'Abonnements', worker: 'Moteur serveur',
-  publishing: 'Publication automatique', billing: 'Paiements Stripe', storage: 'Stockage des photos',
+  publishing: 'Publication automatique', recurring: 'Programmations récurrentes',
+  billing: 'Paiements Stripe', plans: 'Quotas des forfaits', storage: 'Stockage des photos',
 };
 const states: Record<State, string> = { ok: 'Opérationnel', warning: 'À vérifier', error: 'Problème', disabled: 'Désactivé' };
 const icons = { ok: CircleCheck, warning: CircleAlert, error: CircleAlert, disabled: CircleHelp };

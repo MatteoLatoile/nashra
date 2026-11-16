@@ -31,6 +31,21 @@ function matches(rule: RecurringRule, c: Campaign | undefined) {
     && JSON.stringify(c.destinationIds) === JSON.stringify(rule.destination_ids);
 }
 
+/** Compare immutable server rule and workspace campaign; never silently rewrite the rule. */
+export function recurringMismatch(rule: RecurringRule, c: Campaign | undefined): string[] {
+  if (!c) return ['campagne absente'];
+  const reasons: string[] = [];
+  const interval = c.recurrence?.mode === 'interval' ? c.recurrence : null;
+  if (!interval) reasons.push('répétition absente');
+  if (c.announcementId !== rule.announcement_id) reasons.push('annonce différente');
+  if (c.scheduledAt !== rule.anchor_at) reasons.push('date de départ différente');
+  if (interval?.intervalDays !== rule.interval_days) reasons.push('intervalle différent');
+  if (interval?.timeZone !== rule.time_zone) reasons.push('fuseau horaire différent');
+  if ((interval?.until || null) !== (rule.until_day || null)) reasons.push('date de fin différente');
+  if (JSON.stringify(c.destinationIds) !== JSON.stringify(rule.destination_ids)) reasons.push('destinations différentes');
+  return reasons;
+}
+
 export type FillResult = { scheduled: number; existing: number; problem: string | null };
 export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN): Promise<FillResult> {
   const result: FillResult = { scheduled: 0, existing: 0, problem: null };
@@ -43,7 +58,7 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
   const data = ws?.data as AppData | undefined;
   const campaign = data?.campaigns?.find(c => c.id === rule.id);
   if (wsError || !data || !matches(rule,campaign) || !data.announcements || !data.destinations) {
-    result.problem = 'Règle modifiée ou absente de l’espace de travail : programmation suspendue.';
+    result.problem = wsError || !data ? 'Espace de travail indisponible : programmation suspendue.' : 'Règle et campagne désynchronisées (' + recurringMismatch(rule,campaign).join(', ') + '). Programmation suspendue.';
     await markRule(rule.id, 'paused', result.problem);
     return result;
   }
@@ -162,30 +177,42 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
 
 export async function cancelRecurringFuture(rule: RecurringRule, workspace: AppData, session: string) {
   const store = db();
+  // Include uncertain/in-flight future requests. They cannot be safely erased from
+  // Telegram without confirmed native IDs, so report them rather than claiming success.
   const { data: rows, error } = await store.from('delivery_queue')
     .select('id,destination_id,scheduled_at,telegram_scheduled_ids,job_key,status')
-    .eq('user_id',rule.user_id).eq('campaign_id',rule.id).eq('status','telegram_scheduled')
+    .eq('user_id',rule.user_id).eq('campaign_id',rule.id)
+    .in('status',['telegram_scheduled','needs_review','processing'])
     .gt('scheduled_at',new Date().toISOString()).limit(501);
   if (error || !rows || rows.length > 500) throw new DeliveryBlocked('Impossible de charger toutes les programmations à annuler.');
+  const unverified = rows.filter(row => row.status !== 'telegram_scheduled').length;
+  const pending = rows.filter(row => row.status === 'telegram_scheduled');
+  const campaign = workspace.campaigns.find(c => c.id === rule.id);
   const failures: string[] = [];
-  for (const row of rows) {
+  for (const row of pending) {
     if (Date.parse(row.scheduled_at) <= Date.now()+30_000) {
       failures.push(row.destination_id); // Too close to safely cancel.
       continue;
     }
-    const dest = workspace.destinations.find(d => d.id === row.destination_id);
-    if (!dest?.handle) { failures.push(row.destination_id); continue; }
+    // Destination IDs are mutable. Only the immutable chat ID captured when the
+    // campaign was created may be used for deletion of existing Telegram messages.
+    const originalChatId = campaign?.destinationHandles?.[row.destination_id];
+    if (!originalChatId || !/^-?\d{3,30}$/.test(originalChatId)) {
+      failures.push(row.destination_id);
+      continue;
+    }
     try {
-      await cancelTelegramSchedule(session,dest.handle,row.telegram_scheduled_ids as number[] || []);
+      await cancelTelegramSchedule(session,originalChatId,row.telegram_scheduled_ids as number[] || []);
       const { error: updateError } = await store.from('delivery_queue').update({ status:'cancelled',
-        finished_at:new Date().toISOString(),updated_at:new Date().toISOString() }).eq('id',row.id).eq('status','telegram_scheduled');
+        finished_at:new Date().toISOString(),updated_at:new Date().toISOString() })
+        .eq('id',row.id).eq('user_id',rule.user_id).eq('status','telegram_scheduled');
       if (updateError) throw updateError;
       const { data: reservation } = await store.from('nashra_send_reservations').select('id,status')
         .eq('user_id',rule.user_id).eq('idempotency_key',row.job_key).maybeSingle();
       if (reservation?.status === 'reserved') await finalizeSend(rule.user_id,reservation.id,'released');
     } catch { failures.push(row.destination_id); }
   }
-  return { cancelled:rows.length-failures.length, failures:failures.length };
+  return { cancelled: pending.length - failures.length, failures: failures.length, unverified };
 }
 
 /** Can be run by a daily authenticated free-tier cron. Always pre-schedule days ahead. */

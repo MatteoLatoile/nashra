@@ -1,4 +1,5 @@
 'use client';
+import { readable } from '@/lib/feedback';
 import { SearchableSelect } from '@/components/searchable-select';
 import { PageSkeleton } from '@/components/nashra-skeleton';
 
@@ -32,7 +33,7 @@ type ImportResult = {
   ok: true; text: string; imageUrls: string[];
   photoCount: number; skipped: number; warnings: string[]; albumCount: number;
 };
-type Feedback = { good: boolean; text: string; warning?: string; info?: boolean };
+type Feedback = { good: boolean; text: string; warning?: string; info?: boolean; caution?: boolean };
 type AnnouncementTab = 'compose' | 'import';
 type DestinationTab = 'telegram' | 'manual';
 
@@ -128,7 +129,7 @@ export default function TelegramPage() {
       const value = await run();
       onSuccess?.(value);
     } catch (error) {
-      setFeedback({ good: false, text: error instanceof Error ? error.message : 'Erreur inconnue.' });
+      setFeedback({ good: false, text: readable(error, 'Réponse Telegram illisible. Actualisez la page pour vérifier le résultat.') });
     } finally {
       setBusy('');
     }
@@ -161,7 +162,7 @@ export default function TelegramPage() {
     ), result => {
       if (result.needsPassword) {
         setLoginStep('password');
-        setFeedback({ good: true, text: 'Saisissez votre mot de passe Telegram à deux étapes.' });
+        setFeedback({ good: true, info: true, text: 'Saisissez votre mot de passe Telegram à deux étapes.' });
       } else if (result.connected) {
         setCode(''); setPassword(''); setLoginStep('phone');
         void refreshStatus();
@@ -262,11 +263,11 @@ export default function TelegramPage() {
   function saveTelegramDestination() {
     if (!selectedChat || !telegramAuthorized || busy || topicBusy || topicError || !topics || !forumSelectionValid) return;
     if (existingDestination && topicChanged && data.campaigns.some(c => c.status === 'scheduled' && c.destinationIds.includes(existingDestination.id))) {
-      setFeedback({ good:false, text:'Une campagne active utilise ce groupe. Annulez ses messages déjà programmés avant de changer de rubrique.' });
+      setFeedback({ good:false, caution:true, text:'Une campagne active utilise ce groupe. Annulez ses messages déjà programmés avant de changer de rubrique.' });
       return;
     }
     if (!validChatId.test(selectedChat.id)) {
-      setFeedback({ good: false, text: 'Identifiant du groupe Telegram invalide.' });
+      setFeedback({ good: false, caution: true, text: 'Identifiant du groupe Telegram invalide.' });
       return;
     }
     if (destinationUnchanged) return;
@@ -290,15 +291,15 @@ export default function TelegramPage() {
     const handle = manualHandle.trim();
     if (!name) return;
     if (handle && !validChatId.test(handle)) {
-      setFeedback({ good: false, text: 'Utilisez un identifiant Telegram numérique (pas un @nom ni un lien t.me).' });
+      setFeedback({ good: false, caution: true, text: 'Utilisez un identifiant Telegram numérique (pas un @nom ni un lien t.me).' });
       return;
     }
     if (manualAuthorized && !handle) {
-      setFeedback({ good: false, text: 'Un identifiant Telegram numérique est obligatoire pour autoriser la publication.' });
+      setFeedback({ good: false, caution: true, text: 'Un identifiant Telegram numérique est obligatoire pour autoriser la publication.' });
       return;
     }
     if (handle && data.destinations.some(d => d.handle === handle)) {
-      setFeedback({ good: false, text: 'Cette destination est déjà enregistrée. Gérez-la dans Destinations.' });
+      setFeedback({ good: false, caution: true, text: 'Cette destination est déjà enregistrée. Gérez-la dans Destinations.' });
       return;
     }
     addDestination({ name, handle, category: manualCategory, authorized: manualAuthorized });
@@ -508,13 +509,13 @@ export default function TelegramPage() {
       </div>
 
       {feedback && <div className={styles.feedbackStack}>
-        <div className={`${styles.feedback} ${feedback.info ? styles.feedbackInfo : feedback.good ? styles.feedbackGood : styles.feedbackError}`} role="status">
+        <div className={`${styles.feedback} ${feedback.caution ? styles.feedbackWarning : feedback.info ? styles.feedbackInfo : feedback.good ? styles.feedbackGood : styles.feedbackError}`} role={!feedback.good && !feedback.caution ? 'alert' : 'status'}>
           <span>{feedback.good && !feedback.info ? <CheckCircle2 size={19}/> : <Info size={19}/>}</span>
           <p>{feedback.text}</p>
           <button type="button" aria-label="Fermer le message" onClick={() => setFeedback(null)}><X size={16}/></button>
         </div>
         {feedback.warning && <div className={`${styles.feedback} ${styles.feedbackWarning}`} role="status">
-          <span><Info size={19}/></span><p>{feedback.warning}</p>
+          <span><Info size={19}/></span><p>{readable(feedback.warning, 'Vérifiez le résultat de l’import.')}</p>
         </div>}
       </div>}
 
