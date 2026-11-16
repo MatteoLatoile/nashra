@@ -91,21 +91,29 @@ function demoData(): AppData {
 const empty: AppData = { announcements: [], destinations: [], campaigns: [], activity: [] };
 const AppContext = createContext<AppContextType | null>(null);
 
-export function AppProvider({ children, userId }: { children: React.ReactNode; userId?: string }) {
-  const [data, setData] = useState<AppData>(empty);
-  const [ready, setReady] = useState(false);
+// The authenticated server layout can preload the user's workspace to avoid a
+// second browser-side round trip before the dashboard becomes visible.
+// undefined means preload failed: fall back to the existing client request.
+export function AppProvider({ children, userId, initialWorkspace }: {
+  children: React.ReactNode; userId?: string; initialWorkspace?: AppData;
+}) {
+  const [data, setData] = useState<AppData>(() => initialWorkspace ?? empty);
+  const [ready, setReady] = useState(() => Boolean(initialWorkspace));
   const [toast, setToast] = useState<Notice | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'local' | 'loading' | 'synced' | 'saving' | 'error'>(userId ? 'loading' : 'local');
+  const [syncStatus, setSyncStatus] = useState<'local' | 'loading' | 'synced' | 'saving' | 'error'>(userId ? (initialWorkspace ? 'synced' : 'loading') : 'local');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [syncAttempt, setSyncAttempt] = useState(0);
-  const lastSavedRef = useRef('');
+  const lastSavedRef = useRef(initialWorkspace ? JSON.stringify(initialWorkspace) : '');
   const writeQueue = useRef<Promise<void>>(Promise.resolve());
   const saveNumber = useRef(0);
 
   useEffect(() => {
     let live = true;
+    // Server preloading is scoped to the verified account (the provider key is
+    // the user ID). Do not refetch or blank out the already hydrated dashboard.
+    if (userId && initialWorkspace && loadAttempt === 0) return;
     setReady(false);
     setLoadError(null);
     if (!userId) {
@@ -140,7 +148,7 @@ export function AppProvider({ children, userId }: { children: React.ReactNode; u
     };
     void load();
     return () => { live = false; };
-  }, [userId, loadAttempt]);
+  }, [userId, loadAttempt, initialWorkspace]);
 
   useEffect(() => {
     if (!ready) return;
