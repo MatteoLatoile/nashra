@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // When a job was recorded, we must never silently claim it was not sent.
     if (recorded) return NextResponse.json({ error: 'Résultat incertain : vérifiez Telegram et votre historique, sans republier automatiquement.', uncertain: true }, { status: 500, headers: noStore });
-    const message = err instanceof Error ? err.message : 'Envoi non disponible. Vérifiez la connexion et les paramètres du serveur.';
-    return NextResponse.json({ error: message }, { status: 400, headers: noStore });
+    const message = err instanceof DeliveryBlocked ? err.message : 'Envoi indisponible : vérifiez la connexion et le diagnostic Nashra.';
+    return NextResponse.json({ error: message }, { status: err instanceof DeliveryBlocked ? 400 : 500, headers: noStore });
   }
 }

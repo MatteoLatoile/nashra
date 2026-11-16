@@ -99,7 +99,25 @@ export function apiError(error: unknown) {
     return 'Le groupe ou le message interdit cet envoi, ou impose un délai. Respectez ses règles.';
   }
   if (/PHONE_CODE_INVALID|PHONE_CODE_EXPIRED|PASSWORD_HASH_INVALID/.test(message)) return 'Code ou mot de passe Telegram incorrect ou expiré.';
-  return message;
+  // Only explicitly safe, user-facing validation messages may leave the server.
+  // Upstream Telegram/Supabase errors can include configuration, query or session details.
+  const userMessages = [
+    /^Connectez-vous à votre compte Nashra pour continuer\.$/,
+    /^Requête refusée : origine inattendue\.$/,
+    /^Saisissez votre numéro au format international/,
+    /^Patientez au moins 90 secondes/,
+    /^Demandez d’abord un code Telegram\.$/,
+    /^Le code a expiré\./,
+    /^Saisissez votre mot de passe Telegram/,
+    /^Saisissez le code reçu sur Telegram\.$/,
+    /^Autorisation Telegram non finalisée\.$/,
+    /^Connectez d’abord votre compte personnel Telegram\.$/,
+    /^Session Telegram expirée : reconnectez votre compte\.$/,
+    /^Identifiant Telegram invalide\.$/,
+    /^Groupe Telegram introuvable ou inaccessible/,
+  ];
+  return userMessages.some(pattern => pattern.test(message))
+    ? message : 'Opération indisponible. Réessayez ou consultez le diagnostic Nashra.';
 }
 /**
  * Le getDialogs() haut niveau de teleproto peut planter lorsqu'un dialogue

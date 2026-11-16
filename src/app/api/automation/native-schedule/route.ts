@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       error: errors.join(' ') || (scheduled ? '' : 'Aucune programmation confirmée par Telegram.') },
       { status: scheduled > 0 ? 200 : 409, headers });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Programmation impossible : vérifiez Supabase et la connexion Telegram.';
+    const message = err instanceof DeliveryBlocked ? err.message : 'Programmation indisponible : vérifiez le diagnostic Nashra.';
     return errorResponse(message, err instanceof DeliveryBlocked ? 400 : 500);
   }
 }
