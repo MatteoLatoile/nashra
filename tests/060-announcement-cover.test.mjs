@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../src/app/(dashboard)/annonces/page.tsx', import.meta.url), 'utf8');
 
 test('060: first visible announcement with an image is prioritized', () => {
-  assert.match(src, /const firstCoverId = useMemo\(\(\) => visibleAnnouncements\.find\(a => imageUrls\(a\)\.length > 0\)\?\.id/);
-  assert.match(src, /loading=\{a\.id === firstCoverId \? 'eager' : 'lazy'\}/);
+  assert.match(src, /const firstCoverId = initialCoverIds\[0\]/);
+  assert.match(src, /loading=\{earlyCoverIds\.has\(a\.id\) \? 'eager' : 'lazy'\}/);
   assert.match(src, /fetchPriority=\{a\.id === firstCoverId \? 'high' : 'auto'\}/);
 });
 

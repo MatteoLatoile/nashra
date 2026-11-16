@@ -23,8 +23,9 @@ test('Les cartes affichent la miniature et reviennent à l’original en cas d�
   assert.match(page, /a\.thumbnailUrls\?\.\[imageUrls\(a\)\[0\]\] \|\| imageUrls\(a\)\[0\]/);
   assert.match(page, /onError=\{event =>/);
 });
-test('Priorité limitée à la première carte, les suivantes restent lazy', () => {
-  assert.match(page, /loading=\{a\.id === firstCoverId \? 'eager' : 'lazy'\}/);
+test('Priorité limitée aux trois premières couvertures, les suivantes restent lazy', () => {
+  assert.match(page, /loading=\{earlyCoverIds\.has\(a\.id\) \? 'eager' : 'lazy'\}/);
+  assert.match(page, /fetchPriority=\{a\.id === firstCoverId \? 'high' : 'auto'\}/);
 });
 test('Anciennes annonces optimisées à la demande, par petits lots', () => {
   assert.match(page, /legacyCovers\.slice\(0, 5\)/);

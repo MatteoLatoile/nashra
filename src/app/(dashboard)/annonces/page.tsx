@@ -133,7 +133,12 @@ export default function AnnouncementsPage() {
   // Prioritize only the first cover that can be the LCP element. On mobile,
   // the library has a single column; the remaining covers stay lazy-loaded.
   // Do not replace the original image URL: Telegram publishing needs the original.
-  const firstCoverId = useMemo(() => visibleAnnouncements.find(a => imageUrls(a).length > 0)?.id, [visibleAnnouncements]);
+  const initialCoverIds = useMemo(() => visibleAnnouncements
+    .filter(a => imageUrls(a).length > 0)
+    .slice(0, 3)
+    .map(a => a.id), [visibleAnnouncements]);
+  const firstCoverId = initialCoverIds[0];
+  const earlyCoverIds = useMemo(() => new Set(initialCoverIds), [initialCoverIds]);
   // Existing announcements stay valid without thumbnails. Only user-initiated
   // optimisation may read old originals; normal page loads never backfill.
   const legacyCovers = useMemo(() => data.announcements.filter(a => {
@@ -260,7 +265,7 @@ export default function AnnouncementsPage() {
     {filtered.length ? <div className={view === 'grid' ? 'n12-grid' : 'n12-grid n12-list'}>
       {visibleAnnouncements.map(a => <article className="n12-card" key={a.id}>
         <button type="button" className="n12-cover" onClick={() => startPreview(a.id)} aria-label={`Prévisualiser ${a.title}`}>
-          {imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={a.id === firstCoverId ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
+          {imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={earlyCoverIds.has(a.id) ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
         </button>
         <div className="n12-card-body"><div className="n12-card-top"><Badge>{t(a.category)}</Badge><span className="n12-source-chip">{a.sourceMessageId ? 'Telegram' : 'Manuelle'}</span></div>
           <h3>{a.title}</h3><p>{a.body}</p>
