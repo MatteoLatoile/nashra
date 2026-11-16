@@ -1,5 +1,3 @@
-import catalog from './catalog.json';
-
 export const LANGUAGES = [
   { code: 'fr', native: 'Français', english: 'French', direction: 'ltr' },
   { code: 'en', native: 'English', english: 'English', direction: 'ltr' },
@@ -32,10 +30,25 @@ export function detectDeviceLanguage(): Locale {
   return 'en';
 }
 
-const translations = catalog as Record<string, Partial<Record<Exclude<Locale, 'fr'>, string>>>;
+type Catalog = Record<string, Partial<Record<Exclude<Locale, 'fr'>, string>>>;
+let translations: Catalog | null = null;
+let loadingCatalog: Promise<void> | null = null;
+
+/** The sizeable catalog is optional for French users and should not be in the initial bundle. */
+export function hasTranslationCatalog(): boolean { return translations !== null; }
+
+export function loadTranslationCatalog(): Promise<void> {
+  if (translations) return Promise.resolve();
+  if (!loadingCatalog) {
+    loadingCatalog = import('./catalog.json')
+      .then(module => { translations = module.default as Catalog; })
+      .catch(error => { loadingCatalog = null; throw error; });
+  }
+  return loadingCatalog;
+}
 export function translateFrench(source: string, locale: Locale): string | undefined {
   if (locale === 'fr') return source;
-  const entry = translations[source];
+  const entry = translations?.[source];
   return entry?.[locale] || entry?.en;
 }
 

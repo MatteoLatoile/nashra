@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { detectDeviceLanguage, isChoice, isLocale, translateFrench } from './index';
+import { detectDeviceLanguage, hasTranslationCatalog, isChoice, isLocale, loadTranslationCatalog, translateFrench } from './index';
 import type { Locale, LanguageChoice } from './index';
 
 interface LanguageContextValue {
@@ -22,8 +22,14 @@ const Context = createContext<LanguageContextValue | undefined>(undefined);
 // Keep original French text across locale changes.
 const textCache = new WeakMap<Text, { source: string; applied: string }>();
 const attributeCache = new WeakMap<Element, Record<string, { source: string; applied: string }>>();
-function useLegacyTextBridge(locale: Locale) {
+function useLegacyTextBridge(locale: Locale, catalogVersion: number) {
+  const hasUsedBridge = useRef(false);
   useEffect(() => {
+    // Do not scan/observe the whole page for the default French UI.
+    // Restore the original text once if the user switches back from another language.
+    if (locale === 'fr' && !hasUsedBridge.current) return;
+    if (locale !== 'fr' && !hasTranslationCatalog()) return;
+    if (locale !== 'fr') hasUsedBridge.current = true;
     const blocked = 'script,style,pre,code,textarea,[contenteditable="true"],[translate="no"],[data-nashra-i18n-ignore="true"]';
     let scheduled = false;
     let applying = false;
@@ -153,9 +159,14 @@ function useLegacyTextBridge(locale: Locale) {
     });
     dirty.add(document.body);
     apply();
+    if (locale === 'fr') {
+      // React renders French natively; no ongoing DOM observer needed.
+      observer.disconnect();
+      return;
+    }
     // A route change or async UI update may create new React nodes.
     return () => { observer.disconnect(); if (frame) cancelAnimationFrame(frame); dirty.clear(); };
-  }, [locale]);
+  }, [locale, catalogVersion]);
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -165,7 +176,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const locale: Locale = choice === 'auto' ? device : choice;
-  useLegacyTextBridge(locale);
+  const [catalogVersion, setCatalogVersion] = useState(0);
+  useLegacyTextBridge(locale, catalogVersion);
+
+  useEffect(() => {
+    if (locale === 'fr' || hasTranslationCatalog()) return;
+    let active = true;
+    void loadTranslationCatalog().then(() => {
+      if (active) setCatalogVersion(v => v + 1);
+    }).catch(() => {
+      // Keep the original French text when the optional language catalog is unavailable.
+    });
+    return () => { active = false; };
+  }, [locale]);
 
   useEffect(() => {
     setDevice(detectDeviceLanguage());
@@ -197,7 +220,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       locale === 'ar' ? 'نشرة — إدارة المنشورات' :
       locale === 'ur' ? 'نشرا — پوسٹس کا انتظام' :
       'Nashra — ' + (translateFrench('Mes annonces', locale) || 'Publishing');
-  }, [locale]);
+  }, [locale, catalogVersion]);
 
   const chooseLanguage = useCallback(async (next: LanguageChoice) => {
     if (!isChoice(next)) return;
@@ -217,7 +240,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LanguageContextValue>(() => ({
     locale, choice, device, saving, saveError, chooseLanguage,
     t: (source: string) => translateFrench(source, locale) || source,
-  }), [locale, choice, device, saving, saveError, chooseLanguage]);
+  }), [locale, choice, device, saving, saveError, chooseLanguage, catalogVersion]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
