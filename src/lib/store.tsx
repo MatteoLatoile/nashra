@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
 
 export type Method = 'forward' | 'repost';
-export type Announcement = { id: string; title: string; category: string; body: string; sourceUrl: string; sourceChatId?: string; sourceMessageId?: number; imageUrls?: string[]; tags?: string[]; updatedAt?: string; createdAt: string };
+export type Announcement = { id: string; title: string; category: string; body: string; sourceUrl: string; sourceChatId?: string; sourceMessageId?: number; imageUrls?: string[]; thumbnailUrls?: Record<string, string>; tags?: string[]; updatedAt?: string; createdAt: string };
 export type Destination = { id: string; name: string; handle: string; category: string; authorized: boolean; createdAt: string; topicId?: number; topicTitle?: string };
 // Les anciens champs restent présents pour les pages et données V0.5.
 export type Campaign = {
@@ -40,7 +40,7 @@ type AppContextType = {
   addAnnouncement: (a: AddAnnouncementInput) => void;
   importTelegramAnnouncements: (items: AddAnnouncementInput[]) => number;
   recordPublication: (announcementTitle: string, destinationTitle: string, mode: Method) => void;
-  updateAnnouncement: (id: string, fields: Partial<Pick<Announcement, 'title' | 'category' | 'body' | 'sourceUrl' | 'imageUrls' | 'tags'>>) => void;
+  updateAnnouncement: (id: string, fields: Partial<Pick<Announcement, 'title' | 'category' | 'body' | 'sourceUrl' | 'imageUrls' | 'thumbnailUrls' | 'tags'>>) => void;
   removeAnnouncement: (id: string) => void;
   addDestination: (d: AddDestinationInput) => void;
   updateDestination: (id: string, d: AddDestinationInput) => void;
@@ -211,7 +211,7 @@ export function AppProvider({ children, userId, initialWorkspace }: {
   function recordPublication(announcementTitle: string, destinationTitle: string, mode: Method) {
     update(s => ({ ...s, activity: [log('Publication Telegram effectuée', `${announcementTitle} → ${destinationTitle} · ${mode === 'forward' ? 'transfert' : 'republication'}`), ...s.activity] }));
   }
-  function updateAnnouncement(id: string, fields: Partial<Pick<Announcement, 'title' | 'category' | 'body' | 'sourceUrl' | 'imageUrls' | 'tags'>>) {
+  function updateAnnouncement(id: string, fields: Partial<Pick<Announcement, 'title' | 'category' | 'body' | 'sourceUrl' | 'imageUrls' | 'thumbnailUrls' | 'tags'>>) {
     update(s => ({ ...s,
       announcements: s.announcements.map(a => a.id === id ? { ...a, ...fields, updatedAt: now() } : a),
       activity: [log('Annonce modifiée', fields.title || s.announcements.find(a => a.id === id)?.title || 'Annonce'), ...s.activity],

@@ -3,6 +3,7 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { ImagePlus, LoaderCircle, ShieldCheck, UploadCloud } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { makeThumbnail } from '@/lib/images/client-thumbnail';
 
 const BUCKET = 'nashra-announcement-images';
 const LIMIT_BYTES = 8 * 1024 * 1024;
@@ -19,7 +20,7 @@ export function AnnouncementImageUpload({
 }: {
   currentCount: number;
   maxCount: number;
-  onUploaded: (urls: string[]) => void;
+  onUploaded: (urls: string[], thumbnails: Record<string, string>) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -41,6 +42,7 @@ export function AnnouncementImageUpload({
     }
     setBusy(true);
     const uploaded: string[] = [];
+    const thumbnails: Record<string, string> = {};
     try {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.getUser();
@@ -56,12 +58,26 @@ export function AnnouncementImageUpload({
         if (error) throw error;
         const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(key);
         uploaded.push(publicData.publicUrl);
+        // A failed thumbnail must never invalidate the original image upload.
+        // Storage keys stay scoped to the authenticated user, like originals.
+        try {
+          const thumb = await makeThumbnail(file);
+          if (thumb && thumb.size > 0 && thumb.size < file.size) {
+            const thumbKey = `${data.user.id}/${crypto.randomUUID()}-thumb.webp`;
+            const { error: thumbError } = await supabase.storage.from(BUCKET).upload(thumbKey, thumb, {
+              contentType: 'image/webp', cacheControl: '31536000', upsert: false,
+            });
+            if (!thumbError) {
+              thumbnails[publicData.publicUrl] = supabase.storage.from(BUCKET).getPublicUrl(thumbKey).data.publicUrl;
+            }
+          }
+        } catch { /* Original image remains usable; preview falls back safely. */ }
       }
-      onUploaded(uploaded);
+      onUploaded(uploaded, thumbnails);
       setFeedback(`${uploaded.length} photo${uploaded.length > 1 ? 's' : ''} ajoutée${uploaded.length > 1 ? 's' : ''}. Enregistrez l’annonce pour conserver les liens.`);
     } catch (err) {
       // Keep uploaded links even when a later file fails, preventing silent orphaned uploads.
-      if (uploaded.length) onUploaded(uploaded);
+      if (uploaded.length) onUploaded(uploaded, thumbnails);
       const reason = err instanceof Error ? err.message : 'Erreur inconnue';
       setFeedback(`Import interrompu : ${reason}. Vérifiez que le SQL Storage a été exécuté dans Supabase.`);
     } finally {

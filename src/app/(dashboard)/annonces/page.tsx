@@ -30,9 +30,10 @@ type Editor = {
   body: string;
   sourceUrl: string;
   pictures: string;
+  thumbnails: Record<string, string>;
   tags: string;
 };
-const emptyEditor = (): Editor => ({ title: '', category: 'Immobilier', body: '', sourceUrl: '', pictures: '', tags: '' });
+const emptyEditor = (): Editor => ({ title: '', category: 'Immobilier', body: '', sourceUrl: '', pictures: '', thumbnails: {}, tags: '' });
 
 function imageUrls(a: Announcement) { return Array.isArray(a.imageUrls) ? a.imageUrls : []; }
 function isHttpsImageUrl(value: string): boolean {
@@ -56,6 +57,7 @@ export default function AnnouncementsPage() {
   const deferredQuery = useDeferredValue(query);
   const [visibleCount, setVisibleCount] = useState(24);
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [optimizingPhotos, setOptimizingPhotos] = useState(false);
   const [mediaTab, setMediaTab] = useState<'upload' | 'links'>('upload');
   const [draftPreview, setDraftPreview] = useState(false);
   const [publishing, setPublishing] = useState<Announcement | null>(null);
@@ -132,6 +134,55 @@ export default function AnnouncementsPage() {
   // the library has a single column; the remaining covers stay lazy-loaded.
   // Do not replace the original image URL: Telegram publishing needs the original.
   const firstCoverId = useMemo(() => visibleAnnouncements.find(a => imageUrls(a).length > 0)?.id, [visibleAnnouncements]);
+  // Existing announcements stay valid without thumbnails. Only user-initiated
+  // optimisation may read old originals; normal page loads never backfill.
+  const legacyCovers = useMemo(() => data.announcements.filter(a => {
+    const original = imageUrls(a)[0];
+    const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+    return !!base && !!original && original.startsWith(`${base}/storage/v1/object/public/nashra-announcement-images/`)
+      && !a.thumbnailUrls?.[original];
+  }), [data.announcements]);
+  async function optimizeExistingCovers() {
+    if (optimizingPhotos || !legacyCovers.length || !cloudMode || syncStatus !== 'synced') return;
+    setOptimizingPhotos(true);
+    let done = 0;
+    let failed = 0;
+    try {
+      const [{ createClient }, { makeThumbnail }] = await Promise.all([
+        import('@/lib/supabase/client'), import('@/lib/images/client-thumbnail'),
+      ]);
+      const supabase = createClient();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error('Session indisponible.');
+      // Bounded, sequential and voluntary: never flood Supabase or the network.
+      for (const announcement of legacyCovers.slice(0, 5)) {
+        try {
+          const original = imageUrls(announcement)[0];
+          const response = await fetch(original);
+          if (!response.ok || !response.body) throw new Error('Téléchargement impossible');
+          const length = Number(response.headers.get('content-length') || 0);
+          if (length > 8 * 1024 * 1024) throw new Error('Image trop volumineuse');
+          const blob = await response.blob();
+          if (blob.size > 8 * 1024 * 1024) throw new Error('Image trop volumineuse');
+          const thumb = await makeThumbnail(blob);
+          if (!thumb) throw new Error('Miniature indisponible');
+          const key = `${auth.user.id}/${crypto.randomUUID()}-thumb.webp`;
+          const { error: uploadError } = await supabase.storage.from('nashra-announcement-images').upload(key, thumb, {
+            contentType: 'image/webp', cacheControl: '31536000', upsert: false,
+          });
+          if (uploadError) throw uploadError;
+          const url = supabase.storage.from('nashra-announcement-images').getPublicUrl(key).data.publicUrl;
+          updateAnnouncement(announcement.id, { thumbnailUrls: { ...(announcement.thumbnailUrls || {}), [original]: url } });
+          done++;
+        } catch { failed++; }
+      }
+      notify(`${done} miniature${done > 1 ? 's' : ''} créée${done > 1 ? 's' : ''}${failed ? `, ${failed} ignorée${failed > 1 ? 's' : ''}` : ''}. Aucune photo Telegram modifiée.`, done ? 'success' : 'warning');
+    } catch {
+      notify('Impossible d’optimiser les photos pour le moment.', 'warning');
+    } finally {
+      setOptimizingPhotos(false);
+    }
+  }
   const preview = data.announcements.find(a => a.id === previewId) || null;
   const images = preview ? imageUrls(preview) : [];
   const { sourceCount, imagesCount } = useMemo(() => ({
@@ -142,7 +193,7 @@ export default function AnnouncementsPage() {
   function startCreate() { setEditor(emptyEditor()); setEditorError(''); setMediaTab('upload'); setDraftPreview(false); }
   function startEdit(a: Announcement) {
     setEditor({ id: a.id, title: a.title, category: a.category, body: a.body, sourceUrl: a.sourceUrl,
-      pictures: imageUrls(a).join('\n'), tags: (a.tags || []).join(', ') });
+      pictures: imageUrls(a).join('\n'), thumbnails: a.thumbnailUrls || {}, tags: (a.tags || []).join(', ') });
     setEditorError(''); setMediaTab('upload'); setDraftPreview(false);
   }
   function startPreview(id: string) { setPreviewId(id); setImageIndex(0); }
@@ -160,7 +211,7 @@ export default function AnnouncementsPage() {
       setEditorError('Le lien source doit commencer par https://.'); return;
     }
     const fields = { title, body, category: editor.category.trim() || 'Autre', sourceUrl: editor.sourceUrl.trim(),
-      imageUrls: urls, tags: [...new Set(editor.tags.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 12) };
+      imageUrls: urls, thumbnailUrls: Object.fromEntries(urls.filter(url => editor.thumbnails[url]).map(url => [url, editor.thumbnails[url]])), tags: [...new Set(editor.tags.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 12) };
     if (editor.id) updateAnnouncement(editor.id, fields);
     else addAnnouncement(fields);
     setEditor(null);
@@ -173,7 +224,7 @@ export default function AnnouncementsPage() {
   }
   async function duplicate(a: Announcement) {
     addAnnouncement({ title: `${a.title} — copie`, category: a.category, body: a.body,
-      sourceUrl: a.sourceUrl, imageUrls: imageUrls(a), tags: a.tags || [] });
+      sourceUrl: a.sourceUrl, imageUrls: imageUrls(a), thumbnailUrls: a.thumbnailUrls || {}, tags: a.tags || [] });
     notify('Copie créée. Le message Telegram original n’a pas été dupliqué.');
   }
   async function copy(a: Announcement) {
@@ -199,11 +250,17 @@ export default function AnnouncementsPage() {
     </div>
     <div className="n12-filter-row" aria-label="Catégories">{categories.map(c => <button key={c} className={filter === c ? 'n12-pill active' : 'n12-pill'} onClick={() => setFilter(c)}>{t(c)}</button>)}</div>
     <div className="n12-results"><span><strong>{filtered.length}</strong> résultat{filtered.length !== 1 ? 's' : ''}</span><span>Publiez ponctuellement ou programmez dans le calendrier.</span></div>
+    {legacyCovers.length > 0 && cloudMode && syncStatus === 'synced' && <div className="n12-results" aria-live="polite">
+      <span>Anciennes photos : miniatures non générées.</span>
+      <button type="button" className="btn btn-secondary" disabled={optimizingPhotos} onClick={() => void optimizeExistingCovers()}>
+        {optimizingPhotos ? 'Optimisation en cours…' : `Optimiser jusqu’à 5 photos (${legacyCovers.length} restante${legacyCovers.length > 1 ? 's' : ''})`}
+      </button>
+    </div>}
 
     {filtered.length ? <div className={view === 'grid' ? 'n12-grid' : 'n12-grid n12-list'}>
       {visibleAnnouncements.map(a => <article className="n12-card" key={a.id}>
         <button type="button" className="n12-cover" onClick={() => startPreview(a.id)} aria-label={`Prévisualiser ${a.title}`}>
-          {imageUrls(a).length ? <><img src={imageUrls(a)[0]} alt="" width={480} height={270} loading={a.id === firstCoverId ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async"/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
+          {imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={a.id === firstCoverId ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
         </button>
         <div className="n12-card-body"><div className="n12-card-top"><Badge>{t(a.category)}</Badge><span className="n12-source-chip">{a.sourceMessageId ? 'Telegram' : 'Manuelle'}</span></div>
           <h3>{a.title}</h3><p>{a.body}</p>
@@ -275,9 +332,10 @@ export default function AnnouncementsPage() {
           {mediaTab === 'upload' ? <AnnouncementImageUpload
             currentCount={linksFromEditor(editor.pictures).length}
             maxCount={maxImages}
-            onUploaded={urls => setEditor(previous => previous ? {
+            onUploaded={(urls, thumbnails) => setEditor(previous => previous ? {
               ...previous,
-              pictures: [...new Set([...linksFromEditor(previous.pictures), ...urls])].join('\n')
+              pictures: [...new Set([...linksFromEditor(previous.pictures), ...urls])].join('\n'),
+              thumbnails: { ...previous.thumbnails, ...thumbnails }
             } : previous)}
           /> : <label className="n20-urls-label">Une adresse HTTPS par ligne
             <textarea value={editor.pictures} onChange={e => setEditor({...editor, pictures:e.target.value})} rows={4} placeholder={'https://exemple.com/photo1.jpg\nhttps://exemple.com/photo2.jpg'}/>
