@@ -29,7 +29,7 @@ const downloadUrl = (() => {
 const plans = [
   { id: 'free', name: 'Gratuit', description: 'Pour découvrir Nashra, sans engagement.', monthly: 0, yearly: 0, groups: 3, sends: '30', scheduled: 5, highlighted: false },
   { id: 'pro', name: 'Pro', description: 'Pour publier régulièrement, sans perdre de temps.', monthly: 8, yearly: 80, groups: 30, sends: '1 000', scheduled: 150, highlighted: true },
-  { id: 'business', name: 'Business', description: 'Pour gérer un volume de diffusion plus important.', monthly: 19, yearly: 190, groups: 100, sends: '5 000', scheduled: 300, highlighted: false },
+  { id: 'business', name: 'Business', description: 'Pour gérer un volume de diffusion plus important.', monthly: 19, yearly: 190, groups: 30, sends: '2 000', scheduled: 300, highlighted: false },
 ] as const;
 
 const questions = [
@@ -190,7 +190,7 @@ export default function LandingPage() {
           <div className="lp-plan-subprice">{cycle === 'year' && plan.yearly ? `Soit ${(plan.yearly / 12).toFixed(2).replace('.', ',')} $/mois, facturé annuellement` : cycle === 'month' && plan.monthly ? 'Facturation mensuelle' : 'Sans carte bancaire'}</div>
           <Link className={`lp-plan-cta ${plan.highlighted ? 'lp-plan-cta-highlight' : ''}`} onClick={event => { if (plan.id !== 'free') beginOfferNavigation(event, plan.name); }} href={plan.id === 'free' ? '/connexion' : `/connexion?next=${encodeURIComponent(`/abonnement?checkout=${plan.id}&interval=${cycle}`)}`}>{plan.id === 'free' ? 'Commencer gratuitement' : `Découvrir ${plan.name}`} <ArrowRight size={17}/></Link>
           <div className="lp-plan-separator"/><span className="lp-plan-include">CE QUI EST INCLUS</span>
-          <ul><li><Check size={16}/> 1 compte Telegram</li><li><Check size={16}/> {plan.groups} groupes actifs</li><li><Check size={16}/> {plan.sends} envois par mois</li><li><Check size={16}/> {plan.scheduled} programmations en attente</li><li><Check size={16}/> Publications uniques et récurrentes</li>{plan.id === 'business' && <li><Check size={16}/> Support prioritaire</li>}</ul>
+          <ul><li><Check size={16}/> 1 compte Telegram</li><li><Check size={16}/> {plan.groups} groupes actifs</li><li><Check size={16}/> {plan.sends} envois par mois</li><li><Check size={16}/> {plan.scheduled} programmations en attente</li><li><Check size={16}/> Publications uniques et récurrentes</li></ul>
         </article>)}</div>
         <p className="lp-pricing-notice"><ShieldCheck size={16}/> Tarifs affichés en USD. Les paiements sont traités de manière sécurisée par Stripe. Un envoi = une annonce dans un groupe.</p>
       </section>
@@ -204,7 +204,7 @@ export default function LandingPage() {
       <div className="lp-container lp-footer-main">
         <div className="lp-footer-about"><Brand footer /><p>Une façon plus simple d’organiser vos annonces et vos publications Telegram.</p></div>
         <nav className="lp-footer-nav-column" aria-label="Explorer"><strong>Explorer</strong><a href="#fonctionnalites">Fonctionnalités</a><a href="#fonctionnement">Comment ça marche</a><a href="#tarifs">Tarifs</a><a href="#questions">Questions</a></nav>
-        <nav className="lp-footer-nav-column" aria-label="Nashra"><strong>Nashra</strong><Link href="/connexion">Connexion</Link><Link href="/connexion">Commencer gratuitement</Link><LandingLanguageSelector footer /></nav>
+        <nav className="lp-footer-nav-column" aria-label="Nashra"><strong>Nashra</strong><Link href="/connexion">Connexion</Link><Link href="/connexion">Commencer gratuitement</Link><Link href="/aide">Centre d’aide</Link><LandingLanguageSelector footer /></nav>
       </div>
       <div className="lp-container lp-footer-base"><span>© {new Date().getFullYear()} Nashra. {t('Tous droits réservés.')}</span><span>Nashra n’est pas affilié à Telegram.</span></div>
     </footer>

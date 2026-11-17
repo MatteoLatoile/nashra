@@ -84,6 +84,7 @@ export default function SettingsPage() {
   return <>
     <PageHeader eyebrow="CONFIGURATION" title="Paramètres"
       description="Gérez votre espace, votre compte Telegram et les options de publication." />
+    <div className="setting-tip"><Info size={17}/> Besoin d’aide pour la connexion, les programmations ou les abonnements ? <Link href="/aide" className="text-link">Consulter le centre d’aide →</Link></div>
     <LanguageSettingsCard />
     <div className="settings-grid">
       <section className="settings-card">
