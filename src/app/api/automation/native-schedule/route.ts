@@ -149,10 +149,15 @@ export async function POST(req: NextRequest) {
         // A request can have reached Telegram even if the API subsequently errors.
         attempted.add(task.target.id);
         const ids = await scheduleWithTelegram(account.session_ciphertext, task.work, when, album);
-        const { error } = await service.from('delivery_queue').update({ status: 'telegram_scheduled',
+        // Telegram may have accepted the schedule even when the database write
+        // loses a race. Require a returned row before confirming success.
+        const { data: confirmedJob, error } = await service.from('delivery_queue').update({ status: 'telegram_scheduled',
           telegram_scheduled_ids: ids, telegram_message_id: ids[0], last_error: null,
-          updated_at: new Date().toISOString() }).eq('id', row.id).eq('user_id', c.userId).eq('status','processing');
-        if (error) throw error;
+          updated_at: new Date().toISOString() }).eq('id', row.id).eq('user_id', c.userId).eq('status','processing')
+          .select('id').maybeSingle();
+        // A zero-row update is an uncertain Telegram outcome, NOT a safe block:
+        // it must not release the reservation or cause automatic retry.
+        if (error || !confirmedJob) throw new Error('Telegram scheduled: database confirmation missing');
         scheduled++;
       } catch (err) {
         const reason = safeReason(err);
