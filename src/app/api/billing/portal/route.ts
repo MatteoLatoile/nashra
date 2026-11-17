@@ -15,7 +15,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Aucun compte de facturation dans cet environnement.' }, { status: 404, headers: noStore });
   try {
     const origin = appUrl();
-    if (req.nextUrl.origin !== origin) return NextResponse.json({ error: 'Domaine non reconnu.' }, { status: 403, headers: noStore });
+    // Match the public origin used by Checkout. Vercel's internal URL may differ.
+    // sameOrigin(req) above also verifies that the browser Origin matches the request URL.
+    if (req.headers.get('origin') !== origin)
+      return NextResponse.json({ error: 'Domaine non reconnu.' }, { status: 403, headers: noStore });
     const result = await stripePost('billing_portal/sessions', new URLSearchParams({
       customer: data.stripe_customer_id, return_url: `${origin}/abonnement`,
     }));
