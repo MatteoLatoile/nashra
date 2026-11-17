@@ -39,9 +39,14 @@ async function cancel(c: Awaited<ReturnType<typeof context>>, campaignId: string
       if (!originalChatId || !/^-?\d{3,30}$/.test(originalChatId))
         throw new DeliveryBlocked('Groupe d’origine inconnu : annulation manuelle dans Telegram nécessaire.');
       await cancelTelegramSchedule(account.session_ciphertext, originalChatId, job.telegram_scheduled_ids as number[] || []);
-      const { error } = await service.from('delivery_queue').update({ status: 'cancelled', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq('id', job.id).eq('user_id', c.userId).eq('status', 'telegram_scheduled');
-      if (error) throw error;
+      // A conditional UPDATE can match zero rows without returning a SQL error.
+      // Never confirm cancellation (or release its reservation) unless the job
+      // actually transitioned from telegram_scheduled to cancelled.
+      const { data: cancelledJob, error } = await service.from('delivery_queue')
+        .update({ status: 'cancelled', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', job.id).eq('user_id', c.userId).eq('status', 'telegram_scheduled')
+        .select('id').maybeSingle();
+      if (error || !cancelledJob) throw new DeliveryBlocked('Annulation non confirmée dans Nashra : vérifiez Telegram.');
       const { data: booking } = await service.from('nashra_send_reservations').select('id,status')
         .eq('user_id',c.userId).eq('idempotency_key',`native:${campaignId}:${job.destination_id}`).maybeSingle();
       if (booking && booking.status === 'reserved') await finalizeSend(c.userId, booking.id, 'released');
