@@ -36,7 +36,8 @@ test('Le diagnostic compare les plafonds réellement enregistrés en base', () =
   const route = read('src/app/api/diagnostics/route.ts');
   assert.match(route, /db\.from\('nashra_plans'\)/);
   assert.match(route, /business: \[1, 30, 2000, 300\]/);
-  assert.match(route, /appliquer SQL 025/);
+  assert.match(route, /free: \[1, 2, 10, 3\]/);
+  assert.match(route, /appliquer SQL 029/);
 });
 
 test('Les pages ne déclarent plus que toute l’automatisation est inexistante', () => {

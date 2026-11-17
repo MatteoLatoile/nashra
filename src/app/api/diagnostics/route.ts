@@ -78,7 +78,7 @@ export async function GET() {
       checks.push(check('subscription', 'error', 'Abonnements indisponibles. Vérifiez SQL 006.', '/abonnement'));
     } else checks.push(check('subscription', 'ok', 'Lecture de votre abonnement disponible.', '/abonnement'));
     const expectedPlans = {
-      free: [1, 3, 30, 5],
+      free: [1, 2, 10, 3],
       pro: [1, 30, 1000, 150],
       business: [1, 30, 2000, 300],
     } as const;
@@ -92,8 +92,8 @@ export async function GET() {
           plan.max_monthly_sends, plan.max_pending_schedules].every((value, index) => value === expected[index]);
       });
       checks.push(check('plans', matches ? 'ok' : 'warning', matches
-        ? 'Free, Pro et Business conformes aux limites prévues (SQL 025).'
-        : 'Les quotas en base ne correspondent pas aux forfaits : appliquer SQL 025.', '/abonnement'));
+        ? 'Free, Pro et Business conformes aux limites prévues (SQL 029).'
+        : 'Les quotas en base ne correspondent pas aux forfaits : vérifier SQL 025 puis appliquer SQL 029.', '/abonnement'));
     }
     checks.push(check('worker', 'warning', configuration.worker
       ? 'Secrets du moteur présents. Son exécution réelle et les déclencheurs Cron restent à contrôler.'

@@ -8111,17 +8111,17 @@
     "tr": "Nashra ücretsiz mi?",
     "ur": "کیا Nashra مفت ہے؟"
   },
-  "Oui. Le forfait Gratuit permet de connecter un compte Telegram, d’utiliser jusqu’à 3 groupes actifs, d’effectuer 30 envois par mois et d’avoir 5 programmations en attente.": {
-    "en": "Yes. The Free plan offers 1 Telegram account, 3 active groups, 30 monthly sends and 5 pending schedules.",
-    "ar": "نعم. تشمل الخطة المجانية حساب تيليجرام واحدًا، وثلاث مجموعات نشطة، و30 إرسالًا شهريًا و5 جدولات معلقة.",
-    "ru": "Да. Бесплатный тариф включает 1 аккаунт Telegram, 3 активные группы, 30 отправок в месяц и 5 ожидающих заданий.",
-    "es": "Sí. Gratis incluye 1 cuenta de Telegram, 3 grupos activos, 30 envíos al mes y 5 programaciones pendientes.",
-    "de": "Ja. Kostenlos: 1 Telegram-Konto, 3 aktive Gruppen, 30 Sendungen pro Monat und 5 offene Planungen.",
-    "it": "Sì. Il piano gratuito include 1 account Telegram, 3 gruppi attivi, 30 invii al mese e 5 programmazioni in attesa.",
-    "id": "Ya. Paket Gratis mencakup 1 akun Telegram, 3 grup aktif, 30 kiriman per bulan, dan 5 jadwal tertunda.",
-    "fil": "Oo. Ang libreng plano ay may 1 Telegram account, 3 aktibong grupo, 30 send kada buwan at 5 nakabinbing iskedyul.",
-    "tr": "Evet. Ücretsiz plan: 1 Telegram hesabı, 3 aktif grup, ayda 30 gönderim ve 5 bekleyen planlama.",
-    "ur": "جی ہاں۔ مفت پلان میں 1 ٹیلیگرام اکاؤنٹ، 3 فعال گروپس، ماہانہ 30 ارسال اور 5 زیرِ انتظار شیڈول شامل ہیں۔"
+  "Oui. Le forfait Gratuit permet de connecter un compte Telegram, d’utiliser jusqu’à 2 groupes actifs, d’effectuer 10 envois par mois et d’avoir 3 programmations en attente.": {
+    "en": "Yes. The Free plan offers 1 Telegram account, 2 active groups, 10 monthly sends and 3 pending schedules.",
+    "ar": "نعم. تشمل الخطة المجانية حساب تيليجرام واحدًا، ومجموعتين نشطتين، و10 إرسالات شهريًا و3 جدولات معلقة.",
+    "ru": "Да. Бесплатный тариф включает 1 аккаунт Telegram, 2 активные группы, 10 отправок в месяц и 3 ожидающие задачи.",
+    "es": "Sí. Gratis incluye 1 cuenta de Telegram, 2 grupos activos, 10 envíos al mes y 3 programaciones pendientes.",
+    "de": "Ja. Kostenlos: 1 Telegram-Konto, 2 aktive Gruppen, 10 Sendungen pro Monat und 3 offene Planungen.",
+    "it": "Sì. Il piano gratuito include 1 account Telegram, 2 gruppi attivi, 10 invii al mese e 3 programmazioni in attesa.",
+    "id": "Ya. Paket Gratis mencakup 1 akun Telegram, 2 grup aktif, 10 kiriman per bulan, dan 3 jadwal tertunda.",
+    "fil": "Oo. Ang libreng plano ay may 1 Telegram account, 2 aktibong grupo, 10 send kada buwan at 3 nakabinbing iskedyul.",
+    "tr": "Evet. Ücretsiz plan: 1 Telegram hesabı, 2 aktif grup, ayda 10 gönderim ve 3 bekleyen planlama.",
+    "ur": "جی ہاں۔ مفت پلان میں 1 ٹیلیگرام اکاؤنٹ، 2 فعال گروپس، ماہانہ 10 ارسال اور 3 زیرِ انتظار شیڈول شامل ہیں۔"
   },
   "Faut-il laisser mon ordinateur allumé ?": {
     "en": "Must I leave my computer on?",

@@ -27,7 +27,7 @@ const downloadUrl = (() => {
 })();
 
 const plans = [
-  { id: 'free', name: 'Gratuit', description: 'Pour découvrir Nashra, sans engagement.', monthly: 0, yearly: 0, groups: 3, sends: '30', scheduled: 5, highlighted: false },
+  { id: 'free', name: 'Gratuit', description: 'Pour découvrir Nashra, sans engagement.', monthly: 0, yearly: 0, groups: 2, sends: '10', scheduled: 3, highlighted: false },
   { id: 'pro', name: 'Pro', description: 'Pour publier régulièrement, sans perdre de temps.', monthly: 8, yearly: 80, groups: 30, sends: '1 000', scheduled: 150, highlighted: true },
   { id: 'business', name: 'Business', description: 'Pour gérer un volume de diffusion plus important.', monthly: 19, yearly: 190, groups: 30, sends: '2 000', scheduled: 300, highlighted: false },
 ] as const;
@@ -38,7 +38,7 @@ const questions = [
   { question: 'Que compte-t-on comme un envoi ?', answer: 'Un envoi correspond à une annonce publiée dans un groupe. Si vous diffusez la même annonce dans 10 groupes, cela utilise 10 envois sur votre quota mensuel.' },
   { question: 'Que se passe-t-il si je résilie ou change de forfait ?', answer: 'Si vous résiliez à la fin de votre période payée, votre forfait reste actif jusqu’à son échéance. Ensuite, les limites du forfait Gratuit s’appliquent. Vos annonces, groupes et campagnes restent enregistrés, mais vous devrez désactiver les groupes en excès et réduire les programmations en attente pour reprendre les nouvelles diffusions. Les messages déjà programmés directement sur les serveurs Telegram peuvent encore être envoyés : annulez-les dans Telegram si nécessaire.' },
   { question: 'Quelle différence entre Pro et Business ?', answer: 'Les deux forfaits acceptent un compte Telegram et jusqu’à 30 groupes actifs. Pro comprend 1 000 envois et 150 programmations en attente par mois ; Business permet 2 000 envois et 300 programmations en attente. Business sert donc surtout aux volumes plus élevés, sans ajouter de comptes Telegram.' },
-  { question: 'Puis-je utiliser Nashra gratuitement ?', answer: 'Oui. Le forfait Gratuit permet de connecter un compte Telegram, d’utiliser jusqu’à 3 groupes actifs, d’effectuer 30 envois par mois et d’avoir 5 programmations en attente.' },
+  { question: 'Puis-je utiliser Nashra gratuitement ?', answer: 'Oui. Le forfait Gratuit permet de connecter un compte Telegram, d’utiliser jusqu’à 2 groupes actifs, d’effectuer 10 envois par mois et d’avoir 3 programmations en attente.' },
   { question: 'Faut-il laisser mon ordinateur allumé ?', answer: 'Une programmation déjà acceptée par Telegram peut être prise en charge par Telegram. Les récurrences sur la durée ont également besoin d’un service de renouvellement côté Nashra. Sa disponibilité dépend de l’hébergement activé.' },
   { question: 'Nashra est-il téléchargeable ?', answer: 'Nashra fonctionne actuellement comme une application web. Le bouton de téléchargement sera actif lorsqu’une version installable aura été publiée. Vous pouvez déjà accéder à la plateforme depuis votre navigateur.' },
 ];

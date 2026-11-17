@@ -30,7 +30,7 @@ const sections = [
   {
     id: 'abonnement', title: 'Abonnements et facturation', questions: [
       { q: 'Comment changer ou arrêter mon abonnement ?', a: 'Connectez-vous à Nashra, ouvrez Abonnement puis utilisez l’accès à la gestion de la facturation Stripe si disponible.' },
-      { q: 'Quels sont les quotas ?', a: 'Free : 3 groupes, 30 envois/mois, 5 programmations. Pro : 30 groupes, 1 000 envois/mois, 150 programmations. Business : 30 groupes, 2 000 envois/mois, 300 programmations. Chaque offre autorise un compte Telegram.' },
+      { q: 'Quels sont les quotas ?', a: 'Free : 2 groupes, 10 envois/mois, 3 programmations. Pro : 30 groupes, 1 000 envois/mois, 150 programmations. Business : 30 groupes, 2 000 envois/mois, 300 programmations. Chaque offre autorise un compte Telegram.' },
       { q: 'Un paiement apparaît mais le forfait ne change pas.', a: 'Ne payez pas une seconde fois immédiatement. Vérifiez votre abonnement puis conservez une preuve de paiement pour votre demande d’assistance.' },
     ],
   },
