@@ -118,6 +118,7 @@ export default function AdminPage() {
           <div className="n34-stat"><div><Wifi size={17}/> Connexions Telegram</div><strong>{n(data.telegramAccounts)}</strong><small>Comptes Telegram enregistrés</small></div>
           <div className="n34-stat"><div><CreditCard size={17}/> Abonnements actifs</div><strong>{n(data.activeSubscriptions)}</strong><small>Actifs ou en essai · Stripe test</small></div>
           <div className="n34-stat"><div><CircleAlert size={17}/> À surveiller</div><strong>{n((data.queue?.needs_review||0)+(data.queue?.blocked||0))}</strong><small>Opérations bloquées ou à vérifier</small></div>
+          <div className="n34-stat"><div><CreditCard size={17}/> Part des comptes Pro/Business</div><strong>{typeof data.totalUsers === 'number' && data.totalUsers > 0 ? `${Math.round(100 * ((data.tiers?.pro || 0) + (data.tiers?.business || 0)) / data.totalUsers)} %` : '—'}</strong><small>Comptes payants / inscrits · état actuel, pas un taux historique de conversion</small></div>
         </div>
         <div className="n34-columns">
           <section className="n34-panel"><div className="n34-panel-head"><div><h2>Activité des 7 derniers jours</h2><p>Nouvelles tâches créées (jours UTC)</p></div><Activity size={19}/></div>

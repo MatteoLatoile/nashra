@@ -402,6 +402,19 @@ function BillingPageContent() {
               );
             })}
           </div>
+          {data?.tier === 'free' && data.usage?.monthlySends && data.usage.monthlySends.limit > 0 &&
+            data.usage.monthlySends.used >= Math.ceil(data.usage.monthlySends.limit * 0.8) && (
+              <div role="status" style={{marginTop:18,padding:'15px 17px',border:'1px solid #416e51',borderRadius:12,background:'#1a2820',display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+                <div><strong>{data.usage.monthlySends.used >= data.usage.monthlySends.limit
+                  ? (isFr ? 'Envois gratuits épuisés' : 'Free sends used up')
+                  : (isFr ? 'Votre forfait Free approche de sa limite' : 'Your Free plan is almost full')}</strong>
+                  <p style={{fontSize:12,opacity:.8,margin:'5px 0 0'}}>{data.usage.monthlySends.used}/{data.usage.monthlySends.limit} {isFr ? 'envois réservés ce mois-ci' : 'sends reserved this month'}</p></div>
+                <button type="button" className="btn btn-primary" disabled={busy || !data.enabled || !data.plans.pro.month.available}
+                  onClick={() => void action('checkout','pro','month')}>
+                  {isFr ? 'Passer à Pro — 8 $/mois' : 'Upgrade to Pro — $8/month'} <ArrowRight size={15}/>
+                </button>
+              </div>
+            )}
           <div className="nx-usage-foot"><Sparkles size={14} /> {ui.usageFoot}</div>
         </section>
       </div>
