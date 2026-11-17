@@ -37,6 +37,7 @@ const questions = [
   { question: 'Puis-je programmer une annonce tous les deux jours ?', answer: 'Oui, c’est le principe des campagnes récurrentes : choisissez une annonce, les groupes, un intervalle et une heure. Les envois vers plusieurs groupes sont espacés afin de respecter les limites Telegram.' },
   { question: 'Que compte-t-on comme un envoi ?', answer: 'Un envoi correspond à une annonce publiée dans un groupe. Si vous diffusez la même annonce dans 10 groupes, cela utilise 10 envois sur votre quota mensuel.' },
   { question: 'Que se passe-t-il si je résilie ou change de forfait ?', answer: 'Si vous résiliez à la fin de votre période payée, votre forfait reste actif jusqu’à son échéance. Ensuite, les limites du forfait Gratuit s’appliquent. Vos annonces, groupes et campagnes restent enregistrés, mais vous devrez désactiver les groupes en excès et réduire les programmations en attente pour reprendre les nouvelles diffusions. Les messages déjà programmés directement sur les serveurs Telegram peuvent encore être envoyés : annulez-les dans Telegram si nécessaire.' },
+  { question: 'Quelle différence entre Pro et Business ?', answer: 'Les deux forfaits acceptent un compte Telegram et jusqu’à 30 groupes actifs. Pro comprend 1 000 envois et 150 programmations en attente par mois ; Business permet 2 000 envois et 300 programmations en attente. Business sert donc surtout aux volumes plus élevés, sans ajouter de comptes Telegram.' },
   { question: 'Puis-je utiliser Nashra gratuitement ?', answer: 'Oui. Le forfait Gratuit permet de connecter un compte Telegram, d’utiliser jusqu’à 3 groupes actifs, d’effectuer 30 envois par mois et d’avoir 5 programmations en attente.' },
   { question: 'Faut-il laisser mon ordinateur allumé ?', answer: 'Une programmation déjà acceptée par Telegram peut être prise en charge par Telegram. Les récurrences sur la durée ont également besoin d’un service de renouvellement côté Nashra. Sa disponibilité dépend de l’hébergement activé.' },
   { question: 'Nashra est-il téléchargeable ?', answer: 'Nashra fonctionne actuellement comme une application web. Le bouton de téléchargement sera actif lorsqu’une version installable aura été publiée. Vous pouvez déjà accéder à la plateforme depuis votre navigateur.' },
@@ -117,6 +118,7 @@ export default function LandingPage() {
             <DownloadButton />
           </div>
           <p className="lp-hero-note"><CheckCircle2 size={16}/> Offre gratuite disponible <span>·</span> Sans carte bancaire pour commencer</p>
+          <Link href="#fonctionnement" className="lp-how-link">Voir comment démarrer en 4 étapes <ArrowRight size={15}/></Link>
           <div className="lp-hero-counts" aria-label="Fonctionnalités du produit">
             <div><span className="lp-count-icon"><Repeat2 size={17}/></span><strong>Récurrence</strong><small>Sans ressaisie</small></div>
             <div><span className="lp-count-icon"><UsersRound size={17}/></span><strong>Multi-groupes</strong><small>En un seul flux</small></div>
@@ -188,10 +190,11 @@ export default function LandingPage() {
           <p className="lp-plan-description">{plan.description}</p>
           <div className="lp-plan-price"><strong>{cycle === 'month' ? plan.monthly : plan.yearly} $</strong><span>/{cycle === 'month' ? 'mois' : 'an'}</span></div>
           <div className="lp-plan-subprice">{cycle === 'year' && plan.yearly ? `Soit ${(plan.yearly / 12).toFixed(2).replace('.', ',')} $/mois, facturé annuellement` : cycle === 'month' && plan.monthly ? 'Facturation mensuelle' : 'Sans carte bancaire'}</div>
-          <Link className={`lp-plan-cta ${plan.highlighted ? 'lp-plan-cta-highlight' : ''}`} onClick={event => { if (plan.id !== 'free') beginOfferNavigation(event, plan.name); }} href={plan.id === 'free' ? '/connexion' : `/connexion?next=${encodeURIComponent(`/abonnement?checkout=${plan.id}&interval=${cycle}`)}`}>{plan.id === 'free' ? 'Commencer gratuitement' : `Découvrir ${plan.name}`} <ArrowRight size={17}/></Link>
+          <Link className={`lp-plan-cta ${plan.highlighted ? 'lp-plan-cta-highlight' : ''}`} onClick={event => { if (plan.id !== 'free') beginOfferNavigation(event, plan.name); }} href={plan.id === 'free' ? '/connexion' : `/connexion?next=${encodeURIComponent(`/abonnement?checkout=${plan.id}&interval=${cycle}`)}`}>{plan.id === 'free' ? 'Commencer gratuitement' : `Choisir ${plan.name}`} <ArrowRight size={17}/></Link>
           <div className="lp-plan-separator"/><span className="lp-plan-include">CE QUI EST INCLUS</span>
           <ul><li><Check size={16}/> 1 compte Telegram</li><li><Check size={16}/> {plan.groups} groupes actifs</li><li><Check size={16}/> {plan.sends} envois par mois</li><li><Check size={16}/> {plan.scheduled} programmations en attente</li><li><Check size={16}/> Publications uniques et récurrentes</li></ul>
         </article>)}</div>
+        <p className="lp-plan-explanation">Pro et Business : mêmes 30 groupes actifs. Business double surtout les volumes d’envoi et de programmation, pas le nombre de comptes Telegram.</p>
         <p className="lp-pricing-notice"><ShieldCheck size={16}/> Tarifs affichés en USD. Les paiements sont traités de manière sécurisée par Stripe. Un envoi = une annonce dans un groupe.</p>
       </section>
 

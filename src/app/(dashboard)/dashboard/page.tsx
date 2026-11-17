@@ -117,6 +117,16 @@ export default function Dashboard() {
     />
 
     <div className={styles.dashboard}>
+      {!allReady && <section className={styles.startBanner} aria-label="Prochaine étape pour démarrer">
+        <div className={styles.startBannerCopy}>
+          <span className={styles.eyebrow}>BIEN DÉMARRER · {readyCount}/3 ÉTAPES</span>
+          <strong>{readyCount === 0 ? 'Préparez votre première diffusion' : 'Continuez la configuration de votre espace'}</strong>
+          <p>{readySteps.find(step => !step.isReady)?.description} Aucune publication ne sera envoyée sans votre action.</p>
+        </div>
+        <Link href={readySteps.find(step => !step.isReady)!.href} className={styles.secondaryButton}>
+          {readySteps.find(step => !step.isReady)!.name === 'Annonce' ? 'Créer une annonce' : readySteps.find(step => !step.isReady)!.name === 'Destination' ? 'Ajouter une destination' : 'Planifier une campagne'} <ArrowRight size={15}/>
+        </Link>
+      </section>}
       <section className={styles.stats} aria-label="Statistiques de votre espace">
         {metrics.map(({ title, value, detail, icon: Icon, href }) => <Link href={href} className={styles.stat} key={title}>
           <div className={styles.statTop}><span>{title}</span><Icon size={17}/></div>

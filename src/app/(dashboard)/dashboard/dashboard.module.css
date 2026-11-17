@@ -71,3 +71,9 @@
 @media(max-width:1080px){.mainGrid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:660px){.dashboard{gap:12px}.topStatus{padding:17px;flex-direction:column;align-items:stretch;gap:10px}.statusLeft{align-items:flex-start}.statusActions{justify-content:flex-end}.stats{gap:10px}.stat{padding:14px}.stat strong{font-size:25px}.statTop{font-size:11px}.panel{padding:17px}.panelHeader{flex-wrap:wrap}.secondaryGrid{grid-template-columns:1fr}.timelineDate{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.skeleton{animation:none}.stat{transition:none}.chartBar{transition:none}}
+
+/* 073: contextual, non-blocking first-use guidance above dashboard metrics */
+.startBanner{display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid #416e51;background:linear-gradient(110deg,#1d2c23,#15191b);border-radius:15px;padding:19px 22px}
+.startBannerCopy{min-width:0}.startBannerCopy strong{display:block;font-size:16px;color:#f3faf4}.startBannerCopy p{font-size:12px;color:#b5c4bb;margin:7px 0 0;line-height:1.5}
+.startBanner .secondaryButton{white-space:nowrap;flex-shrink:0;margin:0}
+@media(max-width:660px){.startBanner{align-items:stretch;flex-direction:column;padding:17px}.startBanner .secondaryButton{justify-content:center;align-self:stretch}}
