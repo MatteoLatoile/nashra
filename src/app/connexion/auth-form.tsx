@@ -140,7 +140,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
     setFeedback('');
     try {
       const { error } = await createClient().auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reinitialiser`,
+        redirectTo: `${window.location.origin}/reinitialiser`,
       });
       if (error) throw error;
       setGood(true);

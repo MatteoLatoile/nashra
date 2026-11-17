@@ -36,7 +36,8 @@ export default function ResetPasswordPage() {
     router.refresh();
   }
 
-  return <main className="n8-resetroot"><section className="n8-resetcard">
+  return <main className="n8-resetroot"><section className="n8-resetcard n70-authcard">
+    <Link href="/" className="n70-brand" aria-label="Nashra, accueil">nashra<span>.</span></Link>
     <span className="n8-overline">SÉCURITÉ DU COMPTE</span>
     <h1>Modifier votre mot de passe.</h1>
     {status === 'checking' ? <p>Vérification du lien en cours…</p> :
@@ -51,5 +52,6 @@ export default function ResetPasswordPage() {
         {error && <p role="alert" className="n8-message bad">{error}</p>}
         <button type="submit" className="n8-submit" disabled={busy}>{busy ? <LoaderCircle className="tg-spin" size={18}/> : <ArrowRight size={18}/>} Enregistrer le nouveau mot de passe</button>
       </form>}
+    <div className="n70-authtrust">Votre sécurité, notre priorité · Nashra</div>
   </section></main>;
 }

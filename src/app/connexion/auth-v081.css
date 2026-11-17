@@ -71,3 +71,11 @@
 @media (max-width:990px){.n8-layout{grid-template-columns:1fr}.n8-hero{display:none}.n8-authside{min-height:100dvh}.n8-mobile-brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:800;letter-spacing:-.8px;margin-bottom:32px}.n8-mobile-brand span{margin-left:-8px}.n8-authcard{max-width:475px}}
 @media (max-width:460px){.n8-authside{padding:28px 20px}.n8-authcard h1{font-size:29px}.n8-divider{gap:7px;font-size:10px}.n8-resetcard{padding:25px}.n8-overline{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.n8-google,.n8-submit{transition:none}.n8-google:hover,.n8-submit:hover{transform:none}}
+
+/* 070 — pages de validation et de réinitialisation Nashra */
+.n70-authcard{box-shadow:0 18px 65px #0005}
+.n70-brand{display:inline-block;color:#f5f5f6;font-size:25px;font-weight:800;letter-spacing:-1.3px;margin-bottom:32px;text-decoration:none}
+.n70-brand span{color:#969aa3}
+.n70-authicon{width:49px;height:49px;display:grid;place-items:center;border:1px solid #42474c;background:#24282b;border-radius:12px;color:#d4e1dd;margin-bottom:18px}
+.n70-authstatus{display:flex;align-items:center;gap:10px;color:#e4e5e7 !important}
+.n70-authtrust{margin-top:28px;padding-top:19px;border-top:1px solid #33363d;color:#8d919a;font-size:11px;display:flex;gap:8px;align-items:center;justify-content:center}
