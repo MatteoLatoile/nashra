@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui';
 import { useConfirm } from '@/components/confirm-dialog';
+import { AnnouncementVideoUpload } from '@/components/announcement-video-upload';
 import { AnnouncementImageUpload } from '@/components/announcement-image-upload';
 import { useApp } from '@/lib/store';
 import styles from './page.module.css';
@@ -96,6 +97,7 @@ export default function TelegramPage() {
   const [body, setBody] = useState('');
   const [category, setCategory] = useState('Immobilier');
   const [images, setImages] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState('');
   const [showPhotos, setShowPhotos] = useState(false);
 
   // Ajout manuel d'une destination, y compris avant connexion à Telegram.
@@ -118,8 +120,8 @@ export default function TelegramPage() {
   const alreadyImported = Boolean(selectedMessage && source && data.announcements.some(
     a => a.sourceChatId === source && a.sourceMessageId === selectedMessage.id,
   ));
-  const maxBody = images.length > 0 ? 1024 : 4096;
-  const canCompose = title.trim().length > 0 && (body.trim().length > 0 || images.length > 0)
+  const maxBody = images.length > 0 || videoUrl ? 1024 : 4096;
+  const canCompose = title.trim().length > 0 && (body.trim().length > 0 || images.length > 0 || !!videoUrl)
     && body.length <= maxBody && images.length <= MAX_IMAGES;
 
   async function task<T>(name: string, run: () => Promise<T>, onSuccess?: (value: T) => void) {
@@ -253,9 +255,9 @@ export default function TelegramPage() {
     event.preventDefault();
     if (!canCompose || busy) return;
     addAnnouncement({
-      title: title.trim(), body: body.trim(), category, imageUrls: images, sourceUrl: '', tags: [],
+      title: title.trim(), body: body.trim(), category, imageUrls: images, videoUrl: videoUrl || undefined, sourceUrl: '', tags: [],
     });
-    setTitle(''); setBody(''); setImages([]); setShowPhotos(false);
+    setTitle(''); setBody(''); setImages([]); setVideoUrl(''); setShowPhotos(false);
     setFeedback({ good: true, text: 'Annonce enregistrée. Retrouvez-la dans Mes annonces pour la publier ou la programmer.' });
     notify('Annonce enregistrée dans votre bibliothèque.');
   }
@@ -426,8 +428,10 @@ export default function TelegramPage() {
                 <span className={styles.counter}>{body.length.toLocaleString('fr-FR')} / {maxBody.toLocaleString('fr-FR')} caractères</span>
               </label>
               <div className={styles.mediaArea}>
+                <div className={styles.mediaTop}><strong>Vidéo MP4 (20 Mo maximum, sans photos)</strong></div>
+                <AnnouncementVideoUpload value={videoUrl} disabled={images.length > 0} onChange={setVideoUrl}/>
                 <div className={styles.mediaTop}><div><Images size={17}/><span>Photos <small>· Facultatif, jusqu’à 10</small></span></div><button type="button" className={styles.tinyButton} onClick={() => setShowPhotos(v => !v)} aria-expanded={showPhotos}>{showPhotos ? 'Masquer' : 'Ajouter'} <Plus size={15}/></button></div>
-                {showPhotos && <div className={styles.mediaUpload}>
+                {showPhotos && !videoUrl && <div className={styles.mediaUpload}>
                   <AnnouncementImageUpload currentCount={images.length} maxCount={MAX_IMAGES}
                     onUploaded={urls => setImages(previous => [...new Set([...previous, ...urls])].slice(0, MAX_IMAGES))}/>
                   {images.length > 0 && <div className={styles.photoList}>{images.map((url, i) => <div className={styles.photoItem} key={url}>

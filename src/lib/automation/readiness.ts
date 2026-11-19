@@ -1,7 +1,7 @@
 /** Read-only readiness checks. Never calls Telegram or sends messages. */
-import { parseStoredPhotos } from './photos';
+import { parseStoredPhotos, parseStoredVideo } from './photos';
 
-export type Ad = { id?: string; title?: string; sourceChatId?: string; sourceMessageId?: number; body?: string; imageUrls?: string[] };
+export type Ad = { id?: string; title?: string; sourceChatId?: string; sourceMessageId?: number; body?: string; imageUrls?: string[]; videoUrl?: string };
 export type Dest = { id?: string; name?: string; handle?: string; authorized?: boolean; topicId?: number; topicTitle?: string };
 export type CampaignLike = { id?: string; name?: string; status?: string; method?: string; announcementId?: string; announcementIds?: string[]; destinationIds?: string[]; destinationTopics?: Record<string, number | null>; destinationHandles?: Record<string, string>; scheduledAt?: string; scheduledDates?: string[] };
 export type Workspace = { announcements?: Ad[]; destinations?: Dest[]; campaigns?: CampaignLike[] };
@@ -37,11 +37,17 @@ export function readiness(data: Workspace, instant = Date.now()) {
       const partialSource = Boolean(ad.sourceChatId || ad.sourceMessageId) && !hasSource;
       const text = typeof ad.body === 'string' ? ad.body.trim() : '';
       const hasImages = Array.isArray(ad.imageUrls) && ad.imageUrls.length > 0;
+      const hasVideo = !!ad.videoUrl;
+      if (hasVideo && hasImages) add('media_mix', 'Une annonce ne peut pas mélanger vidéo et photos.');
       if (partialSource) add('source', 'Référence Telegram source incomplète.');
       if (c.method === 'forward' && !hasSource) add('source', 'Un transfert nécessite un message Telegram source.');
-      if (c.method === 'repost' && !text && !hasSource && !hasImages) add('text', 'La republication nécessite du texte, des photos ou un message Telegram source.');
-      if (c.method === 'repost' && text && text.length > (hasImages ? 1024 : 4096)) {
-        add('text_length', hasImages ? 'Légende trop longue pour un album (1 024 caractères maximum).' : 'Texte trop long pour Telegram (4 096 caractères maximum).');
+      if (c.method === 'repost' && !text && !hasSource && !hasImages && !hasVideo) add('text', 'La republication nécessite du texte, des photos ou un message Telegram source.');
+      if (c.method === 'repost' && text && text.length > (hasImages || hasVideo ? 1024 : 4096)) {
+        add('text_length', (hasImages || hasVideo) ? 'Légende trop longue pour un album (1 024 caractères maximum).' : 'Texte trop long pour Telegram (4 096 caractères maximum).');
+      }
+      if (c.method === 'repost' && hasVideo) {
+        try { parseStoredVideo(ad.videoUrl, process.env.NEXT_PUBLIC_SUPABASE_URL || ''); }
+        catch { add('video', 'Vidéo non publiable : réimportez un MP4 dans Nashra.'); }
       }
       if (c.method === 'repost' && hasImages) {
         try { parseStoredPhotos(ad.imageUrls, process.env.NEXT_PUBLIC_SUPABASE_URL || ''); }

@@ -1,10 +1,11 @@
 /** One explicitly confirmed, user-owned Telegram destination per request. */
 import { NextRequest, NextResponse } from 'next/server';
 import { context, getAccount } from '@/lib/telegram-user/core';
-import { buildAnnouncementDelivery, getServiceClient, loadAlbum, sendWithPersonalAccount, safeReason, DeliveryBlocked } from '@/lib/automation/worker';
+import { buildAnnouncementDelivery, getServiceClient, loadAlbum, loadVideo, sendWithPersonalAccount, safeReason, DeliveryBlocked } from '@/lib/automation/worker';
 import { reserveSend, finalizeSend } from '@/lib/billing/quotas-server';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60; // Videos may take longer to upload via Telegram.
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (!account?.session_ciphertext) throw new DeliveryBlocked('Connectez votre compte Telegram personnel.');
     service = getServiceClient();
     // Download media before claiming the one-and-only Telegram attempt.
-    const album = work.kind === 'album' ? await loadAlbum(service, work.photos) : undefined;
+    const album = work.kind === 'album' ? await loadAlbum(service, work.photos) : work.kind === 'video' ? [await loadVideo(service, work.video)] : undefined;
     // SQL 015 books one send in the UTC month, atomically and idempotently.
     reservationId = await reserveSend({ userId: c.userId, key: `manual:${body.requestId}`,
       announcementId: body.announcementId, destinationId: body.destinationId, scheduledAt: new Date().toISOString() });

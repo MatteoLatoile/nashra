@@ -4,9 +4,10 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { ImagePlus, LoaderCircle, ShieldCheck, UploadCloud } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { makeThumbnail } from '@/lib/images/client-thumbnail';
+import { optimizeImage, MAX_PHOTO_SOURCE_BYTES } from '@/lib/images/client-optimize';
 
 const BUCKET = 'nashra-announcement-images';
-const LIMIT_BYTES = 8 * 1024 * 1024;
+const LIMIT_BYTES = MAX_PHOTO_SOURCE_BYTES;
 const MIMES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -17,10 +18,14 @@ export function AnnouncementImageUpload({
   currentCount,
   maxCount,
   onUploaded,
+  onBusyChange,
+  disabled = false,
 }: {
   currentCount: number;
   maxCount: number;
   onUploaded: (urls: string[], thumbnails: Record<string, string>) => void;
+  onBusyChange?: (busy: boolean) => void;
+  disabled?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -29,7 +34,7 @@ export function AnnouncementImageUpload({
   const remaining = Math.max(0, maxCount - currentCount);
 
   async function upload(files: File[]) {
-    if (busy || !files.length) return;
+    if (busy || disabled || !files.length) return;
     setFeedback('');
     if (files.length > remaining) {
       setFeedback(`Seulement ${remaining} image${remaining > 1 ? 's' : ''} disponible${remaining > 1 ? 's' : ''} (maximum ${maxCount}).`);
@@ -37,17 +42,21 @@ export function AnnouncementImageUpload({
     }
     const invalid = files.find(file => !MIMES[file.type] || file.size > LIMIT_BYTES || file.size === 0);
     if (invalid) {
-      setFeedback('Formats acceptés : JPG, PNG, WebP. Taille : 8 Mo maximum par photo.');
+      setFeedback('Formats acceptés : JPG, PNG, WebP. Source : 24 Mo maximum par photo.');
       return;
     }
-    setBusy(true);
+    setBusy(true); onBusyChange?.(true);
     const uploaded: string[] = [];
     const thumbnails: Record<string, string> = {};
     try {
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.getUser();
       if (authError || !data.user) throw new Error('Connectez-vous à Nashra pour importer vos photos.');
-      for (const file of files) {
+      let savedBytes = 0;
+      for (const original of files) {
+        const optimized = await optimizeImage(original);
+        const file = optimized.file;
+        savedBytes += optimized.savedBytes;
         const ext = MIMES[file.type];
         const key = `${data.user.id}/${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from(BUCKET).upload(key, file, {
@@ -74,14 +83,14 @@ export function AnnouncementImageUpload({
         } catch { /* Original image remains usable; preview falls back safely. */ }
       }
       onUploaded(uploaded, thumbnails);
-      setFeedback(`${uploaded.length} photo${uploaded.length > 1 ? 's' : ''} ajoutée${uploaded.length > 1 ? 's' : ''}. Enregistrez l’annonce pour conserver les liens.`);
+      setFeedback(`${uploaded.length} photo${uploaded.length > 1 ? 's' : ''} ajoutée${uploaded.length > 1 ? 's' : ''}${savedBytes ? ` · ${(savedBytes / (1024 * 1024)).toFixed(1)} Mo économisé(s)` : ''}. Enregistrez l’annonce pour conserver les liens.`);
     } catch (err) {
       // Keep uploaded links even when a later file fails, preventing silent orphaned uploads.
       if (uploaded.length) onUploaded(uploaded, thumbnails);
       const reason = err instanceof Error ? err.message : 'Erreur inconnue';
       setFeedback(`Import interrompu : ${reason}. Vérifiez que le SQL Storage a été exécuté dans Supabase.`);
     } finally {
-      setBusy(false);
+      setBusy(false); onBusyChange?.(false);
     }
   }
 
@@ -100,17 +109,17 @@ export function AnnouncementImageUpload({
     <div className="n13-upload-wrap">
       <div
         className={`n13-dropzone${dragging ? ' n13-dragging' : ''}${busy ? ' n13-loading' : ''}`}
-        onDragOver={event => { event.preventDefault(); if (!busy) setDragging(true); }}
+        onDragOver={event => { event.preventDefault(); if (!busy && !disabled) setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
       >
         <span className="n13-drop-icon">{busy ? <LoaderCircle size={21} className="n13-spinner"/> : <ImagePlus size={21}/>}</span>
         <div className="n13-drop-copy">
           <strong>{busy ? 'Importation des photos…' : 'Ajouter des photos depuis votre ordinateur'}</strong>
-          <span>Glissez-déposez vos images ici, ou utilisez le bouton. JPG, PNG, WebP · 8 Mo max.</span>
+          <span>Glissez-déposez vos images ici, ou utilisez le bouton. JPG, PNG, WebP · 24 Mo avant optimisation · 8 Mo après</span>
         </div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={handleFiles} aria-label="Choisir les images à ajouter" />
-        <button type="button" className="n13-pick" disabled={busy || remaining === 0} onClick={() => input.current?.click()}>
+        <button type="button" className="n13-pick" disabled={busy || disabled || remaining === 0} onClick={() => input.current?.click()}>
           <UploadCloud size={15}/>{busy ? 'En cours' : 'Choisir'}
         </button>
       </div>

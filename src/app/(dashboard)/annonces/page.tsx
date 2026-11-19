@@ -6,6 +6,10 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 // The image uploader is only needed inside the announcement editor.
+const AnnouncementVideoUpload = dynamic(
+  () => import('@/components/announcement-video-upload').then(mod => mod.AnnouncementVideoUpload),
+  { ssr: false },
+);
 const AnnouncementImageUpload = dynamic(
   () => import('@/components/announcement-image-upload').then(mod => mod.AnnouncementImageUpload),
   { ssr: false, loading: () => <div className="n40-footnote" role="status">Préparation de l’import des photos…</div> },
@@ -13,7 +17,7 @@ const AnnouncementImageUpload = dynamic(
 import {
   Plus, Search, FileText, Trash2, Eye, ArrowUpRight, Copy, MessageSquareText,
   Images, Pencil, Layers3, SlidersHorizontal, CalendarDays, Link2, Check,
-  ExternalLink, ChevronLeft, ChevronRight, Send, LoaderCircle, X,
+  ExternalLink, ChevronLeft, ChevronRight, Send, LoaderCircle, X, Play,
 } from 'lucide-react';
 import { Badge, EmptyState, Modal, PageHeader } from '@/components/ui';
 import { useConfirm } from '@/components/confirm-dialog';
@@ -30,10 +34,12 @@ type Editor = {
   body: string;
   sourceUrl: string;
   pictures: string;
+  videoUrl: string;
+  videoThumbnailUrl: string;
   thumbnails: Record<string, string>;
   tags: string;
 };
-const emptyEditor = (): Editor => ({ title: '', category: 'Immobilier', body: '', sourceUrl: '', pictures: '', thumbnails: {}, tags: '' });
+const emptyEditor = (): Editor => ({ title: '', category: 'Immobilier', body: '', sourceUrl: '', pictures: '', videoUrl: '', videoThumbnailUrl: '', thumbnails: {}, tags: '' });
 
 function imageUrls(a: Announcement) { return Array.isArray(a.imageUrls) ? a.imageUrls : []; }
 function isHttpsImageUrl(value: string): boolean {
@@ -50,6 +56,7 @@ export default function AnnouncementsPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [imageIndex, setImageIndex] = useState(0);
   const [editorError, setEditorError] = useState('');
+  const [mediaBusy, setMediaBusy] = useState(false);
   const [filter, setFilter] = useState('Toutes');
   const [origin, setOrigin] = useState('Toutes');
   const [sort, setSort] = useState<'newest' | 'oldest' | 'az'>('newest');
@@ -195,28 +202,31 @@ export default function AnnouncementsPage() {
     imagesCount: data.announcements.filter(a => imageUrls(a).length > 0).length,
   }), [data.announcements]);
 
-  function startCreate() { setEditor(emptyEditor()); setEditorError(''); setMediaTab('upload'); setDraftPreview(false); }
+  function startCreate() { setMediaBusy(false); setEditor(emptyEditor()); setEditorError(''); setMediaTab('upload'); setDraftPreview(false); }
   function startEdit(a: Announcement) {
+    setMediaBusy(false);
     setEditor({ id: a.id, title: a.title, category: a.category, body: a.body, sourceUrl: a.sourceUrl,
-      pictures: imageUrls(a).join('\n'), thumbnails: a.thumbnailUrls || {}, tags: (a.tags || []).join(', ') });
+      pictures: imageUrls(a).join('\n'), videoUrl: a.videoUrl || '', videoThumbnailUrl: a.videoThumbnailUrl || '', thumbnails: a.thumbnailUrls || {}, tags: (a.tags || []).join(', ') });
     setEditorError(''); setMediaTab('upload'); setDraftPreview(false);
   }
   function startPreview(id: string) { setPreviewId(id); setImageIndex(0); }
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editor) return;
+    if (mediaBusy) { setEditorError('Patientez jusqu’à la fin du traitement des médias.'); return; }
     const title = editor.title.trim();
     const body = editor.body.trim();
     const urls = linksFromEditor(editor.pictures);
-    if (!title || (!body && !urls.length)) { setEditorError('Ajoutez un titre, puis du texte ou au moins une photo.'); return; }
-    if (body.length > (urls.length ? 1024 : 4096)) { setEditorError('Limite Telegram dépassée : 1 024 caractères avec photos, 4 096 sans photo.'); return; }
+    if (!title || (!body && !urls.length && !editor.videoUrl)) { setEditorError('Ajoutez un titre, puis du texte ou au moins une photo.'); return; }
+    if (body.length > (urls.length || editor.videoUrl ? 1024 : 4096)) { setEditorError('Limite Telegram dépassée : 1 024 caractères avec photos, 4 096 sans photo.'); return; }
+    if (urls.length && editor.videoUrl) { setEditorError('Une annonce ne peut pas mélanger photos et vidéo.'); return; }
     if (urls.length > maxImages) { setEditorError(`Ajoutez au maximum ${maxImages} images par annonce.`); return; }
     if (urls.some(x => !isHttpsImageUrl(x))) { setEditorError('Les liens des images doivent commencer par https:// et être valides.'); return; }
     if (editor.sourceUrl.trim() && !/^https:\/\//i.test(editor.sourceUrl.trim())) {
       setEditorError('Le lien source doit commencer par https://.'); return;
     }
     const fields = { title, body, category: editor.category.trim() || 'Autre', sourceUrl: editor.sourceUrl.trim(),
-      imageUrls: urls, thumbnailUrls: Object.fromEntries(urls.filter(url => editor.thumbnails[url]).map(url => [url, editor.thumbnails[url]])), tags: [...new Set(editor.tags.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 12) };
+      imageUrls: urls, thumbnailUrls: Object.fromEntries(urls.filter(url => editor.thumbnails[url]).map(url => [url, editor.thumbnails[url]])), tags: [...new Set(editor.tags.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 12), videoUrl: editor.videoUrl || undefined, videoThumbnailUrl: editor.videoUrl ? editor.videoThumbnailUrl || undefined : undefined };
     if (editor.id) updateAnnouncement(editor.id, fields);
     else addAnnouncement(fields);
     setEditor(null);
@@ -229,7 +239,7 @@ export default function AnnouncementsPage() {
   }
   async function duplicate(a: Announcement) {
     addAnnouncement({ title: `${a.title} — copie`, category: a.category, body: a.body,
-      sourceUrl: a.sourceUrl, imageUrls: imageUrls(a), thumbnailUrls: a.thumbnailUrls || {}, tags: a.tags || [] });
+      sourceUrl: a.sourceUrl, imageUrls: imageUrls(a), videoUrl: a.videoUrl, videoThumbnailUrl: a.videoThumbnailUrl, thumbnailUrls: a.thumbnailUrls || {}, tags: a.tags || [] });
     notify('Copie créée. Le message Telegram original n’a pas été dupliqué.');
   }
   async function copy(a: Announcement) {
@@ -265,7 +275,7 @@ export default function AnnouncementsPage() {
     {filtered.length ? <div className={view === 'grid' ? 'n12-grid' : 'n12-grid n12-list'}>
       {visibleAnnouncements.map(a => <article className="n12-card" key={a.id}>
         <button type="button" className="n12-cover" onClick={() => startPreview(a.id)} aria-label={`Prévisualiser ${a.title}`}>
-          {imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={earlyCoverIds.has(a.id) ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
+          {a.videoUrl ? <>{a.videoThumbnailUrl ? <img src={a.videoThumbnailUrl} alt="Miniature de la vidéo" width={480} height={270} loading="lazy" decoding="async" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <div className="n12-placeholder"><Play size={30}/><span>VIDÉO</span></div>}<span className="n77-play-badge"><Play size={14} fill="currentColor"/> VIDÉO</span></> : imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={earlyCoverIds.has(a.id) ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
         </button>
         <div className="n12-card-body"><div className="n12-card-top"><Badge>{t(a.category)}</Badge><span className="n12-source-chip">{a.sourceMessageId ? 'Telegram' : 'Manuelle'}</span></div>
           <h3>{a.title}</h3><p>{a.body}</p>
@@ -290,6 +300,7 @@ export default function AnnouncementsPage() {
     {publishing && <Modal title="Publier maintenant" subtitle={publishing.title} onClose={() => !publishBusy && setPublishing(null)}>
       <div className="form-stack">
         <div className="n40-publish-preview"><strong>Annonce</strong><p>{publishing.body.slice(0, 350)}{publishing.body.length > 350 ? '…' : ''}</p>
+          {publishing.videoUrl && <small>1 vidéo MP4</small>}
           {(publishing.imageUrls?.length ?? 0) > 0 && <small>{publishing.imageUrls?.length} photo(s)</small>}</div>
         <div className="field-label"><span>Choisir un groupe autorisé</span>
   <SearchableSelect ariaLabel="Groupe pour publication immédiate" value={publishDestinationId}
@@ -306,7 +317,7 @@ export default function AnnouncementsPage() {
             <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Envoi vers Telegram</strong></span>
             <span className="n39-send-progress-time" aria-hidden="true">{publishElapsed} s</span>
           </div>
-          <p>{(publishing.imageUrls?.length ?? 0) > 0
+          <p>{publishing.videoUrl ? 'Transmission de la vidéo vers Telegram…' : (publishing.imageUrls?.length ?? 0) > 0
             ? `Transmission de ${publishing.imageUrls?.length} photo(s)${publishing.body.trim() ? ' et du texte' : ''}…`
             : 'Transmission du message…'}</p>
           <div className="n39-send-progress-track" aria-hidden="true"><span/></div>
@@ -323,20 +334,25 @@ export default function AnnouncementsPage() {
       </div>
     </Modal>}
 
-    {editor && <Modal title={editor.id ? 'Modifier une annonce' : 'Nouvelle annonce'} subtitle="Rédigez, enregistrez, puis publiez ou programmez votre annonce." onClose={() => setEditor(null)}>
+    {editor && <Modal title={editor.id ? 'Modifier une annonce' : 'Nouvelle annonce'} subtitle="Rédigez, enregistrez, puis publiez ou programmez votre annonce." onClose={() => { if (!mediaBusy) setEditor(null); }}>
       <form onSubmit={save} className="form-stack n12-editor">
         <div className="n12-editor-row"><label className="field-label">Titre <span>*</span><input value={editor.title} onChange={e => setEditor({...editor, title:e.target.value})} maxLength={90} required autoFocus placeholder="Ex. Appartement meublé à Quba"/></label>
           <label className="field-label">Catégorie<select value={editor.category} onChange={e => setEditor({...editor, category:e.target.value})}>{[...new Set([...mainCategories, editor.category])].map(c => <option key={c} value={c}>{t(c)}</option>)}</select></label></div>
-        <label className="field-label">Texte de la publication <small>(facultatif si vous ajoutez une photo)</small><textarea value={editor.body} onChange={e => setEditor({...editor, body:e.target.value})} rows={6} maxLength={linksFromEditor(editor.pictures).length ? 1024 : 4096} placeholder="Rédigez votre texte…"/></label>
-        <section className="n20-media-block" aria-label="Photos de l’annonce">
+        <label className="field-label">Texte de la publication <small>(facultatif si vous ajoutez une photo)</small><textarea value={editor.body} onChange={e => setEditor({...editor, body:e.target.value})} rows={6} maxLength={linksFromEditor(editor.pictures).length || editor.videoUrl ? 1024 : 4096} placeholder="Rédigez votre texte…"/></label>
+        <section className="n20-media-block" aria-label="Médias de l’annonce">
+          <div className="n20-media-heading"><strong>Vidéo MP4</strong><small>Jusqu’à 90 secondes, compression automatique si nécessaire · 20 Mo après optimisation.</small></div>
+          <AnnouncementVideoUpload value={editor.videoUrl} thumbnailUrl={editor.videoThumbnailUrl} onBusyChange={setMediaBusy} disabled={mediaBusy || linksFromEditor(editor.pictures).length > 0}
+            onChange={(videoUrl, videoThumbnailUrl) => setEditor(previous => previous ? {...previous, videoUrl, videoThumbnailUrl} : previous)}/>
           <div className="n20-media-heading"><div><strong>Photos de l’album</strong><small>Ajoutez jusqu’à {maxImages} photos à cette annonce.</small></div><span className="n20-photo-meter">{linksFromEditor(editor.pictures).length} / {maxImages}</span></div>
           <div className="n20-media-tabs" role="group" aria-label="Méthode d’ajout des photos">
             <button type="button" className={mediaTab === 'upload' ? 'active' : ''} aria-pressed={mediaTab === 'upload'} onClick={() => setMediaTab('upload')}><Images size={15}/> Depuis mon ordinateur</button>
             <button type="button" className={mediaTab === 'links' ? 'active' : ''} aria-pressed={mediaTab === 'links'} onClick={() => setMediaTab('links')}><Link2 size={15}/> Par URL</button>
           </div>
-          {mediaTab === 'upload' ? <AnnouncementImageUpload
+          {mediaTab === 'upload' && !editor.videoUrl ? <AnnouncementImageUpload
             currentCount={linksFromEditor(editor.pictures).length}
             maxCount={maxImages}
+            disabled={mediaBusy}
+            onBusyChange={setMediaBusy}
             onUploaded={(urls, thumbnails) => setEditor(previous => previous ? {
               ...previous,
               pictures: [...new Set([...linksFromEditor(previous.pictures), ...urls])].join('\n'),
@@ -364,17 +380,19 @@ export default function AnnouncementsPage() {
         <div className="inline-help"><MessageSquareText size={16}/> Les images ajoutées depuis votre ordinateur sont hébergées dans un bucket public Supabase Storage. Leur URL est accessible à toute personne qui la possède. Les transferts Telegram nécessitent toujours les autorisations du groupe.</div>
         {draftPreview && <section className="n20-draft" aria-label="Aperçu avant enregistrement">
           <div className="n20-draft-top"><MessageSquareText size={15}/><strong>Aperçu avant enregistrement</strong><span>Non publié</span></div>
+          {editor.videoUrl && <video src={editor.videoUrl} poster={editor.videoThumbnailUrl || undefined} controls playsInline preload="metadata" style={{maxWidth:'100%'}}/>}
           {linksFromEditor(editor.pictures).find(isHttpsImageUrl) && <img src={linksFromEditor(editor.pictures).find(isHttpsImageUrl)} alt="Première photo de l’annonce" />}
           <h3>{editor.title.trim() || 'Titre de votre annonce'}</h3>
           <p>{editor.body.trim() || 'Votre texte apparaîtra ici pendant la rédaction.'}</p>
         </section>}
         {editorError && <p className="n12-error" role="alert">{editorError}</p>}
-        <div className="modal-actions n20-editor-actions"><button type="button" className="btn btn-secondary" aria-expanded={draftPreview} onClick={() => setDraftPreview(v => !v)}><Eye size={16}/>{draftPreview ? 'Masquer l’aperçu' : 'Prévisualiser'}</button><button type="button" className="btn btn-secondary" onClick={() => setEditor(null)}>Annuler</button><button type="submit" className="btn btn-primary"><Check size={16}/> {editor.id ? 'Enregistrer les changements' : 'Créer l’annonce'}</button></div>
+        <div className="modal-actions n20-editor-actions"><button type="button" className="btn btn-secondary" aria-expanded={draftPreview} onClick={() => setDraftPreview(v => !v)}><Eye size={16}/>{draftPreview ? 'Masquer l’aperçu' : 'Prévisualiser'}</button><button type="button" className="btn btn-secondary" disabled={mediaBusy} onClick={() => setEditor(null)}>Annuler</button><button type="submit" className="btn btn-primary" disabled={mediaBusy}><Check size={16}/> {editor.id ? 'Enregistrer les changements' : 'Créer l’annonce'}</button></div>
       </form>
     </Modal>}
 
     {preview && <Modal title="Prévisualisation" subtitle={preview.title} onClose={() => setPreviewId(null)}>
       <div className="n12-preview">
+        {preview.videoUrl && <video src={preview.videoUrl} poster={preview.videoThumbnailUrl || undefined} controls playsInline preload="metadata" style={{width:'100%',maxHeight:450}}/>}
         {images.length > 0 && <div className="n12-gallery"><img src={images[Math.min(imageIndex, images.length-1)]} alt={`Image ${imageIndex+1} de ${images.length}`} />
           {images.length > 1 && <><button type="button" aria-label="Image précédente" className="n12-prev" onClick={() => setImageIndex(i => (i-1+images.length)%images.length)}><ChevronLeft size={21}/></button><button type="button" className="n12-next" aria-label="Image suivante" onClick={() => setImageIndex(i => (i+1)%images.length)}><ChevronRight size={21}/></button><span className="n12-count">{imageIndex+1} / {images.length}</span></>}
         </div>}

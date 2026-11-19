@@ -1,7 +1,7 @@
 /** Server-side rolling window of Telegram-native schedules for interval rules. */
 import 'server-only';
 import type { AppData, Campaign } from '@/lib/store';
-import { buildAnnouncementDelivery, getServiceClient, loadAlbum, safeReason, DeliveryBlocked } from './worker';
+import { buildAnnouncementDelivery, getServiceClient, loadAlbum, loadVideo, safeReason, DeliveryBlocked } from './worker';
 import { recurringOccurrences, destinationSendAt, type IntervalRecurrence } from './recurrence';
 import { cancelTelegramSchedule, scheduleOnConnectedTelegram, withSchedulingClient } from './telegram-native';
 import { reserveSendWithOrigin, finalizeSend } from '@/lib/billing/quotas-server';
@@ -90,7 +90,7 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
   let album: Buffer[] | undefined;
   try {
     works = targets.map(target => buildAnnouncementDelivery(announcement, target.handle, 'repost', rule.user_id, target.topicId));
-    album = works[0].kind === 'album' ? await loadAlbum(store, works[0].photos) : undefined;
+    album = works[0].kind === 'album' ? await loadAlbum(store, works[0].photos) : works[0].kind === 'video' ? [await loadVideo(store, works[0].video)] : undefined;
   } catch (error) {
     result.problem = safeReason(error);
     await markRule(rule.id, 'paused', result.problem);

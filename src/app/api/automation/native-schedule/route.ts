@@ -1,7 +1,7 @@
 /** Native Telegram schedule: messages are delivered by Telegram even with PC off. */
 import { NextRequest, NextResponse } from 'next/server';
 import { context, getAccount } from '@/lib/telegram-user/core';
-import { buildAnnouncementDelivery, getServiceClient, loadAlbum, safeReason, DeliveryBlocked } from '@/lib/automation/worker';
+import { buildAnnouncementDelivery, getServiceClient, loadAlbum, loadVideo, safeReason, DeliveryBlocked } from '@/lib/automation/worker';
 import { scheduleWithTelegram, cancelTelegramSchedule } from '@/lib/automation/telegram-native';
 import type { Campaign, AppData } from '@/lib/store';
 import { reserveSendWithOrigin, finalizeSend } from '@/lib/billing/quotas-server';
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     if (!account?.session_ciphertext) return errorResponse('Connectez votre compte Telegram personnel.');
     const service = getServiceClient();
     const firstTask = tasks[0];
-    const album = firstTask.work.kind === 'album' ? await loadAlbum(service, firstTask.work.photos) : undefined;
+    const album = firstTask.work.kind === 'album' ? await loadAlbum(service, firstTask.work.photos) : firstTask.work.kind === 'video' ? [await loadVideo(service, firstTask.work.video)] : undefined;
     const campaign: Campaign = {
       id: raw.id, name: raw.name.trim(), announcementId: ads[0], announcementIds: ads,
       destinationIds: dests, destinationTopics: Object.fromEntries(targets.map(t => [t.id, t.topicId ?? null])),

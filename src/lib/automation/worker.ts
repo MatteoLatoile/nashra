@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Api, decrypt, makeClient, resolveDialog } from '@/lib/telegram-user/core';
 import { readiness, type Workspace } from './readiness';
-import { parseStoredPhotos, imageExtension, MAX_PHOTO_BYTES, PHOTO_BUCKET, PhotoReferenceError, type StoredPhoto } from './photos';
+import { parseStoredPhotos, imageExtension, MAX_PHOTO_BYTES, PHOTO_BUCKET, VIDEO_BUCKET, MAX_VIDEO_BYTES, isMp4, mp4DurationSeconds, parseStoredVideo, PhotoReferenceError, type StoredVideo, type StoredPhoto } from './photos';
 import { reserveSend, finalizeSend } from '@/lib/billing/quotas-server';
 import { resolveTopic, topicReply, TopicError, validTopicId } from '@/lib/telegram-user/topics';
 import { verifyAlbumResponse } from './album-confirmation';
@@ -17,7 +17,8 @@ export type NativeWorkItem =
   | { kind: 'source'; sourceChatId: string; sourceMessageId: number; destinationChatId: string; topicId?: number;
       method: 'forward' | 'repost' }
   | { kind: 'text'; destinationChatId: string; topicId?: number; body: string; method: 'repost' }
-  | { kind: 'album'; destinationChatId: string; topicId?: number; body: string; photos: StoredPhoto[]; method: 'repost' };
+  | { kind: 'album'; destinationChatId: string; topicId?: number; body: string; photos: StoredPhoto[]; method: 'repost' }
+  | { kind: 'video'; destinationChatId: string; topicId?: number; body: string; video: StoredVideo; method: 'repost' };
 export class DeliveryBlocked extends Error {}
 export function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -46,6 +47,12 @@ export function buildAnnouncementDelivery(ad: NonNullable<Workspace['announcemen
   }
   const text = typeof ad.body === 'string' ? ad.body.trim() : '';
   const hasImages = Array.isArray(ad.imageUrls) && ad.imageUrls.length > 0;
+  if (hasImages && ad.videoUrl) throw new DeliveryBlocked('Ne mélangez pas photos et vidéo dans une annonce.');
+  if (ad.videoUrl) {
+    if (text.length > 1024) throw new DeliveryBlocked('Légende vidéo trop longue (1 024 caractères maximum).');
+    try { return { kind: 'video', destinationChatId, topicId, body: text, video: parseStoredVideo(ad.videoUrl, process.env.NEXT_PUBLIC_SUPABASE_URL || '', userId), method: 'repost' }; }
+    catch (err) { throw new DeliveryBlocked(err instanceof Error ? err.message : 'Vidéo invalide.'); }
+  }
   if (hasImages) {
     if (text.length > 1024) throw new DeliveryBlocked('Légende trop longue (1 024 caractères maximum pour un album).');
     let photos: StoredPhoto[];
@@ -135,6 +142,18 @@ export async function loadAlbum(db: ReturnType<typeof getServiceClient>, photos:
   return files;
 }
 
+export async function loadVideo(db: ReturnType<typeof getServiceClient>, video: StoredVideo): Promise<Buffer> {
+  const { data, error } = await db.storage.from(VIDEO_BUCKET).download(video.key);
+  if (error || !data || data.size < 12 || data.size > MAX_VIDEO_BYTES)
+    throw new DeliveryBlocked('Vidéo inaccessible, vide ou dépassant 20 Mo. Aucun envoi effectué.');
+  const buffer = Buffer.from(await data.arrayBuffer());
+  if (!isMp4(buffer)) throw new DeliveryBlocked('Format MP4 non reconnu. Aucun envoi effectué.');
+  const duration = mp4DurationSeconds(buffer);
+  if (!duration || duration > 90) throw new DeliveryBlocked('Vidéo non valide ou dépassant 90 secondes. Aucun envoi effectué.');
+  Object.assign(buffer, { name: 'nashra-video.mp4' });
+  return buffer;
+}
+
 export async function sendWithPersonalAccount(encrypted: string, data: NativeWorkItem, album?: Buffer[]) {
   const client = makeClient(decrypt(encrypted));
   try {
@@ -159,6 +178,11 @@ export async function sendWithPersonalAccount(encrypted: string, data: NativeWor
       const sent = await client.sendMessage(to.entity!, { message: data.body, replyTo, parseMode: false });
       if (!sent.id) throw new Error('Confirmation Telegram absente.');
       return sent.id;
+    }
+    if (data.kind === 'video') {
+      if (!album || album.length !== 1) throw new DeliveryBlocked('Vidéo absente : aucun envoi effectué.');
+      const sent = await client.sendFile(to.entity!, { file: album[0], caption: data.body, formattingEntities: [], parseMode: false, forceDocument: false, replyTo });
+      return verifyAlbumResponse(sent, 1, data.body)[0];
     }
     if (data.kind === 'album') {
       if (!album || album.length !== data.photos.length) throw new DeliveryBlocked('Album incomplet : aucun envoi effectué.');
@@ -213,7 +237,7 @@ export async function runOneDelivery(): Promise<{ state: string; id?: string }> 
     const work = verifyJob(row.data as Workspace, job);
     // Fetch and validate every photo before a Telegram connection/send.
     // On any failure, do not send a partial album or text-only fallback.
-    const album = work.kind === 'album' ? await loadAlbum(db, work.photos) : undefined;
+    const album = work.kind === 'album' ? await loadAlbum(db, work.photos) : work.kind === 'video' ? [await loadVideo(db, work.video)] : undefined;
     const { data: account, error: accountError } = await db.from('telegram_accounts').select('session_ciphertext')
       .eq('user_id', job.user_id).maybeSingle();
     if (accountError || !account?.session_ciphertext) throw new DeliveryBlocked('Compte Telegram non connecté.');

@@ -5,7 +5,7 @@ export async function makeThumbnail(file: Blob): Promise<Blob | null> {
   try {
     image = await createImageBitmap(file);
     if (!image.width || !image.height || image.width * image.height > 36_000_000) return null;
-    const scale = Math.min(1, 480 / image.width);
+    const scale = Math.min(1, 480 / Math.max(image.width, image.height));
     const width = Math.max(1, Math.round(image.width * scale));
     const height = Math.max(1, Math.round(image.height * scale));
     const canvas = document.createElement('canvas');

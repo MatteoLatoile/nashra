@@ -40,6 +40,11 @@ export async function scheduleOnConnectedTelegram(client: TelegramClient, work: 
   if (work.kind === 'text') {
     return validIds(await client.sendMessage(entity, { message: work.body, schedule, replyTo, parseMode: false }));
   }
+  if (work.kind === 'video') {
+    if (!album || album.length !== 1) throw new DeliveryBlocked('Vidéo absente.');
+    const sent = await client.sendFile(entity, { file: album[0], caption: work.body, formattingEntities: [], parseMode: false, forceDocument: false, scheduleDate: schedule, replyTo });
+    return verifyAlbumResponse(sent, 1, work.body);
+  }
   if (work.kind === 'album') {
     if (!album || album.length !== work.photos.length || !album.length) throw new DeliveryBlocked('Album incomplet.');
 

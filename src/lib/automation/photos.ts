@@ -58,3 +58,78 @@ export function imageExtension(bytes: Uint8Array): StoredPhoto['extension'] | nu
   if (bytes.length >= 12 && [82, 73, 70, 70].every((v, i) => bytes[i] === v) && [87, 69, 66, 80].every((v, i) => bytes[i + 8] === v)) return 'webp';
   return null;
 }
+
+
+/** Video references are owned, local-only and never arbitrary fetch URLs. */
+export const VIDEO_BUCKET = 'nashra-announcement-videos';
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+export type StoredVideo = { key: string; extension: 'mp4' };
+export function parseStoredVideo(value: unknown, supabaseUrl: string, ownerUserId?: string): StoredVideo {
+  if (typeof value !== 'string' || !supabaseUrl) throw new PhotoReferenceError('Vidéo Nashra invalide.');
+  let url: URL; let base: URL;
+  try { url = new URL(value); base = new URL(supabaseUrl); }
+  catch { throw new PhotoReferenceError('URL de vidéo invalide.'); }
+  const prefix = `${base.pathname.replace(/\/$/, '')}/storage/v1/object/public/${VIDEO_BUCKET}/`;
+  if (base.protocol !== 'https:' || url.origin !== base.origin || url.search || url.hash ||
+      url.username || url.password || !url.pathname.startsWith(prefix))
+    throw new PhotoReferenceError('Seules les vidéos MP4 importées dans Nashra sont publiables.');
+  const key = url.pathname.slice(prefix.length);
+  const match = /^([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})\.mp4$/i.exec(key);
+  if (!match || (ownerUserId && match[1].toLowerCase() !== ownerUserId.toLowerCase()))
+    throw new PhotoReferenceError('Vidéo appartenant à un autre utilisateur ou chemin invalide.');
+  return { key, extension: 'mp4' };
+}
+export function isMp4(bytes: Uint8Array): boolean {
+  // ISO BMFF ftyp marker, accepted MP4 brand identifiers only.
+  if (bytes.length < 12 || bytes[4] !== 102 || bytes[5] !== 116 || bytes[6] !== 121 || bytes[7] !== 112) return false;
+  const brand = String.fromCharCode(...bytes.slice(8, 12));
+  return ['isom', 'iso2', 'mp41', 'mp42', 'avc1', 'M4V ', 'MSNV', 'dash'].includes(brand);
+}
+
+/** Read the ISO BMFF movie header without executing a codec or trusting client metadata.
+ * Non-fragmented MP4s from browsers/FFmpeg have moov/mvhd with duration.
+ * Reject unknown/fragmented containers rather than accidentally sending unbounded media.
+ */
+export function mp4DurationSeconds(bytes: Uint8Array): number | null {
+  if (!isMp4(bytes) || bytes.length < 32) return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const read32 = (offset: number) => view.getUint32(offset, false);
+  const typeAt = (offset: number) => String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+  const findBoxes = (start: number, limit: number, wanted: string): [number, number] | null => {
+    let at = start;
+    while (at + 8 <= limit) {
+      let size = read32(at);
+      const type = typeAt(at + 4);
+      let header = 8;
+      if (size === 1) {
+        if (at + 16 > limit) return null;
+        const large = view.getBigUint64(at + 8, false);
+        if (large > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+        size = Number(large);
+        header = 16;
+      } else if (size === 0) size = limit - at;
+      if (size < header || at + size > limit) return null;
+      if (type === wanted) return [at + header, at + size];
+      at += size;
+    }
+    return null;
+  };
+  const moov = findBoxes(0, bytes.length, 'moov');
+  if (!moov) return null;
+  const mvhd = findBoxes(moov[0], moov[1], 'mvhd');
+  if (!mvhd) return null;
+  const start = mvhd[0];
+  const version = bytes[start];
+  let timescale: number, duration: number;
+  if (version === 0 && start + 20 <= mvhd[1]) {
+    timescale = read32(start + 12);
+    duration = read32(start + 16);
+  } else if (version === 1 && start + 32 <= mvhd[1]) {
+    timescale = read32(start + 20);
+    const large = view.getBigUint64(start + 24, false);
+    if (large > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+    duration = Number(large);
+  } else return null;
+  const seconds = duration / timescale;
+  return Number.isFinite(seconds) && timescale > 0 && seconds > 0 ? seconds : null;
+}
