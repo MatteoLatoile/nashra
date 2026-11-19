@@ -1,0 +1,390 @@
+'use client';
+import { campaignFailure, readable, type Tone } from '@/lib/feedback';
+import { SearchableSelect } from '@/components/searchable-select';
+
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+// The image uploader is only needed inside the announcement editor.
+const AnnouncementImageUpload = dynamic(
+  () => import('@/components/announcement-image-upload').then(mod => mod.AnnouncementImageUpload),
+  { ssr: false, loading: () => <div className="n40-footnote" role="status">Préparation de l’import des photos…</div> },
+);
+import {
+  Plus, Search, FileText, Trash2, Eye, ArrowUpRight, Copy, MessageSquareText,
+  Images, Pencil, Layers3, SlidersHorizontal, CalendarDays, Link2, Check,
+  ExternalLink, ChevronLeft, ChevronRight, Send, LoaderCircle, X,
+} from 'lucide-react';
+import { Badge, EmptyState, Modal, PageHeader } from '@/components/ui';
+import { useConfirm } from '@/components/confirm-dialog';
+import { dateFR, useApp, type Announcement } from '@/lib/store';
+import { useLanguage } from '@/lib/i18n/provider';
+
+const mainCategories = ['Immobilier', 'Services', 'Commerce', 'Événement', 'Autre'];
+const maxImages = 10;
+
+type Editor = {
+  id?: string;
+  title: string;
+  category: string;
+  body: string;
+  sourceUrl: string;
+  pictures: string;
+  thumbnails: Record<string, string>;
+  tags: string;
+};
+const emptyEditor = (): Editor => ({ title: '', category: 'Immobilier', body: '', sourceUrl: '', pictures: '', thumbnails: {}, tags: '' });
+
+function imageUrls(a: Announcement) { return Array.isArray(a.imageUrls) ? a.imageUrls : []; }
+function isHttpsImageUrl(value: string): boolean {
+  try { const url = new URL(value); return url.protocol === 'https:' && !!url.hostname; }
+  catch { return false; }
+}
+function linksFromEditor(value: string) { return [...new Set(value.split(/\r?\n/g).map(x => x.trim()).filter(Boolean))]; }
+
+export default function AnnouncementsPage() {
+  const { t } = useLanguage();
+  const { data, addAnnouncement, updateAnnouncement, removeAnnouncement, notify, cloudMode, syncStatus } = useApp();
+  const confirm = useConfirm();
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [imageIndex, setImageIndex] = useState(0);
+  const [editorError, setEditorError] = useState('');
+  const [filter, setFilter] = useState('Toutes');
+  const [origin, setOrigin] = useState('Toutes');
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'az'>('newest');
+  const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [visibleCount, setVisibleCount] = useState(24);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [optimizingPhotos, setOptimizingPhotos] = useState(false);
+  const [mediaTab, setMediaTab] = useState<'upload' | 'links'>('upload');
+  const [draftPreview, setDraftPreview] = useState(false);
+  const [publishing, setPublishing] = useState<Announcement | null>(null);
+  const [publishDestinationId, setPublishDestinationId] = useState('');
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishElapsed, setPublishElapsed] = useState(0);
+  const [publishResult, setPublishResult] = useState('');
+  const [publishTone, setPublishTone] = useState<Tone>('info');
+  const eligibleDestinations = useMemo(() => data.destinations.filter(d => d.authorized && /^-?\d{3,30}$/.test(d.handle)), [data.destinations]);
+
+  // Temps réellement écoulé ; aucune progression artificielle en pourcentage.
+  useEffect(() => {
+    if (!publishBusy) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setPublishElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [publishBusy]);
+
+  function openPublish(a: Announcement) {
+    setPublishing(a);
+    setPublishDestinationId('');
+    setPublishElapsed(0);
+    setPublishResult('');
+    setPublishTone('info');
+  }
+  async function publishNow() {
+    if (!publishing || !publishDestinationId || publishBusy) return;
+    setPublishBusy(true);
+    setPublishElapsed(0);
+    setPublishResult('');
+    setPublishTone('info');
+    try {
+      const response = await fetch('/api/telegram/user/publish-announcement', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ announcementId: publishing.id,
+          destinationId: publishDestinationId, confirmed: true, requestId: crypto.randomUUID() }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const notice = campaignFailure(result?.error || 'Envoi impossible.');
+        setPublishTone(result?.uncertain ? 'warning' : notice.tone);
+        setPublishResult(readable(result?.error, notice.text));
+        return;
+      }
+      if (result?.ok !== true || !(Number.isSafeInteger(result.telegramMessageId) && result.telegramMessageId > 0)) throw new SyntaxError();
+      setPublishTone('success');
+      setPublishResult(`Message confirmé par Telegram (#${result.telegramMessageId}). Consultez l’historique.`);
+      notify('Publication confirmée.');
+    } catch (e) { const notice = campaignFailure(e); setPublishTone(notice.tone); setPublishResult(notice.text); }
+    finally { setPublishBusy(false); }
+  }
+
+
+  const categories = useMemo(() => ['Toutes', ...new Set([...mainCategories, ...data.announcements.map(a => a.category)].filter(Boolean))], [data.announcements]);
+  // Index the searchable text once per workspace revision, rather than rebuilding
+  // potentially long announcement bodies on every filter or search keystroke.
+  const searchIndex = useMemo(() => data.announcements.map(a => ({
+    announcement: a,
+    text: `${a.title} ${a.body} ${a.category} ${(a.tags || []).join(' ')}`.toLocaleLowerCase(),
+  })), [data.announcements]);
+  const normalizedQuery = deferredQuery.trim().toLocaleLowerCase();
+  const filtered = useMemo(() => searchIndex.filter(({ announcement: a, text }) => {
+    if (filter !== 'Toutes' && a.category !== filter) return false;
+    if (origin === 'Telegram' && !a.sourceMessageId) return false;
+    if (origin === 'Manuelles' && a.sourceMessageId) return false;
+    return !normalizedQuery || text.includes(normalizedQuery);
+  }).map(({ announcement }) => announcement).sort((a, b) => sort === 'az' ? a.title.localeCompare(b.title) : sort === 'oldest'
+    ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt)), [searchIndex, filter, origin, normalizedQuery, sort]);
+  useEffect(() => { setVisibleCount(24); }, [filter, origin, sort, normalizedQuery]);
+  const visibleAnnouncements = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  // Prioritize only the first cover that can be the LCP element. On mobile,
+  // the library has a single column; the remaining covers stay lazy-loaded.
+  // Do not replace the original image URL: Telegram publishing needs the original.
+  const initialCoverIds = useMemo(() => visibleAnnouncements
+    .filter(a => imageUrls(a).length > 0)
+    .slice(0, 3)
+    .map(a => a.id), [visibleAnnouncements]);
+  const firstCoverId = initialCoverIds[0];
+  const earlyCoverIds = useMemo(() => new Set(initialCoverIds), [initialCoverIds]);
+  // Existing announcements stay valid without thumbnails. Only user-initiated
+  // optimisation may read old originals; normal page loads never backfill.
+  const legacyCovers = useMemo(() => data.announcements.filter(a => {
+    const original = imageUrls(a)[0];
+    const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+    return !!base && !!original && original.startsWith(`${base}/storage/v1/object/public/nashra-announcement-images/`)
+      && !a.thumbnailUrls?.[original];
+  }), [data.announcements]);
+  async function optimizeExistingCovers() {
+    if (optimizingPhotos || !legacyCovers.length || !cloudMode || syncStatus !== 'synced') return;
+    setOptimizingPhotos(true);
+    let done = 0;
+    let failed = 0;
+    try {
+      const [{ createClient }, { makeThumbnail }] = await Promise.all([
+        import('@/lib/supabase/client'), import('@/lib/images/client-thumbnail'),
+      ]);
+      const supabase = createClient();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error('Session indisponible.');
+      // Bounded, sequential and voluntary: never flood Supabase or the network.
+      for (const announcement of legacyCovers.slice(0, 5)) {
+        try {
+          const original = imageUrls(announcement)[0];
+          const response = await fetch(original);
+          if (!response.ok || !response.body) throw new Error('Téléchargement impossible');
+          const length = Number(response.headers.get('content-length') || 0);
+          if (length > 8 * 1024 * 1024) throw new Error('Image trop volumineuse');
+          const blob = await response.blob();
+          if (blob.size > 8 * 1024 * 1024) throw new Error('Image trop volumineuse');
+          const thumb = await makeThumbnail(blob);
+          if (!thumb) throw new Error('Miniature indisponible');
+          const key = `${auth.user.id}/${crypto.randomUUID()}-thumb.webp`;
+          const { error: uploadError } = await supabase.storage.from('nashra-announcement-images').upload(key, thumb, {
+            contentType: 'image/webp', cacheControl: '31536000', upsert: false,
+          });
+          if (uploadError) throw uploadError;
+          const url = supabase.storage.from('nashra-announcement-images').getPublicUrl(key).data.publicUrl;
+          updateAnnouncement(announcement.id, { thumbnailUrls: { ...(announcement.thumbnailUrls || {}), [original]: url } });
+          done++;
+        } catch { failed++; }
+      }
+      notify(`${done} miniature${done > 1 ? 's' : ''} créée${done > 1 ? 's' : ''}${failed ? `, ${failed} ignorée${failed > 1 ? 's' : ''}` : ''}. Aucune photo Telegram modifiée.`, done ? 'success' : 'warning');
+    } catch {
+      notify('Impossible d’optimiser les photos pour le moment.', 'warning');
+    } finally {
+      setOptimizingPhotos(false);
+    }
+  }
+  const preview = data.announcements.find(a => a.id === previewId) || null;
+  const images = preview ? imageUrls(preview) : [];
+  const { sourceCount, imagesCount } = useMemo(() => ({
+    sourceCount: data.announcements.filter(a => a.sourceMessageId).length,
+    imagesCount: data.announcements.filter(a => imageUrls(a).length > 0).length,
+  }), [data.announcements]);
+
+  function startCreate() { setEditor(emptyEditor()); setEditorError(''); setMediaTab('upload'); setDraftPreview(false); }
+  function startEdit(a: Announcement) {
+    setEditor({ id: a.id, title: a.title, category: a.category, body: a.body, sourceUrl: a.sourceUrl,
+      pictures: imageUrls(a).join('\n'), thumbnails: a.thumbnailUrls || {}, tags: (a.tags || []).join(', ') });
+    setEditorError(''); setMediaTab('upload'); setDraftPreview(false);
+  }
+  function startPreview(id: string) { setPreviewId(id); setImageIndex(0); }
+  function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editor) return;
+    const title = editor.title.trim();
+    const body = editor.body.trim();
+    const urls = linksFromEditor(editor.pictures);
+    if (!title || (!body && !urls.length)) { setEditorError('Ajoutez un titre, puis du texte ou au moins une photo.'); return; }
+    if (body.length > (urls.length ? 1024 : 4096)) { setEditorError('Limite Telegram dépassée : 1 024 caractères avec photos, 4 096 sans photo.'); return; }
+    if (urls.length > maxImages) { setEditorError(`Ajoutez au maximum ${maxImages} images par annonce.`); return; }
+    if (urls.some(x => !isHttpsImageUrl(x))) { setEditorError('Les liens des images doivent commencer par https:// et être valides.'); return; }
+    if (editor.sourceUrl.trim() && !/^https:\/\//i.test(editor.sourceUrl.trim())) {
+      setEditorError('Le lien source doit commencer par https://.'); return;
+    }
+    const fields = { title, body, category: editor.category.trim() || 'Autre', sourceUrl: editor.sourceUrl.trim(),
+      imageUrls: urls, thumbnailUrls: Object.fromEntries(urls.filter(url => editor.thumbnails[url]).map(url => [url, editor.thumbnails[url]])), tags: [...new Set(editor.tags.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 12) };
+    if (editor.id) updateAnnouncement(editor.id, fields);
+    else addAnnouncement(fields);
+    setEditor(null);
+  }
+  async function remove(a: Announcement) {
+    const approved = await confirm({ title: 'Supprimer cette annonce ?',
+      description: 'Elle sera retirée de la bibliothèque et des campagnes auxquelles elle est associée. Cette action est irréversible.',
+      item: a.title, itemLabel: 'ANNONCE À SUPPRIMER', confirmText: 'Supprimer l’annonce', tone: 'danger' });
+    if (approved) { removeAnnouncement(a.id); if (previewId === a.id) setPreviewId(null); }
+  }
+  async function duplicate(a: Announcement) {
+    addAnnouncement({ title: `${a.title} — copie`, category: a.category, body: a.body,
+      sourceUrl: a.sourceUrl, imageUrls: imageUrls(a), thumbnailUrls: a.thumbnailUrls || {}, tags: a.tags || [] });
+    notify('Copie créée. Le message Telegram original n’a pas été dupliqué.');
+  }
+  async function copy(a: Announcement) {
+    try { await navigator.clipboard.writeText(a.body); notify('Texte copié.'); }
+    catch { notify('Le presse-papiers est indisponible.', 'error'); }
+  }
+
+  return <div className="n12-library">
+    <PageHeader eyebrow="BIBLIOTHÈQUE" title="Mes annonces" description="Importez, organisez et préparez vos publications au même endroit."
+      actions={<div className="n12-header-actions"><Link href="/telegram" className="btn btn-secondary"><Send size={16}/> Importer de Telegram</Link><button className="btn btn-primary" onClick={startCreate}><Plus size={17}/> Nouvelle annonce</button></div>}/>
+
+    <div className="n12-summary" aria-label="Résumé de la bibliothèque">
+      <div><span><Layers3 size={16}/> Toutes les annonces</span><strong>{data.announcements.length.toString().padStart(2, '0')}</strong></div>
+      <div><span><Send size={16}/> Importées de Telegram</span><strong>{sourceCount.toString().padStart(2, '0')}</strong></div>
+      <div><span><Images size={16}/> Avec images</span><strong>{imagesCount.toString().padStart(2, '0')}</strong></div>
+    </div>
+
+    <div className="n12-controls">
+      <label className="n12-search"><Search size={17}/><input aria-label="Rechercher dans la bibliothèque" value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher un titre, un mot, un tag…"/></label>
+      <label className="n12-select"><SlidersHorizontal size={15}/><span>Source</span><select aria-label="Filtrer par source" value={origin} onChange={event => setOrigin(event.target.value)}><option value="Toutes">{t('Toutes')}</option><option value="Telegram">Telegram</option><option value="Manuelles">{t('Manuelles')}</option></select></label>
+      <label className="n12-select"><span>Tri</span><select aria-label="Trier les annonces" value={sort} onChange={event => setSort(event.target.value as typeof sort)}><option value="newest">{t("Récentes")}</option><option value="oldest">{t("Anciennes")}</option><option value="az">{t("A → Z")}</option></select></label>
+      <div className="n12-view" role="group" aria-label="Mode d’affichage"><button onClick={() => setView('grid')} aria-pressed={view === 'grid'} title="Vue cartes"><Images size={17}/></button><button onClick={() => setView('list')} aria-pressed={view === 'list'} title="Vue liste"><FileText size={17}/></button></div>
+    </div>
+    <div className="n12-filter-row" aria-label="Catégories">{categories.map(c => <button key={c} className={filter === c ? 'n12-pill active' : 'n12-pill'} onClick={() => setFilter(c)}>{t(c)}</button>)}</div>
+    <div className="n12-results"><span><strong>{filtered.length}</strong> résultat{filtered.length !== 1 ? 's' : ''}</span><span>Publiez ponctuellement ou programmez dans le calendrier.</span></div>
+    {legacyCovers.length > 0 && cloudMode && syncStatus === 'synced' && <div className="n12-results" aria-live="polite">
+      <span>Anciennes photos : miniatures non générées.</span>
+      <button type="button" className="btn btn-secondary" disabled={optimizingPhotos} onClick={() => void optimizeExistingCovers()}>
+        {optimizingPhotos ? 'Optimisation en cours…' : `Optimiser jusqu’à 5 photos (${legacyCovers.length} restante${legacyCovers.length > 1 ? 's' : ''})`}
+      </button>
+    </div>}
+
+    {filtered.length ? <div className={view === 'grid' ? 'n12-grid' : 'n12-grid n12-list'}>
+      {visibleAnnouncements.map(a => <article className="n12-card" key={a.id}>
+        <button type="button" className="n12-cover" onClick={() => startPreview(a.id)} aria-label={`Prévisualiser ${a.title}`}>
+          {imageUrls(a).length ? <><img src={a.thumbnailUrls?.[imageUrls(a)[0]] || imageUrls(a)[0]} alt="" width={480} height={270} loading={earlyCoverIds.has(a.id) ? 'eager' : 'lazy'} fetchPriority={a.id === firstCoverId ? 'high' : 'auto'} decoding="async" onError={event => { const original = imageUrls(a)[0]; if (event.currentTarget.src !== original) event.currentTarget.src = original; }}/><span className="n12-photo-count"><Images size={13}/>{imageUrls(a).length}</span></> : <div className="n12-placeholder"><FileText size={31} strokeWidth={1.2}/><span>ANNONCE</span></div>}
+        </button>
+        <div className="n12-card-body"><div className="n12-card-top"><Badge>{t(a.category)}</Badge><span className="n12-source-chip">{a.sourceMessageId ? 'Telegram' : 'Manuelle'}</span></div>
+          <h3>{a.title}</h3><p>{a.body}</p>
+          {(a.tags || []).length > 0 && <div className="n12-tags">{(a.tags || []).slice(0, 3).map(tag => <span key={tag}>#{tag}</span>)}</div>}
+          <div className="n12-card-bottom"><span><CalendarDays size={13}/>{dateFR(a.createdAt)}</span><div className="n12-card-actions"><button onClick={() => openPublish(a)} aria-label={`Publier ${a.title}`} title="Publier maintenant"><Send size={16}/></button><Link href={`/campagnes?annonce=${encodeURIComponent(a.id)}`} aria-label={`Programmer ${a.title}`} title="Programmer"><CalendarDays size={16}/></Link>
+            <button onClick={() => void copy(a)} aria-label={`Copier ${a.title}`} title="Copier"><Copy size={16}/></button>
+            <button onClick={() => void duplicate(a)} aria-label={`Dupliquer ${a.title}`} title="Dupliquer"><Layers3 size={16}/></button>
+            <button onClick={() => startEdit(a)} aria-label={`Modifier ${a.title}`} title="Modifier"><Pencil size={16}/></button>
+            <button onClick={() => startPreview(a.id)} aria-label={`Aperçu de ${a.title}`} title="Aperçu"><Eye size={17}/></button>
+             <button type="button" onClick={() => void remove(a)} aria-label={`Supprimer ${a.title}`} title="Supprimer l’annonce"><Trash2 size={16}/></button>
+          </div></div>
+        </div>
+      </article>)}
+    </div> : <EmptyState icon={<FileText size={27}/>} title="Aucune annonce à afficher" description={data.announcements.length ? 'Modifiez vos filtres pour retrouver vos publications.' : 'Commencez par créer une annonce ou importer un message depuis Telegram.'}
+      action={<div className="n12-empty-actions"><button className="btn btn-primary" onClick={startCreate}><Plus size={16}/> Créer une annonce</button><Link className="btn btn-secondary" href="/telegram">Importer de Telegram</Link></div>}/>}
+    {visibleCount < filtered.length && <div className="n12-results" style={{ justifyContent: 'center', marginTop: 20 }}>
+      <button type="button" className="btn btn-secondary" onClick={() => setVisibleCount(current => current + 24)}>
+        Afficher 24 annonces supplémentaires ({filtered.length - visibleCount} restantes)
+      </button>
+    </div>}
+
+    {publishing && <Modal title="Publier maintenant" subtitle={publishing.title} onClose={() => !publishBusy && setPublishing(null)}>
+      <div className="form-stack">
+        <div className="n40-publish-preview"><strong>Annonce</strong><p>{publishing.body.slice(0, 350)}{publishing.body.length > 350 ? '…' : ''}</p>
+          {(publishing.imageUrls?.length ?? 0) > 0 && <small>{publishing.imageUrls?.length} photo(s)</small>}</div>
+        <div className="field-label"><span>Choisir un groupe autorisé</span>
+  <SearchableSelect ariaLabel="Groupe pour publication immédiate" value={publishDestinationId}
+    onChange={setPublishDestinationId} placeholder="Sélectionnez un groupe"
+    searchPlaceholder="Rechercher parmi vos groupes…"
+    options={eligibleDestinations.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/>
+</div>
+        {eligibleDestinations.length === 0 && <p className="n40-footnote">Aucun groupe disponible. Connectez votre compte personnel et enregistrez les groupes autorisés dans <Link href="/groupes">Destinations</Link>.</p>}
+        <div className="inline-help"><Send size={16}/> Un seul groupe par confirmation. Les limitations de Telegram sont respectées et aucun renvoi automatique ne sera effectué.</div>
+        {(publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`)) && <p className="n40-error">Une photo provient d'un lien externe. Réimportez toutes les photos depuis votre ordinateur avant de publier.</p>}
+        {publishResult && <p className={`feedback-box feedback-${publishTone}`} role={publishTone === "error" ? "alert" : "status"}>{publishTone === "success" && <Check size={15} aria-hidden="true" />}{publishResult}</p>}
+        {publishBusy && <div className="n39-send-progress" role="status" aria-label="Publication Telegram en cours">
+          <div className="n39-send-progress-top">
+            <span className="n39-send-progress-heading"><LoaderCircle size={17} className="n39-send-spinner" aria-hidden="true"/><strong>Envoi vers Telegram</strong></span>
+            <span className="n39-send-progress-time" aria-hidden="true">{publishElapsed} s</span>
+          </div>
+          <p>{(publishing.imageUrls?.length ?? 0) > 0
+            ? `Transmission de ${publishing.imageUrls?.length} photo(s)${publishing.body.trim() ? ' et du texte' : ''}…`
+            : 'Transmission du message…'}</p>
+          <div className="n39-send-progress-track" aria-hidden="true"><span/></div>
+          <small>{publishElapsed < 20 ? 'En attente de la confirmation de Telegram.'
+            : 'Telegram met plus de temps que prévu. Ne relancez pas la publication.'}</small>
+        </div>}
+        <div className="modal-actions">{!publishBusy && <Link href={`/campagnes?annonce=${encodeURIComponent(publishing.id)}`} className="btn btn-secondary" onClick={() => setPublishing(null)}><CalendarDays size={16}/> Programmer</Link>}<button type="button" className="btn btn-secondary" disabled={publishBusy} onClick={() => setPublishing(null)}>Fermer</button>
+          <button type="button" className="btn btn-primary" onClick={() => void publishNow()}
+            disabled={!publishDestinationId || publishBusy || !cloudMode || syncStatus !== 'synced' || publishResult !== '' ||
+              (publishing.imageUrls || []).some(url => !url.startsWith(`${(process.env.NEXT_PUBLIC_SUPABASE_URL || '__nashra_invalid__').replace(/\/$/, '')}/storage/v1/object/public/nashra-announcement-images/`))}>
+            {publishBusy ? <LoaderCircle size={16} className="n39-send-spinner" aria-hidden="true"/> : <Send size={16}/>}
+            {publishBusy ? 'Publication en cours…' : 'Confirmer et publier'}</button>
+        </div>
+      </div>
+    </Modal>}
+
+    {editor && <Modal title={editor.id ? 'Modifier une annonce' : 'Nouvelle annonce'} subtitle="Rédigez, enregistrez, puis publiez ou programmez votre annonce." onClose={() => setEditor(null)}>
+      <form onSubmit={save} className="form-stack n12-editor">
+        <div className="n12-editor-row"><label className="field-label">Titre <span>*</span><input value={editor.title} onChange={e => setEditor({...editor, title:e.target.value})} maxLength={90} required autoFocus placeholder="Ex. Appartement meublé à Quba"/></label>
+          <label className="field-label">Catégorie<select value={editor.category} onChange={e => setEditor({...editor, category:e.target.value})}>{[...new Set([...mainCategories, editor.category])].map(c => <option key={c} value={c}>{t(c)}</option>)}</select></label></div>
+        <label className="field-label">Texte de la publication <small>(facultatif si vous ajoutez une photo)</small><textarea value={editor.body} onChange={e => setEditor({...editor, body:e.target.value})} rows={6} maxLength={linksFromEditor(editor.pictures).length ? 1024 : 4096} placeholder="Rédigez votre texte…"/></label>
+        <section className="n20-media-block" aria-label="Photos de l’annonce">
+          <div className="n20-media-heading"><div><strong>Photos de l’album</strong><small>Ajoutez jusqu’à {maxImages} photos à cette annonce.</small></div><span className="n20-photo-meter">{linksFromEditor(editor.pictures).length} / {maxImages}</span></div>
+          <div className="n20-media-tabs" role="group" aria-label="Méthode d’ajout des photos">
+            <button type="button" className={mediaTab === 'upload' ? 'active' : ''} aria-pressed={mediaTab === 'upload'} onClick={() => setMediaTab('upload')}><Images size={15}/> Depuis mon ordinateur</button>
+            <button type="button" className={mediaTab === 'links' ? 'active' : ''} aria-pressed={mediaTab === 'links'} onClick={() => setMediaTab('links')}><Link2 size={15}/> Par URL</button>
+          </div>
+          {mediaTab === 'upload' ? <AnnouncementImageUpload
+            currentCount={linksFromEditor(editor.pictures).length}
+            maxCount={maxImages}
+            onUploaded={(urls, thumbnails) => setEditor(previous => previous ? {
+              ...previous,
+              pictures: [...new Set([...linksFromEditor(previous.pictures), ...urls])].join('\n'),
+              thumbnails: { ...previous.thumbnails, ...thumbnails }
+            } : previous)}
+          /> : <label className="n20-urls-label">Une adresse HTTPS par ligne
+            <textarea value={editor.pictures} onChange={e => setEditor({...editor, pictures:e.target.value})} rows={4} placeholder={'https://exemple.com/photo1.jpg\nhttps://exemple.com/photo2.jpg'}/>
+            <small>Ces liens servent uniquement à la prévisualisation. Pour publier des photos sur Telegram, importez-les depuis votre ordinateur.</small>
+          </label>}
+          {linksFromEditor(editor.pictures).length > 0 && <div className="n20-photo-collection">
+            <strong>Photos sélectionnées</strong>
+            <div className="n12-image-thumbs">{linksFromEditor(editor.pictures).filter(isHttpsImageUrl).slice(0, maxImages).map((url, index) =>
+              <span className="n13-thumb" key={url}>
+                <img src={url} alt={`Photo ${index + 1} de l’album`} loading="lazy" />
+                <button type="button" aria-label={`Retirer la photo ${index + 1}`} title="Retirer de l’annonce"
+                  onClick={() => setEditor(previous => previous ? { ...previous,
+                    pictures: linksFromEditor(previous.pictures).filter(item => item !== url).join('\n')
+                  } : previous)}><X size={13}/></button>
+              </span>
+            )}</div>
+          </div>}
+        </section>
+        <label className="field-label">Tags <small>(séparés par une virgule)</small><input value={editor.tags} onChange={e => setEditor({...editor, tags:e.target.value})} placeholder="Médine, appartement, meublé"/></label>
+        <label className="field-label">Lien Telegram original <small>(facultatif)</small><div className="input-icon"><Link2 size={16}/><input type="url" value={editor.sourceUrl} onChange={e => setEditor({...editor, sourceUrl:e.target.value})} placeholder="https://t.me/canal/123"/></div></label>
+        <div className="inline-help"><MessageSquareText size={16}/> Les images ajoutées depuis votre ordinateur sont hébergées dans un bucket public Supabase Storage. Leur URL est accessible à toute personne qui la possède. Les transferts Telegram nécessitent toujours les autorisations du groupe.</div>
+        {draftPreview && <section className="n20-draft" aria-label="Aperçu avant enregistrement">
+          <div className="n20-draft-top"><MessageSquareText size={15}/><strong>Aperçu avant enregistrement</strong><span>Non publié</span></div>
+          {linksFromEditor(editor.pictures).find(isHttpsImageUrl) && <img src={linksFromEditor(editor.pictures).find(isHttpsImageUrl)} alt="Première photo de l’annonce" />}
+          <h3>{editor.title.trim() || 'Titre de votre annonce'}</h3>
+          <p>{editor.body.trim() || 'Votre texte apparaîtra ici pendant la rédaction.'}</p>
+        </section>}
+        {editorError && <p className="n12-error" role="alert">{editorError}</p>}
+        <div className="modal-actions n20-editor-actions"><button type="button" className="btn btn-secondary" aria-expanded={draftPreview} onClick={() => setDraftPreview(v => !v)}><Eye size={16}/>{draftPreview ? 'Masquer l’aperçu' : 'Prévisualiser'}</button><button type="button" className="btn btn-secondary" onClick={() => setEditor(null)}>Annuler</button><button type="submit" className="btn btn-primary"><Check size={16}/> {editor.id ? 'Enregistrer les changements' : 'Créer l’annonce'}</button></div>
+      </form>
+    </Modal>}
+
+    {preview && <Modal title="Prévisualisation" subtitle={preview.title} onClose={() => setPreviewId(null)}>
+      <div className="n12-preview">
+        {images.length > 0 && <div className="n12-gallery"><img src={images[Math.min(imageIndex, images.length-1)]} alt={`Image ${imageIndex+1} de ${images.length}`} />
+          {images.length > 1 && <><button type="button" aria-label="Image précédente" className="n12-prev" onClick={() => setImageIndex(i => (i-1+images.length)%images.length)}><ChevronLeft size={21}/></button><button type="button" className="n12-next" aria-label="Image suivante" onClick={() => setImageIndex(i => (i+1)%images.length)}><ChevronRight size={21}/></button><span className="n12-count">{imageIndex+1} / {images.length}</span></>}
+        </div>}
+        <div className="n12-preview-top"><Badge>{preview.category}</Badge><span>{preview.sourceMessageId ? 'Importée de Telegram' : 'Création manuelle'}</span></div>
+        <div className="n12-tg-bubble"><div className="n12-bubble-head"><span><MessageSquareText size={15}/></span><strong>Aperçu du message</strong></div><p>{preview.body}</p></div>
+        {(preview.tags || []).length > 0 && <div className="n12-tags">{(preview.tags || []).map(t => <span key={t}>#{t}</span>)}</div>}
+        {preview.sourceUrl && <a className="n12-source-link" href={preview.sourceUrl} target="_blank" rel="noopener noreferrer">Voir le message d’origine <ExternalLink size={15}/></a>}
+        {preview.sourceChatId && preview.sourceMessageId && <div className="inline-help"><Send size={16}/> Référence du message Telegram conservée pour les transferts autorisés.</div>}
+        <div className="modal-actions"><button className="btn btn-primary" onClick={() => { setPreviewId(null); openPublish(preview); }}><Send size={15}/> Publier</button><button className="btn btn-secondary" onClick={() => { setPreviewId(null); startEdit(preview); }}><Pencil size={15}/> Modifier</button><button className="btn btn-secondary" onClick={() => void copy(preview)}><Copy size={15}/> Copier</button><button className="btn btn-primary" onClick={() => setPreviewId(null)}><X size={15}/> Fermer</button></div>
+      </div>
+    </Modal>}
+  </div>;
+}
