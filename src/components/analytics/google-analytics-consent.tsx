@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -31,14 +31,29 @@ export function GoogleAnalyticsConsent() {
     }
     window.dataLayer = window.dataLayer || [];
     window.gtag = (...args: unknown[]) => { window.dataLayer?.push(args); };
+    // Analytics is loaded only after explicit user consent.
+    window.gtag('consent', 'default', {
+      analytics_storage: 'granted',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+    });
     window.gtag('js', new Date());
-    // Page views are sent by the pathname effect below (never include query strings).
-    window.gtag('config', GA_MEASUREMENT_ID, { send_page_view: false, anonymize_ip: true });
+    // Page views are handled manually on route changes.
     const script = document.createElement('script');
     script.id = scriptId;
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-    script.onload = () => setLoaded(true);
+    script.onload = () => {
+      window.gtag?.('consent', 'update', {
+        analytics_storage: 'granted',
+      });
+      window.gtag?.('config', GA_MEASUREMENT_ID, {
+        send_page_view: false,
+        anonymize_ip: true,
+      });
+      setLoaded(true);
+    };
     script.onerror = () => setLoaded(false);
     document.head.appendChild(script);
   }, [choice, ready]);
@@ -93,3 +108,4 @@ export function GoogleAnalyticsConsent() {
     {choice !== null && !show && <button type="button" onClick={() => setSettingsOpen(true)} style={{position:'fixed',bottom:12,left:12,zIndex:9998,background:'#17231e',color:'#e5f4e9',border:'1px solid #496c5b',borderRadius:9,padding:'6px 10px',fontSize:11,cursor:'pointer',fontFamily:'system-ui,sans-serif'}}>{t.manage}</button>}
   </>;
 }
+
