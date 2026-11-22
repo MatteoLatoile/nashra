@@ -5,6 +5,8 @@ import './aide.css';
 export const metadata: Metadata = {
   title: 'Centre d’aide | Nashra',
   description: 'Réponses aux questions fréquentes sur les comptes, Telegram, les programmations et les abonnements Nashra.',
+  alternates: { canonical: '/aide' },
+  robots: { index: true, follow: true },
 };
 
 const sections = [

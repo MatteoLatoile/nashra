@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const page = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../src/app/landing-client.tsx', import.meta.url), 'utf8');
 const dash = readFileSync(new URL('../src/app/(dashboard)/dashboard/page.tsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/app/(dashboard)/dashboard/dashboard.module.css', import.meta.url), 'utf8');
 

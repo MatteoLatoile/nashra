@@ -1,9 +1,12 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { AppProvider, type AppData } from '@/lib/store';
 import { Shell } from '@/components/shell';
 import { ConfirmProvider } from '@/components/confirm-dialog';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createClient } from '@/lib/supabase/server';
+
+export const metadata: Metadata = { robots: { index: false, follow: false, noarchive: true } };
 
 export const dynamic = 'force-dynamic';
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const landing = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8');
+const landing = readFileSync(new URL('../src/app/landing-client.tsx', import.meta.url), 'utf8');
 const diagnostic = readFileSync(new URL('../src/app/api/diagnostics/route.ts', import.meta.url), 'utf8');
 const help = readFileSync(new URL('../src/app/aide/page.tsx', import.meta.url), 'utf8');
 const settings = readFileSync(new URL('../src/app/(dashboard)/parametres/page.tsx', import.meta.url), 'utf8');

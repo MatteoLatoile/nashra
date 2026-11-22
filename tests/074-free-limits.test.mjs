@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const read = p => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
 test('074: Free public pricing, FAQ and help agree', () => {
-  const landing = read('src/app/page.tsx');
+  const landing = read('src/app/landing-client.tsx');
   const help = read('src/app/aide/page.tsx');
   assert.match(landing, /groups: 2, sends: '10', scheduled: 3/);
   assert.match(landing, /jusqu’à 2 groupes actifs, d’effectuer 10 envois par mois et d’avoir 3 programmations/);
@@ -25,7 +25,7 @@ test('074: billing diagnostic expects 2, 10, 3 for Free only', () => {
   assert.match(d, /business: \[1, 30, 2000, 300\]/);
 });
 test('074: existing Pro and Business display values retained', () => {
-  const landing=read('src/app/page.tsx');
+  const landing=read('src/app/landing-client.tsx');
   assert.match(landing, /groups: 30, sends: '1 000', scheduled: 150/);
   assert.match(landing, /groups: 30, sends: '2 000', scheduled: 300/);
 });
