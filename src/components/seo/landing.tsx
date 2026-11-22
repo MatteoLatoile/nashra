@@ -22,7 +22,7 @@ export function SeoLanding({ page }: { page: SeoPageKey }) {
         <header className={styles.header}>
           <Link href="/" className={styles.brand} aria-label="Nashra home">Nashra<span>.</span></Link>
           <nav aria-label="Primary navigation" className={styles.topnav}>
-            <Link href="/">Home</Link><Link href="/aide">Help</Link><Link href="/connexion" className={styles.topcta}>Start free</Link>
+            <Link href="/">Home</Link><Link href="/aide">Help</Link><Link href="/en/blog">Guides</Link><Link href="/connexion" className={styles.topcta}>Start free</Link>
           </nav>
         </header>
         <nav className={styles.breadcrumb} aria-label="Breadcrumb"><Link href="/">Home</Link><span aria-hidden="true">/</span><span>{content.label}</span></nav>
@@ -52,7 +52,7 @@ export function SeoLanding({ page }: { page: SeoPageKey }) {
           <div className={styles.related}>{(Object.keys(seoPages) as SeoPageKey[]).filter(k=>k!==page).map(k=><Link key={k} href={`/en/${k}`}>{seoPages[k].label}<span aria-hidden="true">↗</span></Link>)}</div>
         </section>
         <section className={styles.bottom}><h2>Ready to organize your Telegram posts?</h2><p>Create your Nashra account and explore the available plans.</p><Link href="/connexion" className={styles.button}>Get started with Nashra →</Link></section>
-        <footer className={styles.footer}><Link href="/">Nashra</Link><Link href="/aide">Help center</Link><span>Nashra is not affiliated with Telegram.</span></footer>
+        <footer className={styles.footer}><Link href="/">Nashra</Link><Link href="/aide">Help center</Link><Link href="/en/blog">All guides</Link><span>Nashra is not affiliated with Telegram.</span></footer>
       </div>
     </main>
   );
