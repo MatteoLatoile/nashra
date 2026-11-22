@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import LandingClient from './landing-client';
 
 export const metadata: Metadata = {
-  title: 'Programmer des publications Telegram depuis son compte personnel',
-  description: 'Nashra vous aide à préparer vos annonces, choisir vos groupes Telegram autorisés et planifier des publications uniques ou récurrentes. Offre gratuite disponible.',
+  title: 'Programmer des messages Telegram depuis son compte personnel',
+  description: 'Programmez vos messages Telegram depuis votre compte personnel avec Nashra. Gérez vos groupes autorisés et vos campagnes de publication récurrentes.',
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
   openGraph: {

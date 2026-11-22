@@ -1,0 +1,23 @@
+/* Pages SEO publiques – isolées du tableau de bord */
+.seo-page{min-height:100vh;color:#f0f1f2;background:#0c0d0f;font-family:Arial,Helvetica,sans-serif}
+.seo-wrap{max-width:880px;margin:0 auto;padding:28px 24px 80px}
+.seo-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 36px}
+.seo-brand{font-size:25px;font-weight:800;letter-spacing:-1px;text-decoration:none;color:#fff}
+.seo-nav-links{display:flex;gap:18px;flex-wrap:wrap}
+.seo-page a{color:#b5dcca;text-decoration:underline;text-underline-offset:3px}
+.seo-page a:hover{color:#fff}
+.seo-hero{padding:42px 0 30px;border-bottom:1px solid #34373b}
+.seo-eyebrow{color:#8ccfaf;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.seo-page h1{font-size:clamp(31px,5vw,48px);line-height:1.12;letter-spacing:-1.5px;margin:14px 0 20px}
+.seo-lead{font-size:18px;line-height:1.7;color:#bbc0c8;max-width:760px}
+.seo-cta{display:inline-block;background:#f3f4f5!important;color:#151718!important;text-decoration:none!important;border-radius:9px;padding:13px 20px;font-weight:700;margin-top:20px}
+.seo-page section{padding:26px 0;border-bottom:1px solid #26282c}
+.seo-page h2{font-size:25px;line-height:1.25;margin:12px 0 15px}
+.seo-page h3{font-size:18px;margin:20px 0 10px}
+.seo-page p,.seo-page li{color:#c1c4ca;line-height:1.85;font-size:16px}
+.seo-page ul,.seo-page ol{padding-left:24px}
+.seo-page li{margin:8px 0}
+.seo-note{border:1px solid #3b4741;border-radius:10px;padding:16px 19px;background:#151c18}
+.seo-related{display:flex;flex-direction:column;gap:10px}
+.seo-footer{padding:34px 0;color:#838992;font-size:13px}
+@media(max-width:600px){.seo-nav{align-items:flex-start;flex-direction:column}.seo-wrap{padding:22px 18px 50px}}
