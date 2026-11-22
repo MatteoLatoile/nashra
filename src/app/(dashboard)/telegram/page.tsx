@@ -2,6 +2,7 @@
 import { readable } from '@/lib/feedback';
 import { SearchableSelect } from '@/components/searchable-select';
 import { PageSkeleton } from '@/components/nashra-skeleton';
+import { PHONE_COUNTRIES, formatTelegramNumber, exampleNumber } from '@/lib/telegram-user/phone';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
@@ -69,6 +70,11 @@ export default function TelegramPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCountry, setPhoneCountry] = useState('FR');
+  const [codeDelivery, setCodeDelivery] = useState<'Telegram' | 'SMS' | null>(null);
+  const [codeRequestedFor, setCodeRequestedFor] = useState('');
+  const [retryUntil, setRetryUntil] = useState(0);
+  const [nowMs, setNowMs] = useState(0);
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [loginStep, setLoginStep] = useState<'phone' | 'code' | 'password'>('phone');
@@ -148,11 +154,32 @@ export default function TelegramPage() {
 
   useEffect(() => { void refreshStatus(); }, []);
 
+  const countryInfo = PHONE_COUNTRIES.find(country => country.iso === phoneCountry) ?? PHONE_COUNTRIES[0];
+  const formattedPhone = formatTelegramNumber(phoneCountry, phone);
+  const retrySeconds = Math.max(0, Math.ceil((retryUntil - nowMs) / 1000));
+  useEffect(() => {
+    if (!retryUntil) return;
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [retryUntil]);
+
   function sendCode() {
-    if (!phone.trim() || busy) return;
-    void task('code', () => api<{ ok: boolean }>('/api/telegram/user/start', { phone: phone.trim() }), () => {
+    if (!formattedPhone || busy || retrySeconds > 0) {
+      if (!formattedPhone) setFeedback({ good: false, text: 'Vérifiez le pays et le numéro : utilisez un numéro mobile complet, sans indicatif répété.' });
+      return;
+    }
+    void task('code', () => api<{ ok: boolean; via?: 'Telegram' | 'SMS' }>('/api/telegram/user/start', { phone: formattedPhone }), result => {
+      setCode('');
+      setCodeDelivery(result.via === 'Telegram' || result.via === 'SMS' ? result.via : null);
+      setCodeRequestedFor(formattedPhone);
+      setRetryUntil(Date.now() + 90_000);
+      setNowMs(Date.now());
       setLoginStep('code');
-      setFeedback({ good: true, text: 'Code demandé. Consultez Telegram et saisissez le code reçu.' });
+      setFeedback({ good: true, info: true, text: result.via === 'Telegram'
+        ? 'Demande acceptée : cherchez le code dans la conversation officielle « Telegram » de votre application, pas forcément par SMS.'
+        : result.via === 'SMS'
+          ? 'Demande acceptée : Telegram annonce un envoi par SMS. La réception peut prendre du temps.'
+          : 'Demande acceptée. Vérifiez Telegram et vos SMS ; la livraison du code n’est pas garantie.' });
     });
   }
 
@@ -370,25 +397,43 @@ export default function TelegramPage() {
         </div>
         <div className={styles.connectForm}>
           {loginStep === 'phone' ? <>
-            <label className={styles.field}>Numéro de téléphone Telegram
-              <input type="tel" autoComplete="tel" inputMode="tel" placeholder="+33612345678" value={phone} onChange={e => setPhone(e.target.value)}/>
+            <label className={styles.field}>Pays et indicatif téléphonique
+              <select className={styles.countrySelect} value={phoneCountry} onChange={e => { setPhoneCountry(e.target.value); setPhone(''); setFeedback(null); }} disabled={!!busy}>
+                {PHONE_COUNTRIES.map(country => <option key={country.iso} value={country.iso}>{country.flag} {country.name} ({country.dial})</option>)}
+              </select>
             </label>
-            <button className={styles.primaryButton} type="button" disabled={!!busy || !phone.trim()} onClick={sendCode}>
+            <label className={styles.field}>Numéro utilisé dans Telegram
+              <span className={styles.phoneRow}>
+                <span className={styles.dialPrefix}>{countryInfo.dial}</span>
+                <input type="tel" autoComplete="tel-national" inputMode="tel" aria-label="Numéro Telegram sans indicatif" placeholder={exampleNumber(phoneCountry)} value={phone} maxLength={22} onChange={e => { setPhone(e.target.value); setFeedback(null); }}/>
+              </span>
+              <small>Entrez votre numéro local, sans {countryInfo.dial}. Le 0 initial sera retiré lorsqu'il s'agit d'un préfixe national.</small>
+              {formattedPhone && <small>Numéro transmis à Telegram : <strong>{formattedPhone}</strong></small>}
+            </label>
+            <button className={styles.primaryButton} type="button" disabled={!!busy || !formattedPhone || retrySeconds > 0} onClick={sendCode}>
               {busy === 'code' ? <LoaderCircle className={styles.spin} size={17}/> : <ArrowRight size={17}/>}
-              Recevoir mon code
+              {retrySeconds > 0 ? `Nouvelle demande dans ${retrySeconds} s` : 'Demander un code Telegram'}
             </button>
+            <p className={styles.codeHelp}>Telegram peut envoyer le code directement dans son application, dans la conversation officielle « Telegram ». Ce n'est pas toujours un SMS.</p>
           </> : <>
-            <label className={styles.field}>{loginStep === 'password' ? 'Mot de passe Telegram à deux étapes' : 'Code reçu sur Telegram'}
-              <input type={loginStep === 'password' ? 'password' : 'text'} autoComplete="off"
-                placeholder={loginStep === 'password' ? 'Votre mot de passe Telegram' : 'Code de connexion'}
+            {loginStep === 'code' && <div className={styles.codeHelp} role="status">
+              <strong>Code demandé pour {codeRequestedFor}</strong>
+              <span>{codeDelivery === 'Telegram' ? 'Telegram annonce un code dans son application. Ouvrez la conversation officielle « Telegram ».' : codeDelivery === 'SMS' ? 'Telegram annonce un SMS. Consultez vos messages.' : 'Consultez Telegram et vos SMS.'}</span>
+              <span>La demande a été acceptée, mais Nashra ne peut pas garantir la réception du code.</span>
+            </div>}
+            <label className={styles.field}>{loginStep === 'password' ? 'Mot de passe de vérification en deux étapes Telegram' : 'Code de connexion Telegram'}
+              <input type={loginStep === 'password' ? 'password' : 'text'} autoComplete={loginStep === 'password' ? 'current-password' : 'one-time-code'}
+                inputMode={loginStep === 'password' ? 'text' : 'numeric'} pattern={loginStep === 'password' ? undefined : '[0-9]*'}
+                placeholder={loginStep === 'password' ? 'Votre mot de passe Telegram' : 'Code reçu (4 à 8 chiffres)'}
                 value={loginStep === 'password' ? password : code}
-                onChange={e => loginStep === 'password' ? setPassword(e.target.value) : setCode(e.target.value)}/>
+                onChange={e => loginStep === 'password' ? setPassword(e.target.value) : setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}/>
             </label>
-            <button className={styles.primaryButton} type="button" disabled={!!busy || !(loginStep === 'password' ? password : code.trim())} onClick={verify}>
+            <button className={styles.primaryButton} type="button" disabled={!!busy || !(loginStep === 'password' ? password : /^\d{4,8}$/.test(code))} onClick={verify}>
               {busy === 'verify' ? <LoaderCircle className={styles.spin} size={17}/> : <Check size={17}/>}
               Confirmer la connexion
             </button>
-            <button className={styles.textButton} type="button" disabled={!!busy} onClick={() => setLoginStep('phone')}>Changer de numéro</button>
+            {loginStep === 'code' && <button className={styles.textButton} type="button" disabled={!!busy || retrySeconds > 0} onClick={sendCode}>{retrySeconds > 0 ? `Redemander le code dans ${retrySeconds} s` : 'Redemander le code'}</button>}
+            <button className={styles.textButton} type="button" disabled={!!busy} onClick={() => { setLoginStep('phone'); setCode(''); setPassword(''); setFeedback(null); }}>Changer de numéro</button>
           </>}
         </div>
       </section>}

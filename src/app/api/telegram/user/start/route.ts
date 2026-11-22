@@ -46,7 +46,7 @@ try {
 }
       const pending: PendingLogin = { phone: number, phoneCodeHash: result.phoneCodeHash, session: client.session.save() as string, expiresAt: Date.now() + 8 * 60_000 };
       await saveAccount(c, { pending_ciphertext: encrypt(JSON.stringify(pending)), last_code_at: new Date().toISOString() });
-      return NextResponse.json({ ok: true, via: result.isCodeViaApp ? 'Telegram' : 'SMS' });
+      return NextResponse.json({ ok: true, via: result.isCodeViaApp ? 'Telegram' : 'SMS', retryAfterSeconds: 90 });
     } finally { await client.disconnect(); }
   } catch (e) { return NextResponse.json({ error: apiError(e) }, { status: 400 }); }
 }

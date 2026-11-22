@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import styles from './searchable-select.module.css';
+import { useLanguage } from '@/lib/i18n/provider';
 
 export type SearchOption = {
   value: string;
@@ -30,6 +31,7 @@ export function SearchableSelect({
   ariaLabel: string;
   className?: string;
 }) {
+  const { t } = useLanguage();
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -88,28 +90,28 @@ export function SearchableSelect({
 
   return <div ref={root} className={`${styles.root} ${className || ''}`} onKeyDown={onKeyDown}>
     <button type="button" data-trigger className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
-      disabled={disabled} aria-label={ariaLabel} aria-expanded={open} aria-haspopup="listbox" aria-controls={`${id}-list`}
+      disabled={disabled} aria-label={t(ariaLabel)} aria-expanded={open} aria-haspopup="listbox" aria-controls={`${id}-list`}
       onClick={() => { setQuery(''); setActiveIndex(0); setOpen(current => !current); }}>
-      <span className={`${styles.selected} ${selected ? '' : styles.placeholder}`} title={selected?.label} dir="auto">{selected?.label || placeholder}</span>
+      <span className={`${styles.selected} ${selected ? '' : styles.placeholder}`} title={selected?.label} dir="auto">{selected?.label || t(placeholder)}</span>
       <ChevronDown size={17} aria-hidden className={open ? styles.chevronOpen : ''}/>
     </button>
     {open && <div className={styles.panel}>
       <div className={styles.searchRow}><Search size={17} aria-hidden/><input ref={search} type="search" value={query}
         onChange={event => { setQuery(event.target.value); setActiveIndex(0); }}
-        placeholder={searchPlaceholder} aria-label={`Rechercher : ${ariaLabel}`}
+        placeholder={t(searchPlaceholder)} aria-label={`${t('Rechercher')} : ${t(ariaLabel)}`}
         aria-controls={`${id}-list`} aria-activedescendant={filtered[activeIndex] ? `${id}-opt-${activeIndex}` : undefined}/>
-        {query && <button type="button" className={styles.clear} aria-label="Effacer la recherche" onClick={() => { setQuery(''); setActiveIndex(0); search.current?.focus(); }}><X size={15}/></button>}
+        {query && <button type="button" className={styles.clear} aria-label={t('Effacer la recherche')} onClick={() => { setQuery(''); setActiveIndex(0); search.current?.focus(); }}><X size={15}/></button>}
       </div>
-      <div id={`${id}-list`} role="listbox" aria-label={ariaLabel} className={styles.options}>
+      <div id={`${id}-list`} role="listbox" aria-label={t(ariaLabel)} className={styles.options}>
         {filtered.length ? filtered.map((option, index) => <button type="button" role="option"
           id={`${id}-opt-${index}`} key={option.value} aria-selected={option.value === value}
           disabled={option.disabled} className={`${styles.option} ${activeIndex === index ? styles.highlight : ''}`}
           onMouseEnter={() => setActiveIndex(index)} onClick={() => select(option)}>
             <span className={styles.optionText} dir="auto"><span>{option.label}</span>{option.detail && <small>{option.detail}</small>}</span>
             {option.value === value && <Check size={16} className={styles.tick} aria-hidden/>}
-          </button>) : <p className={styles.empty}>{emptyMessage}</p>}
+          </button>) : <p className={styles.empty}>{t(emptyMessage)}</p>}
       </div>
-      <div className={styles.hint}>{filtered.length} résultat{filtered.length > 1 ? 's' : ''} · Recherche par nom</div>
+      <div className={styles.hint}>{filtered.length} {filtered.length > 1 ? t('résultats') : t('résultat')} · {t('Recherche par nom')}</div>
     </div>}
   </div>;
 }
@@ -126,6 +128,7 @@ export function SearchableMultiSelect({
   ariaLabel?: string;
   disabled?: boolean;
 }) {
+  const { t } = useLanguage();
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -157,17 +160,17 @@ export function SearchableMultiSelect({
     }
   }}>
     <button type="button" data-trigger className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
-      aria-label={ariaLabel} aria-expanded={open} aria-haspopup="true" disabled={disabled}
+      aria-label={t(ariaLabel)} aria-expanded={open} aria-haspopup="true" disabled={disabled}
       onClick={() => { setOpen(prev => !prev); setQuery(''); }}>
-      <span className={styles.selected} dir="auto">{values.length ? `${values.length} sélectionnée${values.length > 1 ? 's' : ''} · ${chosenNames}${values.length > 2 ? '…' : ''}` : <span className={styles.placeholder}>{placeholder}</span>}</span>
+      <span className={styles.selected} dir="auto">{values.length ? `${values.length} ${t("sélectionnée(s)")} · ${chosenNames}${values.length > 2 ? "…" : ""}` : <span className={styles.placeholder}>{t(placeholder)}</span>}</span>
       <ChevronDown size={17} aria-hidden className={open ? styles.chevronOpen : ''}/>
     </button>
     {open && <div className={styles.panel}>
       <div className={styles.searchRow}><Search size={17} aria-hidden/><input ref={input} type="search" value={query}
-        onChange={event => setQuery(event.target.value)} placeholder="Rechercher un groupe ou canal…" aria-label="Rechercher une destination"/>
-        {query && <button type="button" className={styles.clear} aria-label="Effacer la recherche" onClick={() => { setQuery(''); input.current?.focus(); }}><X size={15}/></button>}
+        onChange={event => setQuery(event.target.value)} placeholder={t('Rechercher un groupe ou canal…')} aria-label={t('Rechercher une destination')}/>
+        {query && <button type="button" className={styles.clear} aria-label={t('Effacer la recherche')} onClick={() => { setQuery(''); input.current?.focus(); }}><X size={15}/></button>}
       </div>
-      <div role="group" aria-label={ariaLabel} className={styles.options}>
+      <div role="group" aria-label={t(ariaLabel)} className={styles.options}>
         {filtered.length ? filtered.map(option => {
           const checked = values.includes(option.value);
           return <button type="button" key={option.value} role="checkbox" aria-checked={checked}
@@ -176,9 +179,9 @@ export function SearchableMultiSelect({
             <span className={`${styles.checkbox} ${checked ? styles.checkboxChecked : ''}`}>{checked && <Check size={13} aria-hidden/>}</span>
             <span className={styles.optionText} dir="auto"><span>{option.label}</span>{option.detail && <small>{option.detail}</small>}</span>
           </button>;
-        }) : <p className={styles.empty}>Aucune destination trouvée.</p>}
+        }) : <p className={styles.empty}>{t("Aucune destination trouvée.")}</p>}
       </div>
-      <div className={styles.hint}>{values.length} / {max} sélectionnée(s) · Vous pouvez décocher une destination.</div>
+      <div className={styles.hint}>{values.length} / {max} {t('sélectionnée(s)')} · {t('Vous pouvez décocher une destination.')}</div>
     </div>}
   </div>;
 }

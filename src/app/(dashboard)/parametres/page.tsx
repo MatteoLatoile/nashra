@@ -7,11 +7,13 @@ import { Database, HardDrive, LockKeyhole, RotateCcw, ShieldCheck, PlugZap, Glob
 import { Badge, PageHeader } from '@/components/ui';
 import { useConfirm } from '@/components/confirm-dialog';
 import { useApp } from '@/lib/store';
+import { useLanguage } from '@/lib/i18n/provider';
 
 type DiagnosticState = 'ok' | 'warning' | 'error' | 'disabled';
 type DiagnosticCheck = { key: string; state: DiagnosticState; detail: string };
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const { resetDemo, data, cloudMode, syncStatus, syncError, retrySync, importLocalDemo, notify } = useApp();
   const confirm = useConfirm();
   const [configuration, setConfiguration] = useState<DiagnosticCheck[] | null>(null);
@@ -82,9 +84,9 @@ export default function SettingsPage() {
   }
 
   return <>
-    <PageHeader eyebrow="CONFIGURATION" title="Paramètres"
-      description="Gérez votre espace, votre compte Telegram et les options de publication." />
-    <div className="setting-tip"><Info size={17}/> Besoin d’aide pour la connexion, les programmations ou les abonnements ? <Link href="/aide" className="text-link">Consulter le centre d’aide →</Link></div>
+    <PageHeader eyebrow={t("CONFIGURATION")} title={t("Paramètres")}
+      description={t("Gérez votre espace, votre compte Telegram et les options de publication.")} />
+    <div className="setting-tip"><Info size={17}/> {t("Besoin d’aide pour la connexion, les programmations ou les abonnements ?")} <Link href="/aide" className="text-link">{t("Consulter le centre d’aide →")}</Link></div>
     <LanguageSettingsCard />
     <div className="settings-grid">
       <section className="settings-card">
@@ -118,7 +120,7 @@ export default function SettingsPage() {
       <section className="settings-card">
         <div className="settings-heading">
           <span className="settings-icon"><Database size={21}/></span>
-          <div><h2>Vos données</h2><p>Stockage et sauvegarde</p></div>
+          <div><h2>Vos données</h2><p>{t("Stockage et sauvegarde")}</p></div>
         </div>
         <div className="setting-split"><span><HardDrive size={16}/> Stockage</span>
           <strong>{cloudMode ? 'Supabase · privé' : 'Navigateur · local'}</strong></div>

@@ -2239,3 +2239,108 @@ html[dir="rtl"] .sidebar .brand-name{direction:ltr;unicode-bidi:isolate}
 .n77-media-progress { font-size: 13px; margin: 8px 0; }
 .n13-upload-wrap progress { display: block; width: 100%; height: 7px; accent-color: #9fe4bb; margin: 9px 0; }
 .n77-play-badge { position: absolute; bottom: 10px; right: 10px; background: rgba(7,16,13,.88); color: #ddf5e6; padding: 6px 9px; border-radius: 7px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; z-index: 2; }
+
+
+/* 080: directional UI polish — avoid flipping phone numbers, OTP, emails or URLs. */
+html[dir="rtl"] :is(input[type="tel"], input[type="email"], input[type="url"], input[autocomplete="one-time-code"], input[inputmode="tel"], input[inputmode="numeric"]) {
+  direction: ltr;
+  text-align: start;
+  unicode-bidi: isolate;
+}
+html[dir="rtl"] :is(.modal-dialog, .content-panel, .page-heading, .nashra-language-card) { min-width: 0; }
+html[dir="rtl"] :is(.modal-dialog, .content-panel, .page-heading) :is(input, select, textarea) { max-width: 100%; }
+html[dir="rtl"] .lp-floatcard { left: auto; right: -24px; }
+html[dir="rtl"] .lp-floatcard>svg { margin-left: 0; margin-right: 10px; }
+html[dir="rtl"] .lp-feature-large .lp-feature-visual { margin-left: 0; margin-right: auto; }
+html[dir="rtl"] .lp-note-tiny { margin-left: 0; margin-right: auto; }
+@media (max-width: 760px) {
+  html[dir="rtl"] .lp-floatcard { right: 0; }
+  html[dir="rtl"] .sidebar.sidebar-open { right: 0; left: auto; }
+}
+
+/* NASHRA RTL LAYOUT FIX 081B START */
+
+/* Reverse columns without relying on inherited RTL flex ordering. */
+html[dir="rtl"] .app-root {
+  direction: ltr;
+  flex-direction: row-reverse;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Sidebar remains on the right. */
+html[dir="rtl"] .app-root > .sidebar {
+  direction: rtl;
+  flex: 0 0 255px;
+}
+
+/* Main content occupies remaining available width. */
+html[dir="rtl"] .app-root > .main-column {
+  direction: rtl;
+  flex: 1 1 0%;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+html[dir="rtl"] .main-content {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1250px) and (min-width: 761px) {
+  html[dir="rtl"] .app-root > .sidebar {
+    flex-basis: 228px;
+  }
+}
+
+@media (max-width: 760px) {
+  html[dir="rtl"] .app-root > .sidebar {
+    position: fixed;
+    left: auto;
+    right: -270px;
+    width: 255px;
+    flex-basis: auto;
+  }
+
+  html[dir="rtl"] .app-root > .sidebar.sidebar-open {
+    left: auto;
+    right: 0;
+  }
+
+  html[dir="rtl"] .app-root > .main-column {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+/* NASHRA RTL LAYOUT FIX 081B END */
+
+/* NASHRA 081C ACCOUNT POPOVER RTL */
+/* The account avatar is on the LEFT in RTL topbars. Its menu must expand
+   to the right of that avatar, not outside the left edge of the viewport. */
+@media (min-width: 651px) {
+  html[dir="rtl"] .topbar .na-menu-root > .na-menu {
+    left: 0;
+    right: auto;
+  }
+}
+@media (max-width: 650px) {
+  /* On phones the account menu is fixed: anchor to the viewport's left edge. */
+  html[dir="rtl"] .topbar .na-menu-root > .na-menu {
+    left: 12px;
+    right: auto;
+    width: min(290px, calc(100vw - 24px));
+  }
+}
+html[dir="rtl"] .topbar .na-menu {
+  direction: rtl;
+  text-align: start;
+}
+html[dir="rtl"] .topbar .na-menu :is(.na-menu-plan strong, .na-menu-disabled small) {
+  margin-left: 0;
+  margin-right: auto;
+}
+html[dir="rtl"] .topbar .na-menu :is(.na-menu-section a, .na-menu-section button) {
+  text-align: start;
+}

@@ -207,3 +207,12 @@
   .spin { animation: none; }
   .primaryButton, .secondaryButton, .iconButton, .disconnect, .smallButton, .tinyButton { transition: none; }
 }
+
+/* 078 — Telegram mobile login, scoped to existing connect form. */
+.countrySelect { appearance: auto !important; font-size: 14px !important; }
+.phoneRow { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+.phoneRow input { flex: 1; min-width: 0; font-size: 16px; }
+.dialPrefix { flex: 0 0 auto; min-width: 62px; display: grid; place-items: center; padding: 10px 12px; border: 1px solid #363f42; border-radius: 11px; background: #222c2a; color: #d1f4df; font-weight: 750; font-size: 14px; }
+.codeHelp { display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 11px 13px; border: 1px solid rgba(176,237,202,.2); border-radius: 11px; color: #b7d9c8; font-size: 12px; line-height: 1.6; background: rgba(141,213,171,.055); }
+.codeHelp strong { color: #e0f5e8; font-size: 12px; }
+@media (max-width: 700px) { .countrySelect { min-height: 48px; } .phoneRow input { min-height: 48px; } }

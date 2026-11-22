@@ -25,7 +25,7 @@ test('Les compteurs partagent une requête utilisateur et un cache éphémère',
   assert.match(client, /inflight\?\.userKey === userKey/);
   assert.match(client, /cache: 'no-store'/);
   assert.match(client, /const requestedVersion = version/);
-  assert.match(sidebar, /loadLimits\(userKey\)/);
+  assert.match(sidebar, /loadLimits\(userKey(?:, force)?\)/);
   assert.match(quota, /loadLimits\(userKey\)/);
 });
 

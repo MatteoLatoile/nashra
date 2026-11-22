@@ -29,3 +29,9 @@
 .hint{padding:10px 13px;border-top:1px solid #303a38;color:#9baaa4;font-size:11px;line-height:1.3}
 @media (max-width: 480px){.trigger{min-height:48px;padding:11px 12px}.options{max-height:230px}.optionText>span{white-space:normal;overflow-wrap:anywhere}}
 @media (prefers-reduced-motion:reduce){.trigger,.trigger svg{transition:none}}
+
+/* 080: bidirectional menus with stable natural-number and mixed-script labels. */
+:global(html[dir="rtl"]) .root { direction: rtl; }
+:global(html[dir="rtl"]) .optionText { text-align: start; }
+:global(html[dir="rtl"]) .searchRow input { text-align: right; }
+:global(html[dir="rtl"]) .hint { text-align: start; }

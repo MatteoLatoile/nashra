@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/lib/i18n/provider';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { ArrowUpRight, LogOut, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { invalidateLimits, loadLimits } from '@/lib/billing/client-snapshot';
@@ -15,53 +15,89 @@ function normalizeTier(value: unknown): Tier {
   return 'unknown';
 }
 
+// Display-only cache: never used to authorize payment or enforce quotas.
+// User-scoped to avoid displaying a previous account's plan after account switching.
+const PLAN_CACHE_MS = 60_000;
+const FOCUS_REFRESH_MS = 30_000;
+const cachedPlans = new Map<string, { tier: Tier; until: number }>();
+const lastFocusRefresh = new Map<string, number>();
+
+function savedTier(userKey: string): Tier {
+  const record = cachedPlans.get(userKey);
+  return record?.tier ?? 'unknown';
+}
+
 export function SidebarPlanCard({ onNavigate, userKey = 'current' }: { onNavigate?: () => void; userKey?: string }) {
-  const pathname = usePathname();
-  const [tier, setTier] = useState<Tier>('unknown');
-  const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
+  const [tier, setTier] = useState<Tier>(() => savedTier(userKey));
+  const [loading, setLoading] = useState(() => savedTier(userKey) === 'unknown');
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
     const controller = new AbortController();
 
-    async function updatePlan() {
-      if (mounted) setLoading(true);
+    async function updatePlan(force = false) {
+      const record = cachedPlans.get(userKey);
+      if (!force && record && record.until > Date.now()) {
+        if (active) { setTier(record.tier); setLoading(false); }
+        return;
+      }
+      // Revalidation never replaces an already-known plan with a skeleton.
+      if (active && savedTier(userKey) === 'unknown') setLoading(true);
       try {
-        let nextTier: Tier = 'unknown';
-        const data = await loadLimits(userKey);
-        nextTier = normalizeTier(data.tier);
-        // The status route provides a fallback if the quota snapshot is unavailable.
+        let nextTier = normalizeTier((await loadLimits(userKey, force)).tier);
         if (nextTier === 'unknown') {
-          const status = await fetch('/api/billing/status', {
-            credentials: 'same-origin',
-            cache: 'no-store',
-            signal: controller.signal,
+          const response = await fetch('/api/billing/status', {
+            credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
           });
-          if (status.ok) {
-            const data: { tier?: unknown } = await status.json();
+          if (response.ok) {
+            const data: { tier?: unknown } = await response.json();
             nextTier = normalizeTier(data.tier);
           }
         }
-        if (mounted) setTier(nextTier);
+        if (active) {
+          if (nextTier !== 'unknown') {
+            cachedPlans.set(userKey, { tier: nextTier, until: Date.now() + PLAN_CACHE_MS });
+            setTier(nextTier);
+          } else if (savedTier(userKey) === 'unknown') {
+            setTier('unknown');
+          }
+        }
       } catch {
-        if (mounted && !controller.signal.aborted) setTier('unknown');
+        // Preserve last known visual state on temporary connection failures.
+        if (active && savedTier(userKey) === 'unknown') setTier('unknown');
       } finally {
-        if (mounted) setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
+    // Run on account change/mount, NOT every route navigation.
+    setTier(savedTier(userKey));
+    setLoading(savedTier(userKey) === 'unknown');
     void updatePlan();
-    // Keep the badge up to date after Checkout, profile navigation or tab focus.
-    window.addEventListener('focus', updatePlan);
-    const billingUpdated = () => { invalidateLimits(); void updatePlan(); };
-    window.addEventListener('nashra:billing-updated', billingUpdated);
-    return () => {
-      mounted = false;
-      controller.abort();
-      window.removeEventListener('focus', updatePlan);
-      window.removeEventListener('nashra:billing-updated', billingUpdated);
+
+    const onFocus = () => {
+      const now = Date.now();
+      if (now - (lastFocusRefresh.get(userKey) || 0) < FOCUS_REFRESH_MS) return;
+      lastFocusRefresh.set(userKey, now);
+      void updatePlan(true);
     };
-  }, [pathname, userKey]);
+    const onBillingUpdated = () => {
+      cachedPlans.delete(userKey);
+      lastFocusRefresh.delete(userKey);
+      invalidateLimits();
+      // Keep the previous visible tier while the authoritative response arrives.
+      void updatePlan(true);
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('nashra:billing-updated', onBillingUpdated);
+    return () => {
+      active = false;
+      controller.abort();
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('nashra:billing-updated', onBillingUpdated);
+    };
+  }, [userKey]);
 
   const label = tier === 'business' ? 'Business' : tier === 'pro' ? 'Pro' : tier === 'free' ? 'Gratuit' : '—';
   const description = tier === 'unknown' ? 'Consulter mon abonnement' : tier === 'free' ? 'Découvrir les offres' : 'Abonnement actif';
@@ -70,14 +106,14 @@ export function SidebarPlanCard({ onNavigate, userKey = 'current' }: { onNavigat
   return (
     <Link href="/abonnement" onClick={onNavigate} className={`${styles.planCard} ${tone}`} aria-label={`Mon forfait : ${label}. Voir mon abonnement.`}>
       <span className={styles.planUpper}>
-        <span className={styles.planCaption}>MON FORFAIT</span>
+        <span className={styles.planCaption}>{t('MON FORFAIT')}</span>
         <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden="true" />
       </span>
       <span className={styles.planContent}>
-        {loading ? <span className={styles.planLoading} aria-label="Chargement du forfait" /> : <span className={styles.planName}>{label}</span>}
+        {loading && tier === 'unknown' ? <span className={styles.planLoading} aria-label="Chargement du forfait" /> : <span className={styles.planName}>{label}</span>}
         {(tier === 'pro' || tier === 'business') && <Sparkles className={styles.planSparkle} size={21} strokeWidth={1.65} aria-hidden="true" />}
       </span>
-      <span className={styles.planDescription}>{description}</span>
+      <span className={styles.planDescription}>{t(description)}</span>
     </Link>
   );
 }

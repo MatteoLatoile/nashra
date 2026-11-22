@@ -58,21 +58,21 @@ export function Shell({ children, userEmail }: { children: React.ReactNode; user
         <button className="mob-close icon-button" onClick={() => setMobileOpen(false)} aria-label="Fermer"><X size={19}/></button>
       </div>
       <SidebarPlanCard userKey={userEmail || 'current'} onNavigate={() => setMobileOpen(false)} />
-      <div className="sidebar-label">ESPACE DE TRAVAIL</div>
+      <div className="sidebar-label">{t("ESPACE DE TRAVAIL")}</div>
       <nav className="nav-list" aria-label="Navigation principale">
         {menu.map(({ label, href, Icon }) => <Link key={href} href={href} onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === href ? 'nav-active' : ''}`}><Icon size={18} strokeWidth={1.8}/><span>{t(label)}</span>{href === '/campagnes' && <span className="nav-pin"/>}</Link>)}
       </nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-label">GÉNÉRAL</div>
+        <div className="sidebar-label">{t("GÉNÉRAL")}</div>
         
-        <Link href="/parametres" onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === '/parametres' ? 'nav-active' : ''}`}><Settings2 size={18}/><span>Paramètres</span></Link>
-        <a href="https://core.telegram.org/api" target="_blank" rel="noreferrer" className="nav-item"><HelpCircle size={18}/><span>Documentation Telegram</span><ArrowUpRight className="nav-external" size={14}/></a>
+        <Link href="/parametres" onClick={() => setMobileOpen(false)} className={`nav-item ${pathname === '/parametres' ? 'nav-active' : ''}`}><Settings2 size={18}/><span>{t("Paramètres")}</span></Link>
+        <a href="https://core.telegram.org/api" target="_blank" rel="noreferrer" className="nav-item"><HelpCircle size={18}/><span>{t("Documentation Telegram")}</span><ArrowUpRight className="nav-external" size={14}/></a>
         <SidebarUser userEmail={userEmail} cloudMode={cloudMode} signingOut={signingOut} onSignOut={() => void signOut()} onNavigate={() => setMobileOpen(false)} />
       </div>
     </aside>
     <div className="main-column">
       <header className="topbar">
-        <div className="top-left"><button className="mobile-menu icon-button" onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu"><Menu size={20}/></button><span className="crumb">Mon espace</span><span className="crumb-slash">/</span><span className="crumb-current">{t(pageTitle)}</span></div>
+        <div className="top-left"><button className="mobile-menu icon-button" onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu"><Menu size={20}/></button><span className="crumb">{t("Mon espace")}</span><span className="crumb-slash">/</span><span className="crumb-current">{t(pageTitle)}</span></div>
         <div className="top-right"><span title={syncError || undefined} className={`environment-pill ${syncStatus === 'error' ? 'sync-pill-error' : ''}`}>
         {syncStatus === 'saving' || syncStatus === 'loading' ? <LoaderCircle size={13} className="tg-spin"/> : syncStatus === 'error' ? <CloudOff size={13}/> : syncStatus === 'synced' ? <Cloud size={13}/> : <span className="env-dot"/>}
         {syncStatus === 'saving' ? 'Enregistrement…' : syncStatus === 'loading' ? 'Chargement…' : syncStatus === 'synced' ? 'Cloud synchronisé' : syncStatus === 'error' ? 'Erreur de sauvegarde' : 'Démo locale'}</span>
