@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { trackVerifiedSubscription } from '@/lib/analytics/events';
 import { CheckCircle2, LoaderCircle, RefreshCcw, ShieldCheck } from 'lucide-react';
 
 type Result = {
@@ -34,7 +35,11 @@ export function CheckoutResultNotice({ sessionId, onActivated }: {
       if (!signal.aborted) {
         setResult(body);
         setError('');
-        if (body.state === 'active') onActivated();
+        if (body.state === 'active') {
+          // Server verified: paid Stripe checkout + active database entitlement.
+          trackVerifiedSubscription(sessionId, body.tier, body.interval);
+          onActivated();
+        }
       }
     } catch (e) {
       if (!signal.aborted) setError(e instanceof Error ? e.message : 'Erreur de vérification.');

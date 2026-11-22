@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, CheckCircle2, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, ShieldCheck, UserRound, Building2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { BillingFlowLoader } from '@/components/billing-flow-loader';
+import { trackNashraEvent } from '@/lib/analytics/events';
 
 type Mode = 'login' | 'signup';
 
@@ -110,6 +111,8 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
           },
         });
         if (error) throw error;
+        // Sign-up request accepted by Supabase; email confirmation may still be pending.
+        trackNashraEvent('sign_up_requested', { method: 'email' });
         if (!data.session) {
           setLeaving(null);
           setGood(true);
