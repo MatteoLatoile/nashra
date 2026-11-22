@@ -207,6 +207,7 @@ export default function LandingPage() {
       <div className="lp-container lp-footer-main">
         <div className="lp-footer-about"><Brand footer /><p>Une façon plus simple d’organiser vos annonces et vos publications Telegram.</p></div>
         <nav className="lp-footer-nav-column" aria-label="Explorer"><strong>Explorer</strong><a href="#fonctionnalites">Fonctionnalités</a><a href="#fonctionnement">Comment ça marche</a><a href="#tarifs">Tarifs</a><a href="#questions">Questions</a></nav>
+        <nav className="lp-footer-nav-column" aria-label="Telegram SEO guides"><strong>Telegram guides</strong><Link href="/en/telegram-scheduler">Telegram scheduler</Link><Link href="/en/telegram-auto-poster">Telegram auto poster</Link><Link href="/en/post-to-multiple-telegram-groups">Post to multiple groups</Link><Link href="/en/telegram-personal-account-scheduler">Personal account scheduler</Link></nav>
         <nav className="lp-footer-nav-column" aria-label="Nashra"><strong>Nashra</strong><Link href="/connexion">Connexion</Link><Link href="/connexion">Commencer gratuitement</Link><Link href="/aide">Centre d’aide</Link><Link href="/programmation-telegram">Programmer sur Telegram</Link><Link href="/publication-groupes-telegram">Publier dans plusieurs groupes</Link><LandingLanguageSelector footer /></nav>
       </div>
       <div className="lp-container lp-footer-base"><span>© {new Date().getFullYear()} Nashra. {t('Tous droits réservés.')}</span><span>Nashra n’est pas affilié à Telegram.</span></div>
