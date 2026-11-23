@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/server';
 import { adminDb } from '@/lib/nashra-bundle/secure';
 
 export { Api };
-export type PendingLogin = { phone: string; phoneCodeHash: string; session: string; expiresAt: number; needsPassword?: boolean };
+export type PendingLogin = { phone: string; phoneCodeHash: string; session: string; expiresAt: number; needsPassword?: boolean; codeDelivery?: 'Telegram' | 'Autre' };
 export type AccountRow = {
   user_id: string;
   session_ciphertext: string | null;

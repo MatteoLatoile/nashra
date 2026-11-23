@@ -26,6 +26,8 @@ type Status = {
   name?: string;
   username?: string;
   error?: string;
+  retryAfterSeconds?: number;
+  pending?: { phone: string; via: 'Telegram' | 'Autre'; expiresAt: number; needsPassword: boolean } | null;
 };
 type Dialog = { id: string; title: string; group: boolean; channel: boolean; forum?: boolean };
 type ForumTopic = { id: number; title: string; closed: boolean; hidden: boolean };
@@ -71,7 +73,7 @@ export default function TelegramPage() {
   const [busy, setBusy] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneCountry, setPhoneCountry] = useState('FR');
-  const [codeDelivery, setCodeDelivery] = useState<'Telegram' | 'SMS' | null>(null);
+  const [codeDelivery, setCodeDelivery] = useState<'Telegram' | 'Autre' | null>(null);
   const [codeRequestedFor, setCodeRequestedFor] = useState('');
   const [retryUntil, setRetryUntil] = useState(0);
   const [nowMs, setNowMs] = useState(0);
@@ -147,6 +149,17 @@ export default function TelegramPage() {
     try {
       const current = await api<Status>('/api/telegram/user/status');
       setStatus(current);
+      if (!current.connected) {
+        if (current.retryAfterSeconds && current.retryAfterSeconds > 0) {
+          setRetryUntil(Date.now() + current.retryAfterSeconds * 1000);
+          setNowMs(Date.now());
+        }
+        if (current.pending && current.pending.expiresAt > Date.now()) {
+          setCodeRequestedFor(current.pending.phone);
+          setCodeDelivery(current.pending.via);
+          setLoginStep(current.pending.needsPassword ? 'password' : 'code');
+        }
+      }
     } catch {
       setStatus({ connected: false, configured: false, error: 'Connexion Telegram indisponible pour le moment.' });
     }
@@ -164,22 +177,21 @@ export default function TelegramPage() {
   }, [retryUntil]);
 
   function sendCode() {
-    if (!formattedPhone || busy || retrySeconds > 0) {
-      if (!formattedPhone) setFeedback({ good: false, text: 'Vérifiez le pays et le numéro : utilisez un numéro mobile complet, sans indicatif répété.' });
+    const targetPhone = loginStep === 'code' && codeRequestedFor ? codeRequestedFor : formattedPhone;
+    if (!targetPhone || busy || retrySeconds > 0) {
+      if (!targetPhone) setFeedback({ good: false, text: 'Vérifiez le pays et le numéro : utilisez un numéro mobile complet, sans indicatif répété.' });
       return;
     }
-    void task('code', () => api<{ ok: boolean; via?: 'Telegram' | 'SMS' }>('/api/telegram/user/start', { phone: formattedPhone }), result => {
+    void task('code', () => api<{ ok: boolean; via?: 'Telegram' | 'Autre' }>('/api/telegram/user/start', { phone: targetPhone }), result => {
       setCode('');
-      setCodeDelivery(result.via === 'Telegram' || result.via === 'SMS' ? result.via : null);
-      setCodeRequestedFor(formattedPhone);
+      setCodeDelivery(result.via === 'Telegram' || result.via === 'Autre' ? result.via : null);
+      setCodeRequestedFor(targetPhone);
       setRetryUntil(Date.now() + 90_000);
       setNowMs(Date.now());
       setLoginStep('code');
       setFeedback({ good: true, info: true, text: result.via === 'Telegram'
         ? 'Demande acceptée : cherchez le code dans la conversation officielle « Telegram » de votre application, pas forcément par SMS.'
-        : result.via === 'SMS'
-          ? 'Demande acceptée : Telegram annonce un envoi par SMS. La réception peut prendre du temps.'
-          : 'Demande acceptée. Vérifiez Telegram et vos SMS ; la livraison du code n’est pas garantie.' });
+        : 'Demande acceptée : Telegram ne précise pas la méthode de livraison. Vérifiez l’application Telegram et les autres appareils connectés. Nashra ne peut pas garantir la réception.' });
     });
   }
 
@@ -418,7 +430,7 @@ export default function TelegramPage() {
           </> : <>
             {loginStep === 'code' && <div className={styles.codeHelp} role="status">
               <strong>Code demandé pour {codeRequestedFor}</strong>
-              <span>{codeDelivery === 'Telegram' ? 'Telegram annonce un code dans son application. Ouvrez la conversation officielle « Telegram ».' : codeDelivery === 'SMS' ? 'Telegram annonce un SMS. Consultez vos messages.' : 'Consultez Telegram et vos SMS.'}</span>
+              <span>{codeDelivery === 'Telegram' ? 'Telegram annonce un code dans son application. Ouvrez la conversation officielle « Telegram ».' : 'Telegram ne précise pas le mode de livraison. Consultez Telegram et vos autres appareils connectés.'}</span>
               <span>La demande a été acceptée, mais Nashra ne peut pas garantir la réception du code.</span>
             </div>}
             <label className={styles.field}>{loginStep === 'password' ? 'Mot de passe de vérification en deux étapes Telegram' : 'Code de connexion Telegram'}

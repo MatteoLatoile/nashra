@@ -44,9 +44,10 @@ try {
 
   result = await client.sendCode({ apiId, apiHash }, number);
 }
-      const pending: PendingLogin = { phone: number, phoneCodeHash: result.phoneCodeHash, session: client.session.save() as string, expiresAt: Date.now() + 8 * 60_000 };
+      const via = result.isCodeViaApp ? 'Telegram' as const : 'Autre' as const;
+      const pending: PendingLogin = { phone: number, phoneCodeHash: result.phoneCodeHash, session: client.session.save() as string, expiresAt: Date.now() + 8 * 60_000, codeDelivery: via };
       await saveAccount(c, { pending_ciphertext: encrypt(JSON.stringify(pending)), last_code_at: new Date().toISOString() });
-      return NextResponse.json({ ok: true, via: result.isCodeViaApp ? 'Telegram' : 'SMS', retryAfterSeconds: 90 });
+      return NextResponse.json({ ok: true, via, retryAfterSeconds: 90 });
     } finally { await client.disconnect(); }
   } catch (e) { return NextResponse.json({ error: apiError(e) }, { status: 400 }); }
 }
