@@ -12,6 +12,7 @@ import { useApp, type AppData, type Campaign } from '@/lib/store';
 import { recurringOccurrences, localClockToISOString } from '@/lib/automation/recurrence';
 import { scheduleView } from '@/lib/automation/schedule-display';
 import { ScheduleVerification } from '@/components/schedule-verification';
+import './campaigns-v2.css';
 
 const pad = (x: number) => String(x).padStart(2, '0');
 const key = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -26,6 +27,8 @@ export default function CalendarPage() {
   const { data, cloudMode, syncStatus, acceptServerWorkspace, notify } = useApp();
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [campaignFilter, setCampaignFilter] = useState<'all' | 'attention' | 'active' | 'paused'>('all');
   const [name, setName] = useState('');
   const [announcementId, setAnnouncementId] = useState('');
   const [destIds, setDestIds] = useState<string[]>([]);
@@ -166,6 +169,7 @@ export default function CalendarPage() {
     setError('');
     setDate(localInput(new Date(Date.now() + 10 * 60_000)));
     setScheduleType('once'); setIntervalDays(2); setUntilDate('');
+    setWizardStep(2);
     setOpen(true);
     window.history.replaceState(window.history.state, '', '/campagnes');
   }, [data.announcements]);
@@ -177,6 +181,7 @@ export default function CalendarPage() {
     setError('');
     setDate(localInput(new Date(Date.now() + 10 * 60_000)));
     setScheduleType('once'); setIntervalDays(2); setUntilDate('');
+    setWizardStep(1);
     setOpen(true);
   }
   async function send(action: 'schedule' | 'pause' | 'resume' | 'delete', campaign?: Campaign, reviewedInTelegram = false) {
@@ -287,6 +292,11 @@ export default function CalendarPage() {
     if (busy) return;
     const jobs = queueByCampaign.get(c.id) ?? [];
     const needsReview = action === 'resume' && jobs.some(j => j.status === 'needs_review');
+    const unresolved = action === 'resume' && jobs.some(j => j.status === 'needs_review' || j.status === 'processing');
+    if (unresolved && jobs.some(j => Date.parse(j.scheduled_at) > Date.now())) {
+      setCardFeedback({ id:c.id, kind:'warning', text:'Impossible de reprendre automatiquement : vérifiez d’abord les publications encore incertaines ci-dessus pour éviter un doublon.' });
+      return;
+    }
     const futureUncertain = action === 'resume' && jobs.some(j =>
       (j.status === 'needs_review' || j.status === 'processing') && Date.parse(j.scheduled_at) > Date.now());
     setCardFeedback({ id: c.id, kind: 'info', text: 'Confirme ou annule cette action dans la fenêtre de confirmation.' });
@@ -311,39 +321,53 @@ export default function CalendarPage() {
   const cloudHint = !cloudMode ? 'Connectez Nashra à Supabase pour programmer.' :
     'Une programmation unique est exécutée par Telegram. Une répétition est préprogrammée plusieurs jours à l’avance et renouvelée par le Cron quotidien ; les messages sont espacés de 90 secondes entre groupes.';
 
+  const campaignStates = data.campaigns.map(c => ({ c, view: scheduleView({
+    paused: isPaused(c), recurring: c.recurrence?.mode === 'interval', nativeTelegram: c.nativeTelegram === true,
+    recurringEnabled, loaded: statusLoaded, loading: !statusInitialized,
+    jobs: queueByCampaign.get(c.id) ?? [], ruleProblem: ruleProblems[c.id], now: Date.now(),
+  }) }));
+  const attentionCount = campaignStates.filter(x => x.view.attention).length;
+  const activeCount = campaignStates.filter(x => !isPaused(x.c) && !x.view.attention).length;
+  const visibleCampaigns = campaignStates.filter(x => campaignFilter === 'all' ||
+    (campaignFilter === 'attention' && x.view.attention) ||
+    (campaignFilter === 'active' && !isPaused(x.c) && !x.view.attention) ||
+    (campaignFilter === 'paused' && isPaused(x.c))
+  ).sort((a,b) => Number(b.view.attention) - Number(a.view.attention) || a.c.scheduledAt.localeCompare(b.c.scheduledAt));
+  const canGoStep2 = Boolean(announcementId && data.announcements.some(a => a.id === announcementId));
+  const maxDestinations = scheduleType === 'interval' ? 10 : 5;
+  const canGoStep3 = destIds.length > 0 && destIds.length <= maxDestinations;
+  const canSubmit = canGoStep2 && canGoStep3 && !busy && cloudMode && syncStatus === 'synced' &&
+    (scheduleType !== 'interval' || recurringEnabled) && Number.isFinite(Date.parse(date)) &&
+    Date.parse(date) > Date.now() + 180_000;
+
   return <>
-    <PageHeader eyebrow="PUBLICATIONS PROGRAMMÉES" title="Calendrier" description="Publiez une annonce dans plusieurs groupes, une seule fois ou tous les N jours à une heure choisie." actions={<button className="btn btn-primary" onClick={newSchedule}><Plus size={16}/> Programmer</button>}/>
-    {!cloudMode && <div className="notice-row notice-dark"><AlertTriangle size={19}/><div><strong>Connexion nécessaire</strong><span>{cloudHint}</span></div></div>}
-    <details className="n46-page-help"><summary>Comment fonctionnent les programmations ?</summary><p>{cloudHint}</p><p>Une pause stoppe les nouvelles répétitions dans Nashra. Les messages déjà programmés sur Telegram doivent être annulés séparément ; Nashra vérifie les confirmations et signale les incertitudes.</p></details>
+    <PageHeader eyebrow="VOS PUBLICATIONS TELEGRAM" title="Campagnes" description="Préparez une annonce, choisissez vos groupes et laissez Nashra s'occuper de la programmation." actions={<button className="btn btn-primary" onClick={newSchedule}><Plus size={16}/> Nouvelle campagne</button>}/>
+    <section className="nashra-campaign-overview" aria-label="Résumé de vos campagnes">
+      <div><span>À suivre</span><strong>{data.campaigns.length}</strong><small>campagnes au total</small></div>
+      <div className={attentionCount ? 'needs-help' : ''}><span>Votre attention</span><strong>{statusLoaded ? attentionCount : '—'}</strong><small>{!statusLoaded ? 'Vérification indisponible' : attentionCount ? 'Une action peut être nécessaire' : 'Rien à vérifier actuellement'}</small></div>
+      <div><span>Sans alerte</span><strong>{statusLoaded ? activeCount : '—'}</strong><small>campagnes non suspendues</small></div>
+    </section>
+    {attentionCount > 0 && statusLoaded && <div className="nashra-campaign-alert" role="status"><AlertTriangle size={20}/><div><strong>{attentionCount} campagne{attentionCount > 1 ? 's' : ''} à vérifier</strong><p>Nashra a détecté des publications nécessitant une confirmation. Elles apparaissent en premier. Aucune relance incertaine ne sera effectuée automatiquement.</p></div><button type="button" onClick={() => setCampaignFilter('attention')}>Voir les campagnes</button></div>}
+    {!cloudMode && <div className="notice-row notice-dark"><AlertTriangle size={19}/><div><strong>Connexion nécessaire</strong><span>La synchronisation de votre compte doit être disponible avant de créer une campagne.</span></div></div>}
     {error && <p className={`feedback-box feedback-${severity}`} role={severity === 'error' ? 'alert' : 'status'}>{error}</p>}
-    <div className="n40-layout">
-      <section className="n40-calendar" aria-label="Calendrier des publications">
-        <div className="n40-month"><strong>{new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(month)}</strong><div>
-          <button aria-label="Mois précédent" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth()-1, 1))}><ChevronLeft size={17}/></button>
-          <button onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Aujourd’hui</button>
-          <button aria-label="Mois suivant" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth()+1, 1))}><ChevronRight size={17}/></button>
+    <div className="nashra-campaign-primary">
+      <section className="nashra-campaign-list" aria-label="Campagnes">
+        <div className="nashra-campaign-list-head"><div><h2>Vos campagnes</h2><p>Retrouvez leur état et la prochaine action utile.</p></div><div className="nashra-campaign-filters" role="group" aria-label="Filtrer les campagnes">
+          {([['all','Toutes'],['attention','À vérifier'],['active','En cours'],['paused','En pause']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={campaignFilter === value} onClick={() => setCampaignFilter(value)}>{label}</button>)}
         </div></div>
-        <div className="n40-days">{['L','M','M','J','V','S','D'].map((w,i) => <span key={i}>{w}</span>)}</div>
-        <div className="n40-grid">{dayCells.map(d => {
-          const events = eventsByDay.get(key(d)) ?? [];
-          return <div key={key(d)} className={`n40-day ${d.getMonth() !== month.getMonth() ? 'outside' : ''} ${key(d) === today ? 'today' : ''}`}>
-            <span>{d.getDate()}</span>{events.slice(0,2).map(x => <small key={x.c.id+x.at} className={isPaused(x.c) ? 'paused' : ''} title={x.c.name}>{x.c.name}</small>)}
-            {events.length > 2 && <em>+{events.length - 2}</em>}
-          </div>;
-        })}</div>
-      </section>
-      <section className="n40-side" aria-label="Campagnes">
-        <div className="n40-side-head"><h2>Vos programmations</h2><span className="n46-count">{data.campaigns.length} au total</span></div>
-        {data.campaigns.length === 0 ? <EmptyState icon={<CalendarDays size={24}/>} title="Aucune programmation" description="Créez une annonce et choisissez une date." action={<button className="btn btn-primary" onClick={newSchedule}>Programmer</button>}/> :
-          [...data.campaigns].sort((a,b) => a.scheduledAt.localeCompare(b.scheduledAt)).map(c => {
+        {data.campaigns.length === 0 ? <div className="nashra-campaign-empty"><EmptyState icon={<CalendarDays size={24}/>} title="Votre première campagne en quelques clics" description="Choisissez une annonce, vos groupes et un horaire. Nashra vous guide pour le reste." action={<button className="btn btn-primary" onClick={newSchedule}>Créer ma première campagne</button>}/></div> :
+          visibleCampaigns.length === 0 ? <div className="nashra-campaign-empty"><p>Aucune campagne dans cette catégorie.</p><button type="button" className="btn btn-secondary" onClick={() => setCampaignFilter('all')}>Voir toutes les campagnes</button></div> :
+          visibleCampaigns.map(({c}) => {
             const queued = queueByCampaign.get(c.id) ?? [];
             const notices = queueNotices(queued);
             const state = scheduleView({ paused: isPaused(c), recurring: c.recurrence?.mode === 'interval',
               nativeTelegram: c.nativeTelegram === true, recurringEnabled, loaded: statusLoaded, loading: !statusInitialized,
               jobs: queued, ruleProblem: ruleProblems[c.id], now: Date.now() });
             const currentOperation = runningAction?.id === c.id ? runningAction.action : null;
-            return <article className="n40-item" key={c.id} aria-busy={Boolean(currentOperation)}>
-              <div className="n40-item-head"><strong>{c.name}</strong><Badge tone={state.tone}>{isPaused(c) && state.attention ? 'Pause à confirmer' : state.label}</Badge></div>
+            return <article className={`n40-item nashra-campaign-card ${state.attention ? 'nashra-campaign-card-attention' : ''}`} key={c.id} aria-busy={Boolean(currentOperation)}>
+              <div className="n40-item-head"><strong>{c.name}</strong><Badge tone={state.tone}>{state.attention ? 'Action nécessaire' : isPaused(c) ? 'En pause' : state.label}</Badge></div>
+
+
               <p><Clock3 size={13}/>{c.recurrence?.mode === 'interval'
                 ? `Tous les ${c.recurrence.intervalDays} jour${c.recurrence.intervalDays > 1 ? 's' : ''} à ${new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:c.recurrence.timeZone}).format(new Date(c.scheduledAt))} (${c.recurrence.timeZone})`
                 : formatDate(c.scheduledAt)}</p>
@@ -366,7 +390,7 @@ export default function CalendarPage() {
                   currentOperation === 'pause' ? 'Mise en pause et annulation en cours…' : currentOperation === 'repair' ? 'Synchronisation de la règle en cours — aucun envoi Telegram…' : 'Reprise de la programmation en cours…'}
               </p>}
               <div className="n40-item-actions">
-                {(c.recurrence?.mode === 'interval' || !c.nativeTelegram) && <button type="button" disabled={busy} onClick={() => void actionOn(c, isPaused(c) ? 'resume' : 'pause')}>
+                {(c.recurrence?.mode === 'interval' || !c.nativeTelegram) && <button type="button" disabled={busy || (isPaused(c) && queued.some(j => (j.status === 'needs_review' || j.status === 'processing') && Date.parse(j.scheduled_at) > Date.now()))} onClick={() => void actionOn(c, isPaused(c) ? 'resume' : 'pause')}>
                   {currentOperation === (isPaused(c) ? 'resume' : 'pause')
                     ? <LoaderCircle size={14} className="n48-spin" aria-hidden="true" />
                     : isPaused(c) ? <Play size={14} /> : <Pause size={14} />}
@@ -398,57 +422,38 @@ export default function CalendarPage() {
             </article>;
           })}
       </section>
+      <details className="nashra-campaign-calendar-details"><summary><CalendarDays size={17}/> Afficher le calendrier des publications</summary>
+        <section className="n40-calendar" aria-label="Calendrier des publications">
+          <div className="n40-month"><strong>{new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(month)}</strong><div>
+            <button aria-label="Mois précédent" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth()-1, 1))}><ChevronLeft size={17}/></button>
+            <button onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Aujourd’hui</button>
+            <button aria-label="Mois suivant" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth()+1, 1))}><ChevronRight size={17}/></button>
+          </div></div>
+          <div className="n40-days">{['L','M','M','J','V','S','D'].map((w,i) => <span key={i}>{w}</span>)}</div>
+          <div className="n40-grid">{dayCells.map(d => { const events = eventsByDay.get(key(d)) ?? []; return <div key={key(d)} className={`n40-day ${d.getMonth() !== month.getMonth() ? 'outside' : ''} ${key(d) === today ? 'today' : ''}`}><span>{d.getDate()}</span>{events.slice(0,2).map(x => <small key={x.c.id+x.at} className={isPaused(x.c) ? 'paused' : ''} title={x.c.name}>{x.c.name}</small>)}{events.length > 2 && <em>+{events.length - 2}</em>}</div>; })}</div>
+        </section>
+      </details>
     </div>
-    {open && <Modal title="Programmer une publication" subtitle="Publication automatique aux groupes que vous êtes autorisé à utiliser." onClose={() => !busy && !submitLock.current && setOpen(false)}>
-      <form className="form-stack" aria-busy={busy} onSubmit={e => { e.preventDefault(); void send('schedule'); }}>
-        <label className="field-label">Nom de la programmation<input maxLength={90} required disabled={busy} value={name} onChange={e => setName(e.target.value)}/></label>
-        <div className="field-label"><span>Annonce</span>
-  <SearchableSelect ariaLabel="Annonce à programmer" disabled={busy} value={announcementId}
-    onChange={value => { setAnnouncementId(value); if (!name.trim()) setName(data.announcements.find(a => a.id === value)?.title ?? ''); }}
-    placeholder="Choisir une annonce" searchPlaceholder="Rechercher une annonce…"
-    options={data.announcements.map(a => ({value:a.id,label:a.title,detail:a.category}))}/>
-</div>
-        <label className="field-label">Type de programmation
-          <select data-tour="schedule-mode" disabled={busy} value={scheduleType} onChange={e => setScheduleType(e.target.value as 'once'|'interval')}>
-            <option value="once">Une seule fois</option>
-            <option value="interval">Répéter automatiquement</option>
-          </select>
-        </label>
-        {scheduleType === 'interval' && <>
-          <label className="field-label">Répéter tous les combien de jours ?
-            <select data-tour="schedule-interval" disabled={busy} value={intervalDays} onChange={e => setIntervalDays(Number(e.target.value))}>
-              {[1,2,3,4,5,7,14,30].map(n => <option key={n} value={n}>Tous les {n} jour{n > 1 ? 's' : ''}</option>)}
-            </select>
-          </label>
-          <label className="field-label">Fuseau horaire (IANA)
-            <input disabled={busy} value={timeZone} onChange={e => setTimeZone(e.target.value)} data-tour="schedule-timezone" placeholder="Asia/Riyadh" required maxLength={80}/>
-          </label>
-          <label className="field-label">Date de fin (facultative)
-            <input data-tour="schedule-until" type="date" disabled={busy} value={untilDate} onChange={e => setUntilDate(e.target.value)} />
-          </label>
+    {open && <Modal title="Créer une campagne" subtitle="Trois choix simples. Vous pourrez toujours revenir en arrière." onClose={() => !busy && !submitLock.current && setOpen(false)}>
+      <form className="form-stack nashra-campaign-wizard" aria-busy={busy} onSubmit={e => { e.preventDefault(); if (wizardStep < 3) { if (wizardStep === 1 && canGoStep2) setWizardStep(2); else if (wizardStep === 2 && canGoStep3) setWizardStep(3); return; } if (canSubmit) void send('schedule'); }}>
+        <div className="nashra-wizard-progress" aria-label={`Étape ${wizardStep} sur 3`}>{([1,2,3] as const).map(n => <span key={n} className={n <= wizardStep ? 'current' : ''}>{n === 1 ? 'Annonce' : n === 2 ? 'Groupes' : 'Horaire'}</span>)}</div>
+        {wizardStep === 1 && <><h3>Que voulez-vous publier ?</h3><p className="nashra-wizard-hint">Choisissez une annonce que vous avez déjà préparée. Nashra reprend son titre automatiquement.</p>
+          {data.announcements.length === 0 && <p className="nashra-wizard-hint">Vous n'avez pas encore d'annonce. <Link href="/annonces">Créer une annonce</Link> avant de revenir ici.</p>}
+          <div className="field-label"><span>Votre annonce</span><SearchableSelect ariaLabel="Annonce à programmer" disabled={busy} value={announcementId} onChange={value => { setAnnouncementId(value); setName(data.announcements.find(a => a.id === value)?.title ?? ''); }} placeholder="Choisir mon annonce" searchPlaceholder="Rechercher une annonce…" options={data.announcements.map(a => ({value:a.id,label:a.title,detail:a.category}))}/></div>
         </>}
-        <label className="field-label">{scheduleType === 'interval' ? 'Première diffusion (jour et heure)' : 'Date et heure'}
-  <input type="datetime-local" required disabled={busy} value={date} onChange={e => setDate(e.target.value)}/>
-  <small style={{lineHeight: 1.6}}>Heure locale de votre appareil : {Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}.
-    {Number.isFinite(Date.parse(date)) && <> Publication choisie : <strong>{new Intl.DateTimeFormat('fr-FR', { dateStyle:'full', timeStyle:'short' }).format(new Date(date))}</strong>.</>}
-  </small>
-</label>
-        <div className="n40-dest"><strong>Groupes autorisés</strong><span>Recherchez et sélectionnez jusqu’à {scheduleType === 'interval' ? 10 : 5} destinations autorisées.</span>
-  {candidates.length ? <SearchableMultiSelect disabled={busy} values={destIds} onChange={setDestIds}
-    ariaLabel="Destinations à programmer" placeholder="Rechercher et choisir des destinations"
-    max={scheduleType === 'interval' ? 10 : 5}
-    options={candidates.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/> :
-    <p>Ajoutez d’abord un groupe depuis <Link href="/groupes">Destinations</Link>.</p>}
-</div>
-        <p className="n40-footnote" data-tour="group-stagger">{scheduleType === 'interval'
-          ? `Vous autorisez ${destIds.length} diffusion(s) par occurrence. Le premier groupe démarre à l’heure indiquée ; les suivants à 90 secondes d’intervalle. Nashra prépare les prochains jours sur Telegram et les renouvelle quotidiennement via un Cron serveur. Maximum 10 groupes par règle ; restrictions et quotas toujours applicables.`
-          : `Vous autorisez ${destIds.length} publication(s) uniques. Telegram doit accepter chaque programmation. Maximum 5 groupes par action.`}</p>
-        {scheduleType === 'interval' && !recurringEnabled && <p className="n40-error" role="status">Le moteur récurrent doit être activé côté serveur (NASHRA_RECURRING_ENABLED=1 et Cron configuré).</p>}
+        {wizardStep === 2 && <><h3>Où voulez-vous publier ?</h3><p className="nashra-wizard-hint">Sélectionnez uniquement les groupes où vous avez le droit de publier. Nashra se chargera de les programmer.</p>
+          <div className="n40-dest"><strong>{destIds.length} groupe{destIds.length > 1 ? 's' : ''} sélectionné{destIds.length > 1 ? 's' : ''}</strong><span>Choisissez jusqu'à {maxDestinations} destinations.</span>
+            {candidates.length ? <SearchableMultiSelect disabled={busy} values={destIds} onChange={setDestIds} ariaLabel="Destinations à programmer" placeholder="Choisir mes groupes" max={maxDestinations} options={candidates.map(d => ({value:d.id,label:d.name,detail:d.topicId ? `Sujet : ${d.topicTitle || d.topicId}` : d.category}))}/> : <p>Aucun groupe autorisé. <Link href="/groupes">Ajouter un groupe</Link> pour continuer.</p>}
+          </div>
+        </>}
+        {wizardStep === 3 && <><h3>Quand voulez-vous publier ?</h3><p className="nashra-wizard-hint">Choisissez une date. Pour répéter, activez l'option ci-dessous. Vous n'avez rien d'autre à configurer.</p>
+          <div className="nashra-wizard-mode" role="group" aria-label="Fréquence"><button type="button" className={scheduleType === 'once' ? 'selected' : ''} onClick={() => setScheduleType('once')}>Une seule fois</button><button type="button" className={scheduleType === 'interval' ? 'selected' : ''} onClick={() => setScheduleType('interval')}>Régulièrement</button></div>
+          <label className="field-label">{scheduleType === 'interval' ? 'Première publication' : 'Date et heure'}<input type="datetime-local" required disabled={busy} value={date} onChange={e => setDate(e.target.value)}/></label>
+          {scheduleType === 'interval' && <><label className="field-label">Répéter<select data-tour="schedule-interval" disabled={busy} value={intervalDays} onChange={e => setIntervalDays(Number(e.target.value))}>{[1,2,3,4,5,7,14,30].map(n => <option key={n} value={n}>Tous les {n} jour{n > 1 ? 's' : ''}</option>)}</select></label><details className="nashra-wizard-advanced"><summary>Options avancées (facultatif)</summary><label className="field-label">Fuseau horaire<input disabled={busy} value={timeZone} onChange={e => setTimeZone(e.target.value)} required maxLength={80}/></label><label className="field-label">Date de fin<input type="date" disabled={busy} value={untilDate} onChange={e => setUntilDate(e.target.value)}/></label></details>{!recurringEnabled && <p className="n40-error">La répétition n'est pas disponible actuellement. Choisissez « Une seule fois ».</p>}</>}
+          <div className="nashra-wizard-summary"><strong>Votre programmation</strong><p>{data.announcements.find(a => a.id === announcementId)?.title || 'Annonce'} · {destIds.length} groupe{destIds.length > 1 ? 's' : ''}</p><p>{scheduleType === 'interval' ? `Tous les ${intervalDays} jours` : 'Une seule fois'} · {Number.isFinite(Date.parse(date)) ? formatDate(new Date(date).toISOString()) : 'Date à choisir'}</p></div>
+        </>}
         {error && <p className={`feedback-box feedback-${severity}`} role={severity === 'error' ? 'alert' : 'status'}>{error}</p>}
-        <div className="modal-actions"><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => setOpen(false)}>Annuler</button>
-          <button type="submit" className="btn btn-primary" disabled={busy || !announcementId || !destIds.length || destIds.length > (scheduleType === 'interval' ? 10 : 5) || !cloudMode || syncStatus !== 'synced' || (scheduleType === 'interval' && !recurringEnabled)}>
-            {busy ? <LoaderCircle size={16} className="n39-send-spinner" aria-hidden="true"/> : <CalendarDays size={16}/>}
-            {busy ? 'Programmation en cours…' : 'Confirmer la programmation'}</button></div>
+        <div className="modal-actions"><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => wizardStep === 1 ? setOpen(false) : setWizardStep((wizardStep - 1) as 1 | 2 | 3)}>{wizardStep === 1 ? 'Annuler' : 'Retour'}</button><button type="submit" className="btn btn-primary" disabled={busy || (wizardStep === 1 && !canGoStep2) || (wizardStep === 2 && !canGoStep3) || (wizardStep === 3 && !canSubmit)}>{busy ? 'Programmation en cours…' : wizardStep === 3 ? 'Programmer ma campagne' : 'Continuer'}</button></div>
       </form>
     </Modal>}
     {/* NASHRA_041_VISIBLE_SCHEDULE_PROGRESS — portal outside scrollable modal */}
