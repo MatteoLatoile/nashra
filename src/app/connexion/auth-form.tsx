@@ -9,11 +9,25 @@ import { trackNashraEvent } from '@/lib/analytics/events';
 
 type Mode = 'login' | 'signup';
 
+// Supabase peut masquer l'existence d'un compte pour eviter l'enumeration d'adresses.
+// Ne pas presenter une reponse signUp sans session comme une livraison d'email garantie.
+const SIGNUP_EMAIL_MESSAGE =
+  'Si cette adresse peut être utilisée pour un nouveau compte, un e-mail de confirmation vous sera envoyé. ' +
+  'Si vous possédez déjà un compte, connectez-vous ou réinitialisez votre mot de passe.';
+
+function isExistingAccountSignupError(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error
+    ? (error as { code?: unknown }).code
+    : null;
+  const message = error instanceof Error ? error.message : String(error);
+  return code === 'user_already_exists' || /already registered|already exists|email.*already.*(?:registered|used|exists)/i.test(message);
+}
+
 function friendlyError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/invalid login credentials/i.test(message)) return 'Adresse e-mail ou mot de passe incorrect.';
   if (/email not confirmed/i.test(message)) return 'Confirmez votre adresse e-mail avant de vous connecter.';
-  if (/already registered/i.test(message)) return 'Cette adresse est déjà utilisée. Essayez de vous connecter.';
+  if (/already registered/i.test(message)) return 'Si vous possédez déjà un compte, connectez-vous ou réinitialisez votre mot de passe.';
   if (/password.*(weak|least|short)/i.test(message)) return 'Choisissez un mot de passe plus robuste.';
   if (/rate limit|too many requests|email rate limit/i.test(message)) return 'Trop de tentatives. Réessayez un peu plus tard.';
   return message || 'Une erreur est survenue. Réessayez.';
@@ -110,14 +124,14 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
             data: { full_name: name.trim(), company_name: business.trim() },
           },
         });
-        if (error) throw error;
-        // Sign-up request accepted by Supabase; email confirmation may still be pending.
-        trackNashraEvent('sign_up_requested', { method: 'email' });
-        if (!data.session) {
+        if (error && !isExistingAccountSignupError(error)) throw error;
+        // Analytics : seulement si Supabase a accepte la requete.
+        if (!error) trackNashraEvent('sign_up_requested', { method: 'email' });
+        if (error || !data.session) {
           setLeaving(null);
           setGood(true);
           setAwaitingConfirmation(true);
-          setFeedback('Vérifiez votre boîte e-mail pour confirmer votre adresse et activer votre compte. Pensez aux spams.');
+          setFeedback(SIGNUP_EMAIL_MESSAGE);
         } else {
           setLeaving(next.startsWith('/abonnement?') ? 'payment' : 'authentication');
           router.replace(next);
@@ -174,10 +188,20 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
       {awaitingConfirmation && mode === 'signup' ? (
         <div className="n8-confirmed">
           <div className="n8-confirmed-icon"><Mail size={25} /></div>
-          <h3>Un dernier clic et c'est prêt.</h3>
+          <h3>Vérifiez votre adresse e-mail</h3>
           <p>{feedback}</p>
           <span className="n8-email-recap">{email}</span>
-          <button type="button" className="n8-secondary" onClick={() => changeMode('login')}>Retour à la connexion <ArrowRight size={16} /></button>
+          <p className="n8-note">Vous avez déjà un compte ? Retrouvez votre accès sans refaire une inscription.</p>
+          <button type="button" className="n8-secondary" onClick={() => changeMode('login')}>Se connecter <ArrowRight size={16} /></button>
+          <button
+            type="button"
+            className="n8-link"
+            style={{ marginTop: 12 }}
+            onClick={() => { changeMode('login'); void forgotPassword(); }}
+            disabled={busy}
+          >
+            Mot de passe oublié ?
+          </button>
         </div>
       ) : (
         <form className="n8-form" onSubmit={e => void submit(e)}>
