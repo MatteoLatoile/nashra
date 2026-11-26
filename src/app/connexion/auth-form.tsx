@@ -9,8 +9,10 @@ import { trackNashraEvent } from '@/lib/analytics/events';
 
 type Mode = 'login' | 'signup';
 
-// Supabase peut masquer l'existence d'un compte pour eviter l'enumeration d'adresses.
-// Ne pas presenter une reponse signUp sans session comme une livraison d'email garantie.
+// Avec la confirmation d'email activee, Supabase peut retourner un utilisateur
+// fictif pour une adresse deja inscrite. Le tableau identities vide est alors
+// un signal de doublon; il ne faut pas promettre un email de confirmation.
+// Afficher ce signal constitue un choix UX qui revele l'existence d'un compte.
 const SIGNUP_EMAIL_MESSAGE =
   'Si cette adresse peut être utilisée pour un nouveau compte, un e-mail de confirmation vous sera envoyé. ' +
   'Si vous possédez déjà un compte, connectez-vous ou réinitialisez votre mot de passe.';
@@ -47,6 +49,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
   const [feedback, setFeedback] = useState('');
   const [good, setGood] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [existingAccount, setExistingAccount] = useState(false);
   const [leaving, setLeaving] = useState<'authentication' | 'payment' | null>(null);
 
   useEffect(() => {
@@ -60,6 +63,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
     setFeedback('');
     setGood(false);
     setAwaitingConfirmation(false);
+    setExistingAccount(false);
     setPassword('');
     setConfirmation('');
   }
@@ -89,6 +93,7 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
     if (busy) return;
     setFeedback('');
     setGood(false);
+    setExistingAccount(false);
 
     if (mode === 'signup') {
       if (name.trim().length < 2) {
@@ -124,10 +129,21 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
             data: { full_name: name.trim(), company_name: business.trim() },
           },
         });
-        if (error && !isExistingAccountSignupError(error)) throw error;
-        // Analytics : seulement si Supabase a accepte la requete.
-        if (!error) trackNashraEvent('sign_up_requested', { method: 'email' });
-        if (error || !data.session) {
+        // Supabase peut renvoyer { error: null, user: { identities: [] } }
+        // pour une adresse deja associee a un compte confirme.
+        const alreadyRegistered = isExistingAccountSignupError(error) ||
+          data.user?.identities?.length === 0;
+        if (alreadyRegistered) {
+          setLeaving(null);
+          setGood(false);
+          setExistingAccount(true);
+          setAwaitingConfirmation(true);
+          setFeedback('Cette adresse e-mail est déjà utilisée.');
+          return;
+        }
+        if (error) throw error;
+        trackNashraEvent('sign_up_requested', { method: 'email' });
+        if (!data.session) {
           setLeaving(null);
           setGood(true);
           setAwaitingConfirmation(true);
@@ -186,12 +202,18 @@ export default function AuthForm({ next = '/dashboard' }: { next?: string }) {
       </div>
 
       {awaitingConfirmation && mode === 'signup' ? (
-        <div className="n8-confirmed">
-          <div className="n8-confirmed-icon"><Mail size={25} /></div>
-          <h3>Vérifiez votre adresse e-mail</h3>
-          <p>{feedback}</p>
+        <div
+          className="n8-confirmed"
+          role={existingAccount ? 'alert' : 'status'}
+          style={existingAccount ? { background: 'rgba(245, 158, 11, 0.07)', borderColor: 'rgba(245, 158, 11, 0.35)' } : undefined}
+        >
+          <div className="n8-confirmed-icon" style={existingAccount ? { background: 'rgba(245, 158, 11, 0.15)', color: '#f3c16b' } : undefined}>
+            {existingAccount ? <AlertCircle size={25} /> : <Mail size={25} />}
+          </div>
+          <h3>{existingAccount ? 'Cette adresse e-mail est déjà utilisée' : 'Vérifiez votre adresse e-mail'}</h3>
+          <p>{existingAccount ? 'Un compte Nashra existe déjà avec cette adresse. Connectez-vous ou récupérez votre mot de passe pour y accéder.' : feedback}</p>
           <span className="n8-email-recap">{email}</span>
-          <p className="n8-note">Vous avez déjà un compte ? Retrouvez votre accès sans refaire une inscription.</p>
+          {!existingAccount && <p className="n8-note">Vous avez déjà un compte ? Retrouvez votre accès sans refaire une inscription.</p>}
           <button type="button" className="n8-secondary" onClick={() => changeMode('login')}>Se connecter <ArrowRight size={16} /></button>
           <button
             type="button"
