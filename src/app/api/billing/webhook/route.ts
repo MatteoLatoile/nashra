@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, noStore } from '@/lib/nashra-bundle/secure';
 import { billingMode, configuredPrice, stripeGet, verifyStripeSignature, type BillingInterval, type PaidTier } from '@/lib/nashra-bundle/stripe';
 import { tierFromVerifiedSubscription } from '@/lib/billing/entitlements';
+import { queueNotification, notificationsEnabled } from '@/lib/email/notifications';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,25 @@ export async function POST(req: NextRequest) {
       p_tier: tier, p_interval: interval,
     });
     if (error) throw error;
+    // Notifications are independent of subscription rights. A Resend/queue
+    // outage must never undo a successful signed Stripe synchronization.
+    if (notificationsEnabled()) {
+      try {
+        if (event.type === 'invoice.payment_failed'
+            && ['past_due','unpaid','incomplete'].includes(status)) {
+          const invoiceId = stringOf(event.data.object.id);
+          if (invoiceId && /^in_[a-zA-Z0-9]+$/.test(invoiceId)) {
+            await queueNotification(uid, 'payment_failed', `payment-failed:${invoiceId}`);
+          }
+        } else if (['customer.subscription.created','checkout.session.completed','checkout.session.async_payment_succeeded'].includes(event.type)
+            && ['active','trialing'].includes(status)
+            && (tier === 'pro' || tier === 'business')) {
+          await queueNotification(uid, 'subscription_activated', `subscription-activated:${identifier}`, { tier });
+        }
+      } catch {
+        console.error('[NASHRA_EMAIL] billing notification could not be queued; subscription remains synchronized');
+      }
+    }
     return NextResponse.json({ received: true }, { headers: noStore });
   } catch {
     // Retry on transient Stripe or DB errors. Never unlock a paid plan on a redirect alone.

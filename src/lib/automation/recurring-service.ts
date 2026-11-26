@@ -5,6 +5,9 @@ import { buildAnnouncementDelivery, getServiceClient, loadAlbum, loadVideo, safe
 import { recurringOccurrences, destinationSendAt, type IntervalRecurrence } from './recurrence';
 import { cancelTelegramSchedule, scheduleOnConnectedTelegram, withSchedulingClient } from './telegram-native';
 import { reserveSendWithOrigin, finalizeSend } from '@/lib/billing/quotas-server';
+import { listDialogsRaw } from '@/lib/telegram-user/core';
+import { findPublishedText } from './published-proof';
+import { queueNotification, sessionFingerprint } from '@/lib/email/notifications';
 
 const db = getServiceClient;
 const HORIZON_MS = 9 * 86_400_000;
@@ -26,7 +29,7 @@ async function markRule(id: string, status: 'active' | 'paused', last_problem: s
 }
 function matches(rule: RecurringRule, c: Campaign | undefined) {
   return c?.status === 'scheduled' && c?.recurrence?.mode === 'interval'
-    && c.announcementId === rule.announcement_id && c.scheduledAt === rule.anchor_at
+    && c.announcementId === rule.announcement_id && Date.parse(c.scheduledAt) === Date.parse(rule.anchor_at)
     && c.recurrence.intervalDays === rule.interval_days && c.recurrence.timeZone === rule.time_zone
     && JSON.stringify(c.destinationIds) === JSON.stringify(rule.destination_ids);
 }
@@ -38,7 +41,7 @@ export function recurringMismatch(rule: RecurringRule, c: Campaign | undefined):
   const interval = c.recurrence?.mode === 'interval' ? c.recurrence : null;
   if (!interval) reasons.push('répétition absente');
   if (c.announcementId !== rule.announcement_id) reasons.push('annonce différente');
-  if (c.scheduledAt !== rule.anchor_at) reasons.push('date de départ différente');
+  if (Date.parse(c.scheduledAt) !== Date.parse(rule.anchor_at)) reasons.push('date de départ différente');
   if (interval?.intervalDays !== rule.interval_days) reasons.push('intervalle différent');
   if (interval?.timeZone !== rule.time_zone) reasons.push('fuseau horaire différent');
   if ((interval?.until || null) !== (rule.until_day || null)) reasons.push('date de fin différente');
@@ -50,6 +53,8 @@ export type FillResult = { scheduled: number; existing: number; problem: string 
 export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN): Promise<FillResult> {
   const result: FillResult = { scheduled: 0, existing: 0, problem: null };
   if (rule.status !== 'active' || process.env.NASHRA_DISABLE_ALL_SENDS === '1' || process.env.NASHRA_RECURRING_ENABLED !== '1') return result;
+  const retryAt = rule.last_problem?.match(/^Reprise automatique après (\S+)/)?.[1];
+  if (retryAt && Date.parse(retryAt)>Date.now()) return {...result,problem:rule.last_problem};
   const store = db();
   const [{ data: ws, error: wsError }, { data: account, error: accError }] = await Promise.all([
     store.from('workspaces').select('data').eq('user_id',rule.user_id).maybeSingle(),
@@ -57,7 +62,12 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
   ]);
   const data = ws?.data as AppData | undefined;
   const campaign = data?.campaigns?.find(c => c.id === rule.id);
-  if (wsError || !data || !matches(rule,campaign) || !data.announcements || !data.destinations) {
+  if (wsError || accError) {
+    // No Telegram call has been made. A later cron may retry the read.
+    result.problem = 'Lecture temporairement indisponible. Nashra réessaiera au prochain passage.';
+    return result;
+  }
+  if (!data || !matches(rule,campaign) || !data.announcements || !data.destinations) {
     result.problem = wsError || !data ? 'Espace de travail indisponible : programmation suspendue.' : 'Règle et campagne désynchronisées (' + recurringMismatch(rule,campaign).join(', ') + '). Programmation suspendue.';
     await markRule(rule.id, 'paused', result.problem);
     return result;
@@ -106,8 +116,10 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
   }))).filter(job => Date.parse(job.scheduledAt) > Date.now() + MIN_FUTURE_MS);
   if (!options.length) return result;
   let fatal = false;
+  let connected = false;
   try {
     await withSchedulingClient(account.session_ciphertext, async client => {
+      connected = true;
       for (const item of options) {
         if (result.scheduled >= Math.min(limit, MAX_PER_RUN) || fatal) break;
         if (Date.now() + MIN_FUTURE_MS >= Date.parse(item.scheduledAt)) continue;
@@ -140,14 +152,23 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
           result.problem = 'File d’attente indisponible ou limite de programmations atteinte.';
           break;
         }
+        // A pause can land between the first rule check and insertion of the job.
+        // Once this row exists, cancellation also sees it as in progress.
+        const gate=await store.from('nashra_recurring_rules').select('status').eq('user_id',rule.user_id).eq('id',rule.id).maybeSingle();
+        if (gate.error || gate.data?.status!=='active') {
+          const stopped=await store.from('delivery_queue').update({status:'cancelled',updated_at:new Date().toISOString()})
+            .eq('id',job.id).eq('user_id',rule.user_id).eq('status','processing').select('id').maybeSingle();
+          if(stopped.data && !stopped.error) await finalizeSend(rule.user_id,booking.id,'released');
+          break;
+        }
         try {
           // Telegram receives a distinct native schedule per group. The 90-second
           // stagger applies to DELIVERY time, not just the order of these calls.
           const ids = await scheduleOnConnectedTelegram(client,item.work,item.scheduledAt,album);
-          const { error: saveError } = await store.from('delivery_queue').update({ status:'telegram_scheduled',
+          const {data:confirmed,error:saveError} = await store.from('delivery_queue').update({ status:'telegram_scheduled',
             telegram_scheduled_ids:ids, telegram_message_id:ids[0], last_error:null,
-            updated_at:new Date().toISOString() }).eq('id',job.id).eq('status','processing');
-          if (saveError) throw saveError;
+            updated_at:new Date().toISOString() }).eq('id',job.id).eq('status','processing').select('id').maybeSingle();
+          if (saveError || !confirmed) throw new Error('Confirmation indisponible.');
           result.scheduled++;
           await new Promise(resolve => setTimeout(resolve, 450));
         } catch (error) {
@@ -165,8 +186,28 @@ export async function fillRecurringRule(rule: RecurringRule, limit = MAX_PER_RUN
       }
     });
   } catch (error) {
+    // Only connection/setup failures before entering the publishing callback qualify.
+    const message=error instanceof Error?error.message:'';
+    const wait=message.match(/(?:FLOOD_WAIT_|SLOWMODE_WAIT_)(\d+)/i);
+    const seconds=Number((error as {seconds?:number})?.seconds ?? wait?.[1] ?? 0);
+    if (!connected && (wait || /TIMEOUT|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|FloodWait/i.test(message))) {
+      const delay=Math.max(300, Number.isFinite(seconds)?seconds:0);
+      if(delay < 315360000) {
+        result.problem='Reprise automatique après '+new Date(Date.now()+delay*1000).toISOString();
+        await store.from('nashra_recurring_rules').update({last_problem:result.problem,updated_at:new Date().toISOString()})
+          .eq('id',rule.id).eq('user_id',rule.user_id).eq('status','active');
+        return result;
+      }
+    }
     result.problem = 'Session Telegram indisponible : ' + safeReason(error);
     await markRule(rule.id,'paused',result.problem);
+    if (/AUTH_KEY_UNREGISTERED|SESSION_REVOKED|AUTH_KEY_INVALID|Session Telegram expirée/i.test(message)
+        && account?.session_ciphertext) {
+      try {
+        const fp=sessionFingerprint(account.session_ciphertext);
+        await queueNotification(rule.user_id,'telegram_reconnect',`telegram-expired:${rule.user_id}:${fp}`,{sessionFingerprint:fp});
+      } catch { console.error('[NASHRA_EMAIL] Telegram recurring disconnection not queued'); }
+    }
   }
   if (result.problem && !fatal) await store.from('nashra_recurring_rules').update({
     last_problem: result.problem, updated_at:new Date().toISOString() }).eq('id',rule.id);
@@ -203,10 +244,11 @@ export async function cancelRecurringFuture(rule: RecurringRule, workspace: AppD
     }
     try {
       await cancelTelegramSchedule(session,originalChatId,row.telegram_scheduled_ids as number[] || []);
-      const { error: updateError } = await store.from('delivery_queue').update({ status:'cancelled',
+      if (Date.parse(row.scheduled_at)<=Date.now()+5_000) throw new Error('Annulation trop proche du départ.');
+      const {data:cancelled,error:updateError} = await store.from('delivery_queue').update({ status:'cancelled',
         finished_at:new Date().toISOString(),updated_at:new Date().toISOString() })
-        .eq('id',row.id).eq('user_id',rule.user_id).eq('status','telegram_scheduled');
-      if (updateError) throw updateError;
+        .eq('id',row.id).eq('user_id',rule.user_id).eq('status','telegram_scheduled').select('id').maybeSingle();
+      if (updateError || !cancelled) throw new Error('Annulation non confirmée.');
       const { data: reservation } = await store.from('nashra_send_reservations').select('id,status')
         .eq('user_id',rule.user_id).eq('idempotency_key',row.job_key).maybeSingle();
       if (reservation?.status === 'reserved') await finalizeSend(rule.user_id,reservation.id,'released');
@@ -215,16 +257,70 @@ export async function cancelRecurringFuture(rule: RecurringRule, workspace: AppD
   return { cancelled: pending.length - failures.length, failures: failures.length, unverified };
 }
 
+/** Reconcile recent Telegram-native schedules against outgoing chat history.
+ * No Telegram send, no inferred delivery from absence and no rule reactivation.
+ * Keep this bounded: the same cron must still have time to refill future dates.
+ */
+async function reconcilePublishedRecurringJobs() {
+  const store=db();
+  const now=Date.now();
+  const {data:rows,error}=await store.from('delivery_queue')
+    .select('id,user_id,campaign_id,announcement_id,destination_id,scheduled_at,status')
+    .like('job_key','recurring:%')
+    .in('status',['telegram_scheduled','needs_review'])
+    .lt('scheduled_at',new Date(now-90_000).toISOString())
+    .gt('scheduled_at',new Date(now-7*86_400_000).toISOString())
+    .order('scheduled_at',{ascending:false}).limit(14);
+  if(error || !rows?.length)return;
+  const byUser=new Map<string,typeof rows>();
+  for(const row of rows){const batch=byUser.get(row.user_id)??[];batch.push(row);byUser.set(row.user_id,batch);}
+  for(const [userId,userRows] of [...byUser].slice(0,3)){
+    const [ws,account]=await Promise.all([
+      store.from('workspaces').select('data').eq('user_id',userId).maybeSingle(),
+      store.from('telegram_accounts').select('session_ciphertext').eq('user_id',userId).maybeSingle(),
+    ]);
+    if(ws.error||account.error||!ws.data?.data||!account.data?.session_ciphertext)continue;
+    const workspace=ws.data.data as AppData;
+    try{
+      await withSchedulingClient(account.data.session_ciphertext,async client=>{
+        const dialogs=new Map((await listDialogsRaw(client)).map(d=>[d.id,d.entity]));
+        for(const row of userRows){
+          const campaign=workspace.campaigns?.find(c=>c.id===row.campaign_id);
+          const peerId=campaign?.destinationHandles?.[row.destination_id];
+          const ad=workspace.announcements?.find(a=>a.id===row.announcement_id);
+          const body=ad?.body?.trim();
+          if(!peerId||!body||ad?.imageUrls?.length||ad?.videoUrl)continue;
+          const entity=dialogs.get(peerId);
+          if(!entity)continue;
+          try{
+            const peer=await client.getInputEntity(entity);
+            const publishedId=await findPublishedText(client,peer,body,row.scheduled_at,campaign?.destinationTopics?.[row.destination_id]??undefined);
+            if(!publishedId)continue;
+            await store.from('delivery_queue').update({
+              status:'sent',telegram_message_id:publishedId,
+              last_error:'Publication confirmée dans l’historique Telegram.',
+              finished_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+            }).eq('id',row.id).eq('user_id',userId).eq('status',row.status);
+          }catch{ /* Absence de preuve : conserver le statut sans republier. */ }
+        }
+      });
+    }catch{ /* Un compte inaccessible ne doit pas bloquer les autres campagnes. */ }
+  }
+}
+
 /** Can be run by a daily authenticated free-tier cron. Always pre-schedule days ahead. */
 export async function refillRecurringRules(): Promise<{ rules: number; scheduled: number; warnings: number }> {
   const store = db();
-  // Expired Telegram schedules are NOT proof that Telegram delivered the message.
-  // Free pending slots while preserving an explicit review status in history.
+  // First search for POSITIVE proof in the actual published history. A message
+  // disappearing from scheduled history is normal after delivery, not an error.
+  await reconcilePublishedRecurringJobs();
+  // Only unresolved schedules older than one day require a human check. The
+  // conservative fallback also frees stale quota slots without claiming success.
   const { error: expireError } = await store.from('delivery_queue').update({
-    status:'needs_review', last_error:'Heure passée : livraison Telegram à vérifier.',
+    status:'needs_review', last_error:'Publication ancienne : Nashra n’a pas pu confirmer sa livraison dans Telegram.',
     finished_at:new Date().toISOString(),updated_at:new Date().toISOString(),
   }).like('job_key','recurring:%').eq('status','telegram_scheduled')
-    .lt('scheduled_at',new Date(Date.now()-15*60_000).toISOString());
+    .lt('scheduled_at',new Date(Date.now()-24*60*60_000).toISOString());
   if (expireError) throw new Error('Réconciliation des programmations indisponible.');
   const { data: rules, error } = await store.from('nashra_recurring_rules').select('*')
     .eq('status','active').order('updated_at',{ascending:true}).limit(10);

@@ -5,6 +5,7 @@
  */
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { TelegramClient, Api } from 'teleproto';
+import { queueNotification, sessionFingerprint } from '@/lib/email/notifications';
 import { StringSession } from 'teleproto/sessions';
 import bigInt from 'big-integer';
 import { NextRequest } from 'next/server';
@@ -87,6 +88,16 @@ export async function withClient<T>(c: Awaited<ReturnType<typeof context>>, fn: 
     await client.connect();
     if (!(await client.checkAuthorization())) throw new Error('Session Telegram expirée : reconnectez votre compte.');
     return await fn(client);
+  } catch (e) {
+    // Notify only on a confirmed invalid authorization, never on network timeouts.
+    const message=e instanceof Error?e.message:String(e);
+    if (/Session Telegram expirée|AUTH_KEY_UNREGISTERED|SESSION_REVOKED|AUTH_KEY_INVALID/i.test(message)) {
+      try { await queueNotification(c.userId, 'telegram_reconnect',
+        `telegram-expired:${c.userId}:${sessionFingerprint(row.session_ciphertext)}`,
+        { sessionFingerprint:sessionFingerprint(row.session_ciphertext) }); }
+      catch { console.error('[NASHRA_EMAIL] Telegram disconnection notification not queued'); }
+    }
+    throw e;
   } finally { await client.disconnect(); }
 }
 export function apiError(error: unknown) {
